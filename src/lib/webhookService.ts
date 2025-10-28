@@ -14,29 +14,32 @@ export interface WebhookEmailPayload {
 export async function sendCompanyCreationWebhook(
   payload: WebhookEmailPayload
 ): Promise<{ success: boolean; error?: string }> {
-  const WEBHOOK_URL = 'https://webhook.dev.copertino.shop/webhook/email';
+  const FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-company-email`;
   
   try {
-    console.log('📤 Enviando webhook para:', WEBHOOK_URL);
+    console.log('📤 Chamando Edge Function para enviar email');
     console.log('📧 Payload:', { ...payload, temporaryPassword: '***' }); // Log without exposing password
     
-    const response = await fetch(WEBHOOK_URL, {
+    const response = await fetch(FUNCTION_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
       },
       body: JSON.stringify(payload),
     });
     
-    if (!response.ok) {
-      throw new Error(`Webhook failed: ${response.status} ${response.statusText}`);
+    const result = await response.json();
+    
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `Request failed: ${response.status}`);
     }
     
-    console.log('✅ Webhook enviado com sucesso');
+    console.log('✅ Email enviado com sucesso via Edge Function');
     return { success: true };
     
   } catch (error) {
-    console.error('❌ Erro ao enviar webhook:', error);
+    console.error('❌ Erro ao enviar email:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Erro desconhecido'
