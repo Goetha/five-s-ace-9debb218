@@ -129,6 +129,7 @@ export default function Empresas() {
       admin: {
         name: data.adminName,
         email: data.adminEmail,
+        temporaryPassword: data.temporaryPassword,
       },
       total_users: 1,
       created_at: new Date().toISOString(),
@@ -143,7 +144,7 @@ export default function Empresas() {
     
     toast({
       title: "✓ Empresa cadastrada com sucesso!",
-      description: `${data.name} foi criada no sistema`,
+      description: `${data.name} foi criada. Credenciais enviadas para ${data.adminEmail}`,
       className: "bg-green-50 border-green-200",
     });
   };

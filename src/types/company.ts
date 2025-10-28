@@ -30,6 +30,7 @@ export interface Company {
   admin: {
     name: string;
     email: string;
+    temporaryPassword?: string;
   };
   total_users: number;
   created_at: string;
@@ -50,4 +51,5 @@ export interface CompanyFormData {
   email: string;
   adminName: string;
   adminEmail: string;
+  temporaryPassword?: string;
 }

@@ -13,9 +13,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { CompanyFormData } from "@/types/company";
 import { formatPhone } from "@/lib/formatters";
+import { generateTemporaryPassword } from "@/lib/passwordGenerator";
+import { sendCompanyCreationWebhook } from "@/lib/webhookService";
 
 const companySchema = z.object({
   name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres"),
@@ -33,6 +35,7 @@ interface NewCompanyModalProps {
 
 export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [webhookStatus, setWebhookStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
   const {
     register,
@@ -62,12 +65,49 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
 
   const onSubmit = async (data: CompanyFormData) => {
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    onSave(data);
-    setIsSubmitting(false);
-    reset();
-    onOpenChange(false);
+    setWebhookStatus('sending');
+    
+    try {
+      // 1. Generate temporary password
+      const temporaryPassword = generateTemporaryPassword();
+      console.log('🔑 Senha temporária gerada');
+      
+      // 2. Send webhook
+      const webhookResult = await sendCompanyCreationWebhook({
+        adminEmail: data.adminEmail,
+        adminName: data.adminName,
+        temporaryPassword: temporaryPassword,
+        companyName: data.name,
+        timestamp: new Date().toISOString(),
+      });
+      
+      if (!webhookResult.success) {
+        setWebhookStatus('error');
+        console.error('Webhook falhou mas empresa será criada:', webhookResult.error);
+      } else {
+        setWebhookStatus('success');
+      }
+      
+      // 3. Save company with password
+      const dataWithPassword: CompanyFormData = {
+        ...data,
+        temporaryPassword,
+      };
+      
+      onSave(dataWithPassword);
+      
+      // 4. Reset and close
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setIsSubmitting(false);
+      setWebhookStatus('idle');
+      reset();
+      onOpenChange(false);
+      
+    } catch (error) {
+      console.error('Erro ao criar empresa:', error);
+      setIsSubmitting(false);
+      setWebhookStatus('error');
+    }
   };
 
   return (
@@ -179,6 +219,20 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
               </div>
             </div>
           </div>
+
+          {/* Webhook Status Feedback */}
+          {webhookStatus === 'sending' && (
+            <div className="flex items-center gap-2 text-sm text-blue-600">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Enviando credenciais por email...
+            </div>
+          )}
+          {webhookStatus === 'error' && (
+            <div className="flex items-center gap-2 text-sm text-amber-600">
+              <AlertCircle className="h-4 w-4" />
+              Email não enviado, mas empresa foi criada
+            </div>
+          )}
 
           <DialogFooter>
             <Button
