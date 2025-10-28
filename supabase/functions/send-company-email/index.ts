@@ -33,13 +33,22 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const WEBHOOK_URL = 'https://webhook.dev.copertino.shop/webhook/email';
-    
-    const webhookResponse = await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
+
+    // Endpoint externo aceita somente GET. Enviar dados via query string
+    const params = new URLSearchParams({
+      adminEmail: payload.adminEmail,
+      adminName: payload.adminName,
+      temporaryPassword: payload.temporaryPassword,
+      companyName: payload.companyName,
+      timestamp: payload.timestamp,
+    });
+
+    const url = `${WEBHOOK_URL}?${params.toString()}`;
+    const safeLogUrl = `${WEBHOOK_URL}?adminEmail=${encodeURIComponent(payload.adminEmail)}&adminName=${encodeURIComponent(payload.adminName)}&companyName=${encodeURIComponent(payload.companyName)}&timestamp=${encodeURIComponent(payload.timestamp)}`;
+    console.log('➡️  Chamando webhook externo via GET:', safeLogUrl);
+
+    const webhookResponse = await fetch(url, {
+      method: 'GET',
     });
 
     if (!webhookResponse.ok) {

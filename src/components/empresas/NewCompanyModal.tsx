@@ -18,6 +18,7 @@ import { CompanyFormData } from "@/types/company";
 import { formatPhone } from "@/lib/formatters";
 import { generateTemporaryPassword } from "@/lib/passwordGenerator";
 import { sendCompanyCreationWebhook } from "@/lib/webhookService";
+import { toast } from "@/components/ui/use-toast";
 
 const companySchema = z.object({
   name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres"),
@@ -84,6 +85,10 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
       if (!webhookResult.success) {
         setWebhookStatus('error');
         console.error('Webhook falhou mas empresa será criada:', webhookResult.error);
+        toast({
+          title: "Falha ao enviar email",
+          description: "Empresa criada, mas não foi possível enviar as credenciais agora.",
+        });
       } else {
         setWebhookStatus('success');
       }
