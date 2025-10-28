@@ -3,8 +3,53 @@ import { Building2, BookOpen, Users, ClipboardList, TrendingUp, Activity } from 
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { Company } from "@/types/company";
+import { Criteria } from "@/types/criteria";
+import { MasterModel } from "@/types/model";
 
 const Dashboard = () => {
+  const [stats, setStats] = useState({
+    totalCompanies: 0,
+    activeCompanies: 0,
+    inactiveCompanies: 0,
+    totalCriteria: 0,
+    activeCriteria: 0,
+    inactiveCriteria: 0,
+    totalModels: 0,
+    totalUsers: 0,
+  });
+
+  useEffect(() => {
+    // Load companies
+    const companiesData = localStorage.getItem("companies");
+    const companies: Company[] = companiesData ? JSON.parse(companiesData) : [];
+    
+    // Load criteria
+    const criteriaData = localStorage.getItem("criteria");
+    const criteria: Criteria[] = criteriaData ? JSON.parse(criteriaData) : [];
+    
+    // Load models
+    const modelsData = localStorage.getItem("models");
+    const models: MasterModel[] = modelsData ? JSON.parse(modelsData) : [];
+
+    // Calculate stats
+    const activeCompanies = companies.filter(c => c.status === "active").length;
+    const activeCriteria = criteria.filter(c => c.status === "Ativo").length;
+    const totalUsers = companies.reduce((sum, c) => sum + (c.total_users || 0), 0);
+
+    setStats({
+      totalCompanies: companies.length,
+      activeCompanies,
+      inactiveCompanies: companies.length - activeCompanies,
+      totalCriteria: criteria.length,
+      activeCriteria,
+      inactiveCriteria: criteria.length - activeCriteria,
+      totalModels: models.length,
+      totalUsers,
+    });
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -28,8 +73,10 @@ const Dashboard = () => {
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">10</div>
-              <p className="text-xs text-muted-foreground">8 ativas, 2 inativas</p>
+              <div className="text-2xl font-bold">{stats.totalCompanies}</div>
+              <p className="text-xs text-muted-foreground">
+                {stats.activeCompanies} ativas, {stats.inactiveCompanies} inativas
+              </p>
             </CardContent>
           </Card>
 
@@ -39,8 +86,10 @@ const Dashboard = () => {
               <BookOpen className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">48</div>
-              <p className="text-xs text-muted-foreground">45 ativos, 3 inativos</p>
+              <div className="text-2xl font-bold">{stats.totalCriteria}</div>
+              <p className="text-xs text-muted-foreground">
+                {stats.activeCriteria} ativos, {stats.inactiveCriteria} inativos
+              </p>
             </CardContent>
           </Card>
 
@@ -50,19 +99,19 @@ const Dashboard = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">156</div>
+              <div className="text-2xl font-bold">{stats.totalUsers}</div>
               <p className="text-xs text-muted-foreground">Todas as empresas</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Auditorias (30d)</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Modelos Mestre</CardTitle>
+              <ClipboardList className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">234</div>
-              <p className="text-xs text-muted-foreground">+12% vs mês anterior</p>
+              <div className="text-2xl font-bold">{stats.totalModels}</div>
+              <p className="text-xs text-muted-foreground">Cadastrados no sistema</p>
             </CardContent>
           </Card>
         </div>
