@@ -107,16 +107,28 @@ export default function Empresas() {
   };
 
   const handleView = (company: Company) => {
+    toast({
+      title: "👁️ Visualizar Empresa",
+      description: `Abrindo detalhes de ${company.name}`,
+    });
     console.log("View company:", company);
     // TODO: Implement view modal
   };
 
   const handleEdit = (company: Company) => {
+    toast({
+      title: "✏️ Editar Empresa",
+      description: `Editando ${company.name}`,
+    });
     console.log("Edit company:", company);
     // TODO: Implement edit modal
   };
 
   const handleAssignModels = (company: Company) => {
+    toast({
+      title: "🔗 Vincular Modelos",
+      description: `Gerenciando modelos para ${company.name}`,
+    });
     console.log("Assign models to:", company);
     // TODO: Implement assign models modal
   };
@@ -134,6 +146,11 @@ export default function Empresas() {
   };
 
   const handleDelete = (company: Company) => {
+    toast({
+      title: "🗑️ Excluir Empresa",
+      description: `Confirmar exclusão de ${company.name}?`,
+      variant: "destructive",
+    });
     console.log("Delete company:", company);
     // TODO: Implement delete confirmation modal
   };
