@@ -43,7 +43,7 @@ const ModelCard = ({
 
   return (
     <Card 
-      className={`transition-all hover:shadow-lg ${!isActive ? "opacity-60" : ""}`}
+      className={`transition-all hover:shadow-lg ${isActive ? "bg-green-50 border-green-200" : "opacity-60 bg-gray-50"}`}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
@@ -52,9 +52,6 @@ const ModelCard = ({
             <h3 className="font-bold text-lg leading-tight break-words">{model.name}</h3>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Badge variant={isActive ? "default" : "secondary"} className="whitespace-nowrap">
-              {isActive ? "🟢 Ativo" : "🔴 Inativo"}
-            </Badge>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
