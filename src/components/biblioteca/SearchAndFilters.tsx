@@ -1,6 +1,7 @@
-import { Search, Filter, Plus } from "lucide-react";
+import { Search, Filter, Plus, LayoutGrid, Table } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface SearchAndFiltersProps {
   searchValue: string;
@@ -8,6 +9,8 @@ interface SearchAndFiltersProps {
   onToggleFilters: () => void;
   showFilters: boolean;
   onNewCriterion: () => void;
+  viewMode: "table" | "cards";
+  onViewModeChange: (mode: "table" | "cards") => void;
 }
 
 const SearchAndFilters = ({
@@ -16,6 +19,8 @@ const SearchAndFilters = ({
   onToggleFilters,
   showFilters,
   onNewCriterion,
+  viewMode,
+  onViewModeChange,
 }: SearchAndFiltersProps) => {
   return (
     <div className="flex flex-col md:flex-row gap-3">
@@ -29,6 +34,16 @@ const SearchAndFilters = ({
           className="pl-9"
         />
       </div>
+
+      {/* View Mode Toggle */}
+      <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && onViewModeChange(value as "table" | "cards")}>
+        <ToggleGroupItem value="table" aria-label="Visualizar como tabela">
+          <Table className="h-4 w-4" />
+        </ToggleGroupItem>
+        <ToggleGroupItem value="cards" aria-label="Visualizar como cards">
+          <LayoutGrid className="h-4 w-4" />
+        </ToggleGroupItem>
+      </ToggleGroup>
 
       {/* Filter Button */}
       <Button

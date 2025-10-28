@@ -7,6 +7,7 @@ import SearchAndFilters from "@/components/biblioteca/SearchAndFilters";
 import AdvancedFilters from "@/components/biblioteca/AdvancedFilters";
 import SensoTabs from "@/components/biblioteca/SensoTabs";
 import CriteriaTable from "@/components/biblioteca/CriteriaTable";
+import CriteriaCards from "@/components/biblioteca/CriteriaCards";
 import BulkActions from "@/components/biblioteca/BulkActions";
 import Pagination from "@/components/biblioteca/Pagination";
 import CriterionFormModal from "@/components/biblioteca/CriterionFormModal";
@@ -29,6 +30,7 @@ const BibliotecaCriterios = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewCriterion, setViewCriterion] = useState<Criteria | null>(null);
   const [editCriterion, setEditCriterion] = useState<Criteria | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
   const [filters, setFilters] = useState<CriteriaFilters>({
     search: "",
@@ -232,6 +234,8 @@ const BibliotecaCriterios = () => {
           onToggleFilters={() => setShowAdvancedFilters(!showAdvancedFilters)}
           showFilters={showAdvancedFilters}
           onNewCriterion={() => setIsModalOpen(true)}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
         />
 
         {/* Advanced Filters Panel */}
@@ -302,16 +306,27 @@ const BibliotecaCriterios = () => {
           }}
         />
 
-        {/* Criteria Table */}
-        <CriteriaTable
-          criteria={paginatedCriteria}
-          selectedIds={selectedIds}
-          onSelectAll={handleSelectAll}
-          onSelectOne={handleSelectOne}
-          onView={handleViewCriterion}
-          onEdit={handleEditCriterion}
-          onDuplicate={handleDuplicateCriterion}
-        />
+        {/* Criteria Table or Cards */}
+        {viewMode === "table" ? (
+          <CriteriaTable
+            criteria={paginatedCriteria}
+            selectedIds={selectedIds}
+            onSelectAll={handleSelectAll}
+            onSelectOne={handleSelectOne}
+            onView={handleViewCriterion}
+            onEdit={handleEditCriterion}
+            onDuplicate={handleDuplicateCriterion}
+          />
+        ) : (
+          <CriteriaCards
+            criteria={paginatedCriteria}
+            selectedIds={selectedIds}
+            onSelectOne={handleSelectOne}
+            onView={handleViewCriterion}
+            onEdit={handleEditCriterion}
+            onDuplicate={handleDuplicateCriterion}
+          />
+        )}
 
         {/* Pagination */}
         {filteredCriteria.length > 0 && (
