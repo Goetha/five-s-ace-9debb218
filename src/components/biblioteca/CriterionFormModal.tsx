@@ -48,8 +48,8 @@ const criterionSchema = z.object({
     .max(100, "O nome deve ter no máximo 100 caracteres"),
   description: z
     .string()
-    .min(20, "A descrição deve ter no mínimo 20 caracteres")
-    .max(500, "A descrição deve ter no máximo 500 caracteres"),
+    .max(500, "A descrição deve ter no máximo 500 caracteres")
+    .optional(),
   senso: z.enum(["1S", "2S", "3S", "4S", "5S"], {
     required_error: "Selecione um senso",
   }),
@@ -258,7 +258,7 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          Descrição/Instrução <span className="text-destructive">*</span>
+                          Descrição/Instrução
                         </FormLabel>
                         <FormControl>
                           <Textarea
