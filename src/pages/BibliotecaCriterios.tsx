@@ -131,8 +131,8 @@ const BibliotecaCriterios = () => {
       setEditCriterion(null);
     } else {
       // Generate new ID (next sequential number)
-      const maxId = Math.max(...criteria.map((c) => parseInt(c.id)), 0);
-      const newId = String(maxId + 1).padStart(3, "0");
+      const maxId = Math.max(...criteria.map((c) => parseInt(c.id.replace(/\D/g, '')) || 0), 0);
+      const newId = `C${String(maxId + 1).padStart(3, "0")}`;
 
       const criterionToAdd: Criteria = {
         ...newCriterion,
@@ -170,8 +170,8 @@ const BibliotecaCriterios = () => {
 
   // Handle duplicate criterion
   const handleDuplicateCriterion = (criterion: Criteria) => {
-    const maxId = Math.max(...criteria.map((c) => parseInt(c.id)), 0);
-    const newId = String(maxId + 1).padStart(3, "0");
+    const maxId = Math.max(...criteria.map((c) => parseInt(c.id.replace(/\D/g, '')) || 0), 0);
+    const newId = `C${String(maxId + 1).padStart(3, "0")}`;
 
     const duplicatedCriterion: Criteria = {
       ...criterion,

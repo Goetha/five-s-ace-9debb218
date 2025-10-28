@@ -74,7 +74,7 @@ const DropdownMenuLabel = React.forwardRef<React.ElementRef<typeof DropdownMenuP
   className,
   inset,
   ...props
-}, ref) => {});
+}, ref) => <DropdownMenuPrimitive.Label ref={ref} className={cn(inset && "pl-8", className)} {...props} />);
 DropdownMenuLabel.displayName = DropdownMenuPrimitive.Label.displayName;
 const DropdownMenuSeparator = React.forwardRef<React.ElementRef<typeof DropdownMenuPrimitive.Separator>, React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>>(({
   className,
