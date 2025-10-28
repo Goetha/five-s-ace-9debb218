@@ -9,39 +9,53 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Link, useLocation } from "react-router-dom";
 
 const Header = () => {
   const notificationCount = 3;
+  const location = useLocation();
+  
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <div className="flex items-center gap-8">
-          <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
               5S
             </div>
             <span className="text-xl font-bold text-foreground">Manager</span>
-          </div>
+          </Link>
 
           {/* Navigation Menu */}
           <nav className="hidden md:flex items-center gap-6">
-            <a
-              href="#"
-              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+            <Link
+              to="/"
+              className={`text-sm font-medium transition-colors ${
+                isActive("/") 
+                  ? "text-primary border-b-2 border-primary pb-1" 
+                  : "text-foreground hover:text-primary"
+              }`}
             >
               Dashboard
-            </a>
+            </Link>
+            <Link
+              to="/empresas"
+              className={`text-sm font-medium transition-colors ${
+                isActive("/empresas") 
+                  ? "text-primary border-b-2 border-primary pb-1" 
+                  : "text-foreground hover:text-primary"
+              }`}
+            >
+              Empresas
+            </Link>
             <a
               href="#"
               className="text-sm font-medium text-foreground hover:text-primary transition-colors"
-            >
-              Empresas
-            </a>
-            <a
-              href="#"
-              className="text-sm font-medium text-primary border-b-2 border-primary pb-1"
             >
               Biblioteca de Critérios
             </a>
