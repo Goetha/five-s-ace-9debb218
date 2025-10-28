@@ -1,0 +1,98 @@
+import { Bell, ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+
+const Header = () => {
+  const notificationCount = 3;
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+        {/* Logo */}
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
+              5S
+            </div>
+            <span className="text-xl font-bold text-foreground">Manager</span>
+          </div>
+
+          {/* Navigation Menu */}
+          <nav className="hidden md:flex items-center gap-6">
+            <a
+              href="#"
+              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+            >
+              Dashboard
+            </a>
+            <a
+              href="#"
+              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+            >
+              Empresas
+            </a>
+            <a
+              href="#"
+              className="text-sm font-medium text-primary border-b-2 border-primary pb-1"
+            >
+              Biblioteca de Critérios
+            </a>
+            <a
+              href="#"
+              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+            >
+              Modelos Mestre
+            </a>
+          </nav>
+        </div>
+
+        {/* Right side - Notifications and User */}
+        <div className="flex items-center gap-4">
+          {/* Notifications */}
+          <Button variant="ghost" size="icon" className="relative">
+            <Bell className="h-5 w-5" />
+            {notificationCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+              >
+                {notificationCount}
+              </Badge>
+            )}
+          </Button>
+
+          {/* User Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                    AI
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden md:inline text-sm font-medium">Admin IFA</span>
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem>Meu Perfil</DropdownMenuItem>
+              <DropdownMenuItem>Configurações</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-error">Sair</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default Header;

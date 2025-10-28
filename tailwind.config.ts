@@ -22,10 +22,30 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        error: {
+          DEFAULT: "hsl(var(--error))",
+          foreground: "hsl(var(--error-foreground))",
+        },
+        senso: {
+          "1s": "hsl(var(--senso-1s))",
+          "2s": "hsl(var(--senso-2s))",
+          "3s": "hsl(var(--senso-3s))",
+          "4s": "hsl(var(--senso-4s))",
+          "5s": "hsl(var(--senso-5s))",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
