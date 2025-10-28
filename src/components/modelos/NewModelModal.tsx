@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,12 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Search, ArrowUp, ArrowDown, X } from "lucide-react";
+import { Search, ArrowUp, ArrowDown, X, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { mockCriteria } from "@/data/mockCriteria";
 import { Criteria, SensoType } from "@/types/criteria";
 import { useToast } from "@/hooks/use-toast";
+import CriterionFormModal from "@/components/biblioteca/CriterionFormModal";
 
 interface NewModelModalProps {
   open: boolean;
@@ -36,8 +35,24 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
   const [selectedCriteria, setSelectedCriteria] = useState<Criteria[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sensoFilter, setSensoFilter] = useState<string>("Todos");
+  const [availableCriteria, setAvailableCriteria] = useState<Criteria[]>([]);
+  const [isCreateCriterionOpen, setIsCreateCriterionOpen] = useState(false);
 
-  const filteredCriteria = mockCriteria.filter((c) => {
+  // Load criteria from localStorage
+  useEffect(() => {
+    const loadCriteria = () => {
+      const stored = localStorage.getItem("criteria");
+      if (stored) {
+        setAvailableCriteria(JSON.parse(stored));
+      } else {
+        setAvailableCriteria([]);
+      }
+    };
+
+    loadCriteria();
+  }, [open]);
+
+  const filteredCriteria = availableCriteria.filter((c) => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSenso = sensoFilter === "Todos" || c.senso === sensoFilter;
     const notSelected = !selectedCriteria.find((sc) => sc.id === c.id);
@@ -64,6 +79,26 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
     const newList = [...selectedCriteria];
     [newList[index], newList[index + 1]] = [newList[index + 1], newList[index]];
     setSelectedCriteria(newList);
+  };
+
+  const handleSaveCriterion = (criterionData: any) => {
+    // Save to localStorage
+    const stored = localStorage.getItem("criteria");
+    const criteria = stored ? JSON.parse(stored) : [];
+    const newCriterion = {
+      ...criterionData,
+      id: criterionData.id || `C${String(criteria.length + 1).padStart(3, "0")}`,
+    };
+    criteria.push(newCriterion);
+    localStorage.setItem("criteria", JSON.stringify(criteria));
+    setAvailableCriteria(criteria);
+    
+    toast({
+      title: "Critério criado!",
+      description: "O critério foi adicionado à biblioteca",
+    });
+    
+    setIsCreateCriterionOpen(false);
   };
 
   const handleSave = () => {
@@ -193,11 +228,21 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Coluna Esquerda: Disponíveis */}
               <div className="border rounded-lg p-4 space-y-4">
-                <div>
-                  <h4 className="font-medium mb-2">📚 Biblioteca de Critérios</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {mockCriteria.length} critérios disponíveis
-                  </p>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-medium mb-2">📚 Biblioteca de Critérios</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {availableCriteria.length} critérios disponíveis
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsCreateCriterionOpen(true)}
+                    className="gap-1"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Criar Critério
+                  </Button>
                 </div>
 
                 <div className="space-y-2">
@@ -256,9 +301,24 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
                       </div>
                     </div>
                   ))}
-                  {filteredCriteria.length === 0 && (
+                  {availableCriteria.length === 0 && (
+                    <div className="text-center py-8 space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum critério criado ainda
+                      </p>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsCreateCriterionOpen(true)}
+                        className="gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Criar Primeiro Critério
+                      </Button>
+                    </div>
+                  )}
+                  {availableCriteria.length > 0 && filteredCriteria.length === 0 && (
                     <p className="text-center text-sm text-muted-foreground py-8">
-                      Nenhum critério encontrado
+                      Nenhum critério encontrado com os filtros aplicados
                     </p>
                   )}
                 </div>
@@ -385,6 +445,13 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <CriterionFormModal
+        open={isCreateCriterionOpen}
+        onClose={() => setIsCreateCriterionOpen(false)}
+        onSave={handleSaveCriterion}
+        mode="create"
+      />
     </Dialog>
   );
 };
