@@ -100,6 +100,7 @@ const CriterionFormModal = ({ open, onClose, onSave }: CriterionFormModalProps) 
 
   const form = useForm<CriterionFormValues>({
     resolver: zodResolver(criterionSchema),
+    mode: "onChange", // Validate on change to enable button in real-time
     defaultValues: {
       name: "",
       description: "",
