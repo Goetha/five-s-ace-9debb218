@@ -25,6 +25,8 @@ All colors MUST be HSL.
     /* Success Green */
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
+    --success-light: 142 50% 95%;
+    --success-border: 142 45% 80%;
     
     /* Warning Orange */
     --warning: 38 92% 50%;
@@ -93,6 +95,8 @@ All colors MUST be HSL.
 
     --success: 160 84% 39%;
     --success-foreground: 0 0% 100%;
+    --success-light: 142 50% 95%;
+    --success-border: 142 45% 80%;
     
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 0%;

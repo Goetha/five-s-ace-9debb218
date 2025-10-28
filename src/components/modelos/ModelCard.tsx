@@ -43,7 +43,7 @@ const ModelCard = ({
 
   return (
     <Card 
-      className={`transition-all hover:shadow-lg ${isActive ? "bg-green-50 border-green-200" : "opacity-60 bg-gray-50"}`}
+      className={`transition-all hover:shadow-lg ${isActive ? "bg-success-light border-success-border" : "opacity-60"}`}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
