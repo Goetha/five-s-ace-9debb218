@@ -63,12 +63,16 @@ const Header = () => {
             >
               Empresas
             </Link>
-            <a
-              href="#"
-              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+            <Link
+              to="/modelos-mestre"
+              className={`text-sm font-medium transition-colors ${
+                isActive("/modelos-mestre") 
+                  ? "text-primary border-b-2 border-primary pb-1" 
+                  : "text-foreground hover:text-primary"
+              }`}
             >
               Modelos Mestre
-            </a>
+            </Link>
           </nav>
         </div>
 
