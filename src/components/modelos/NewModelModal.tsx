@@ -29,9 +29,9 @@ const sensoColors: Record<string, string> = {
 
 const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalProps) => {
   const { toast } = useToast();
-  const [name, setName] = useState(editModel?.name || "");
-  const [description, setDescription] = useState(editModel?.description || "");
-  const [status, setStatus] = useState(editModel?.status || "active");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [status, setStatus] = useState<"active" | "inactive">("active");
   const [selectedCriteria, setSelectedCriteria] = useState<Criteria[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sensoFilter, setSensoFilter] = useState<string>("Todos");
@@ -43,14 +43,36 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
     const loadCriteria = () => {
       const stored = localStorage.getItem("criteria");
       if (stored) {
-        setAvailableCriteria(JSON.parse(stored));
+        const allCriteria = JSON.parse(stored);
+        setAvailableCriteria(allCriteria);
+        
+        // If editing, load the selected criteria
+        if (editModel?.selectedCriteria && editModel.selectedCriteria.length > 0) {
+          const selected = allCriteria.filter((c: Criteria) => 
+            editModel.selectedCriteria.includes(c.id)
+          );
+          setSelectedCriteria(selected);
+        }
       } else {
         setAvailableCriteria([]);
       }
     };
 
-    loadCriteria();
-  }, [open]);
+    if (open) {
+      loadCriteria();
+      // Reset form if not editing
+      if (!editModel) {
+        setName("");
+        setDescription("");
+        setStatus("active");
+        setSelectedCriteria([]);
+      } else {
+        setName(editModel.name || "");
+        setDescription(editModel.description || "");
+        setStatus(editModel.status || "active");
+      }
+    }
+  }, [open, editModel]);
 
   const filteredCriteria = availableCriteria.filter((c) => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -204,7 +226,7 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
 
             <div className="space-y-2">
               <Label>Status</Label>
-              <RadioGroup value={status} onValueChange={setStatus}>
+              <RadioGroup value={status} onValueChange={(value) => setStatus(value as "active" | "inactive")}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="active" id="active" />
                   <Label htmlFor="active" className="font-normal cursor-pointer">
