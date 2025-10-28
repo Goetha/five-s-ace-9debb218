@@ -19,6 +19,7 @@ import { formatPhone } from "@/lib/formatters";
 import { generateTemporaryPassword } from "@/lib/passwordGenerator";
 import { sendCompanyCreationWebhook } from "@/lib/webhookService";
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const companySchema = z.object({
   name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres"),
@@ -71,9 +72,88 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
     try {
       // 1. Generate temporary password
       const temporaryPassword = generateTemporaryPassword();
-      console.log('🔑 Senha temporária gerada');
+      console.log('🔑 Senha temporária gerada:', temporaryPassword);
       
-      // 2. Send webhook
+      // 2. Create user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.adminEmail,
+        password: temporaryPassword,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: data.adminName,
+          }
+        }
+      });
+
+      if (authError) {
+        console.error('Erro ao criar usuário:', authError);
+        toast({
+          title: "Erro ao criar usuário",
+          description: authError.message,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        setWebhookStatus('error');
+        return;
+      }
+
+      if (!authData.user) {
+        toast({
+          title: "Erro ao criar usuário",
+          description: "Não foi possível criar o usuário no sistema.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        setWebhookStatus('error');
+        return;
+      }
+
+      console.log('✅ Usuário criado no Auth:', authData.user.id);
+      
+      // 3. Save company with password (generate company ID first)
+      const companyId = crypto.randomUUID();
+      const dataWithPassword: CompanyFormData = {
+        ...data,
+        temporaryPassword,
+      };
+      
+      // Save company through parent component
+      onSave(dataWithPassword);
+      
+      // 4. Assign company_admin role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: authData.user.id,
+          role: 'company_admin'
+        });
+
+      if (roleError) {
+        console.error('Erro ao atribuir role:', roleError);
+        toast({
+          title: "Aviso",
+          description: "Usuário criado, mas não foi possível atribuir o papel de administrador automaticamente.",
+        });
+      } else {
+        console.log('✅ Role company_admin atribuído');
+      }
+
+      // 5. Link user to company
+      const { error: companyLinkError } = await supabase
+        .from('user_companies')
+        .insert({
+          user_id: authData.user.id,
+          company_id: companyId
+        });
+
+      if (companyLinkError) {
+        console.error('Erro ao vincular usuário à empresa:', companyLinkError);
+      } else {
+        console.log('✅ Usuário vinculado à empresa');
+      }
+      
+      // 6. Send webhook notification
       const webhookResult = await sendCompanyCreationWebhook({
         adminEmail: data.adminEmail,
         adminName: data.adminName,
@@ -84,24 +164,20 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
       
       if (!webhookResult.success) {
         setWebhookStatus('error');
-        console.error('Webhook falhou mas empresa será criada:', webhookResult.error);
+        console.error('Webhook falhou:', webhookResult.error);
         toast({
-          title: "Falha ao enviar email",
-          description: "Empresa criada, mas não foi possível enviar as credenciais agora.",
+          title: "Empresa criada com sucesso!",
+          description: `Credenciais: ${data.adminEmail} / ${temporaryPassword}`,
         });
       } else {
         setWebhookStatus('success');
+        toast({
+          title: "Empresa criada com sucesso!",
+          description: "As credenciais foram enviadas por email.",
+        });
       }
       
-      // 3. Save company with password
-      const dataWithPassword: CompanyFormData = {
-        ...data,
-        temporaryPassword,
-      };
-      
-      onSave(dataWithPassword);
-      
-      // 4. Reset and close
+      // 7. Reset and close
       await new Promise(resolve => setTimeout(resolve, 500));
       setIsSubmitting(false);
       setWebhookStatus('idle');
@@ -110,6 +186,11 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
       
     } catch (error) {
       console.error('Erro ao criar empresa:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao criar a empresa. Tente novamente.",
+        variant: "destructive",
+      });
       setIsSubmitting(false);
       setWebhookStatus('error');
     }
@@ -225,17 +306,17 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
             </div>
           </div>
 
-          {/* Webhook Status Feedback */}
+          {/* Status Feedback */}
           {webhookStatus === 'sending' && (
             <div className="flex items-center gap-2 text-sm text-blue-600">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Enviando credenciais por email...
+              Criando usuário e configurando acesso...
             </div>
           )}
           {webhookStatus === 'error' && (
             <div className="flex items-center gap-2 text-sm text-amber-600">
               <AlertCircle className="h-4 w-4" />
-              Email não enviado, mas empresa foi criada
+              Verifique as credenciais no console
             </div>
           )}
 
