@@ -23,6 +23,7 @@ import { SendEmailModal } from "@/components/empresas/SendEmailModal";
 import { mockCompanies } from "@/data/mockCompanies";
 import { mockModels } from "@/data/mockModels";
 import { Company, CompanyFormData } from "@/types/company";
+import { MasterModel } from "@/types/model";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Empresas() {
@@ -38,10 +39,25 @@ export default function Empresas() {
     }
   });
 
+  // Load models from localStorage on mount
+  const [models, setModels] = useState<MasterModel[]>(() => {
+    try {
+      const saved = localStorage.getItem('models');
+      return saved ? JSON.parse(saved) : mockModels;
+    } catch {
+      return mockModels;
+    }
+  });
+
   // Save companies to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('companies', JSON.stringify(companies));
   }, [companies]);
+
+  // Save models to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('models', JSON.stringify(models));
+  }, [models]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
@@ -170,6 +186,23 @@ export default function Empresas() {
     toast({
       title: "✓ Modelos atualizados!",
       description: `${linkedModels.length} modelos foram vinculados.`,
+      className: "bg-green-50 border-green-200",
+    });
+  };
+
+  const handleCreateModel = (newModel: Omit<MasterModel, "id" | "created_at" | "updated_at">) => {
+    const model: MasterModel = {
+      ...newModel,
+      id: Math.random().toString(36).substring(2, 11),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    
+    setModels([...models, model]);
+    
+    toast({
+      title: "✓ Modelo criado!",
+      description: `${model.name} foi adicionado com sucesso.`,
       className: "bg-green-50 border-green-200",
     });
   };
@@ -341,10 +374,11 @@ export default function Empresas() {
 
       <AssignModelsModal
         company={assignModelsCompany}
-        models={mockModels}
+        models={models}
         open={!!assignModelsCompany}
         onOpenChange={(open) => !open && setAssignModelsCompany(null)}
         onSave={handleSaveModels}
+        onCreateModel={handleCreateModel}
       />
 
       <DeleteCompanyDialog

@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Plus } from "lucide-react";
+import NewModelModal from "@/components/modelos/NewModelModal";
 
 interface AssignModelsModalProps {
   company: Company | null;
@@ -22,6 +24,7 @@ interface AssignModelsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (linkedModels: string[]) => void;
+  onCreateModel?: (model: MasterModel) => void;
 }
 
 interface ModelLink {
@@ -36,10 +39,12 @@ export function AssignModelsModal({
   models, 
   open, 
   onOpenChange, 
-  onSave 
+  onSave,
+  onCreateModel
 }: AssignModelsModalProps) {
   const [modelLinks, setModelLinks] = useState<Map<string, ModelLink>>(new Map());
   const [notifyAll, setNotifyAll] = useState(false);
+  const [showNewModelModal, setShowNewModelModal] = useState(false);
 
   useEffect(() => {
     if (company && models.length > 0) {
@@ -102,17 +107,31 @@ export function AssignModelsModal({
   const enabledCount = Array.from(modelLinks.values()).filter(l => l.enabled).length;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Atribuir Modelos Mestre</DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Empresa: {company.name}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {enabledCount} modelos vinculados de {models.length} total
-          </p>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <DialogTitle>Atribuir Modelos Mestre</DialogTitle>
+                <p className="text-sm text-muted-foreground">
+                  Empresa: {company.name}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {enabledCount} modelos vinculados de {models.length} total
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowNewModelModal(true)}
+                className="ml-4"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Novo Modelo
+              </Button>
+            </div>
+          </DialogHeader>
 
         <div className="space-y-4 py-4">
           {models.map(model => {
@@ -218,5 +237,17 @@ export function AssignModelsModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <NewModelModal
+      open={showNewModelModal}
+      onOpenChange={setShowNewModelModal}
+      onSave={(model) => {
+        if (onCreateModel) {
+          onCreateModel(model);
+        }
+        setShowNewModelModal(false);
+      }}
+    />
+    </>
   );
 }
