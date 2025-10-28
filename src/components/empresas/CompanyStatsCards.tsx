@@ -17,29 +17,29 @@ export function CompanyStatsCards({ companies }: CompanyStatsCardsProps) {
       label: "Total de Empresas",
       value: totalCompanies,
       icon: Building,
-      bgColor: "bg-blue-50",
-      iconColor: "text-blue-600",
+      bgColor: "bg-card",
+      iconColor: "text-primary",
     },
     {
       label: "Empresas Ativas",
       value: activeCompanies,
       icon: CheckCircle,
-      bgColor: "bg-green-50",
-      iconColor: "text-green-600",
+      bgColor: "bg-card",
+      iconColor: "text-success",
     },
     {
       label: "Empresas Inativas",
       value: inactiveCompanies,
       icon: Circle,
-      bgColor: "bg-gray-50",
-      iconColor: "text-gray-600",
+      bgColor: "bg-card",
+      iconColor: "text-muted-foreground",
     },
     {
       label: "Total de Usuários",
       value: totalUsers,
       icon: Users,
-      bgColor: "bg-purple-50",
-      iconColor: "text-purple-600",
+      bgColor: "bg-card",
+      iconColor: "text-primary",
       subtext: "Todas as empresas",
     },
   ];
@@ -49,16 +49,16 @@ export function CompanyStatsCards({ companies }: CompanyStatsCardsProps) {
       {stats.map((stat, index) => {
         const Icon = stat.icon;
         return (
-          <Card key={index} className={`${stat.bgColor} border-0 p-6 transition-all hover:shadow-md`}>
+          <Card key={index} className={`${stat.bgColor} p-6 transition-all hover:shadow-md`}>
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">{stat.label}</p>
-                <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">{stat.label}</p>
+                <p className="text-3xl font-bold text-foreground">{stat.value}</p>
                 {stat.subtext && (
-                  <p className="text-xs text-gray-500 mt-1">{stat.subtext}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{stat.subtext}</p>
                 )}
               </div>
-              <div className={`${stat.iconColor} p-3 rounded-lg bg-white/50`}>
+              <div className={`${stat.iconColor} p-3 rounded-lg bg-accent/10`}>
                 <Icon className="h-6 w-6" />
               </div>
             </div>
