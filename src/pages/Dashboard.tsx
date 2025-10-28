@@ -99,8 +99,8 @@ const Dashboard = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">Todas as empresas</p>
+              <div className="text-2xl font-bold">1</div>
+              <p className="text-xs text-muted-foreground">IFA Admin</p>
             </CardContent>
           </Card>
 
