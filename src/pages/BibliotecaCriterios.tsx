@@ -10,6 +10,7 @@ import CriteriaTable from "@/components/biblioteca/CriteriaTable";
 import BulkActions from "@/components/biblioteca/BulkActions";
 import Pagination from "@/components/biblioteca/Pagination";
 import CriterionFormModal from "@/components/biblioteca/CriterionFormModal";
+import ViewCriterionModal from "@/components/biblioteca/ViewCriterionModal";
 import { mockCriteria } from "@/data/mockCriteria";
 import { Criteria, CriteriaFilters, SensoType } from "@/types/criteria";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +27,8 @@ const BibliotecaCriterios = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewCriterion, setViewCriterion] = useState<Criteria | null>(null);
+  const [editCriterion, setEditCriterion] = useState<Criteria | null>(null);
 
   const [filters, setFilters] = useState<CriteriaFilters>({
     search: "",
@@ -109,30 +112,88 @@ const BibliotecaCriterios = () => {
 
   // Handle new criterion save
   const handleSaveCriterion = (newCriterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">) => {
-    // Generate new ID (next sequential number)
+    if (editCriterion) {
+      // Update existing criterion
+      setCriteria(criteria.map(c => 
+        c.id === editCriterion.id 
+          ? { ...c, ...newCriterion }
+          : c
+      ));
+      
+      toast({
+        title: "✓ Critério atualizado com sucesso!",
+        description: `${newCriterion.name} foi atualizado.`,
+        duration: 3000,
+      });
+      
+      setEditCriterion(null);
+    } else {
+      // Generate new ID (next sequential number)
+      const maxId = Math.max(...criteria.map((c) => parseInt(c.id)), 0);
+      const newId = String(maxId + 1).padStart(3, "0");
+
+      const criterionToAdd: Criteria = {
+        ...newCriterion,
+        id: newId,
+        companiesUsing: 0,
+        modelsUsing: 0,
+      };
+
+      // Add to the beginning of the list
+      setCriteria([criterionToAdd, ...criteria]);
+
+      // Show success toast
+      toast({
+        title: "✓ Critério criado com sucesso!",
+        description: `${newCriterion.name} foi adicionado à biblioteca.`,
+        duration: 3000,
+      });
+
+      // Reset selections and go to first page
+      setSelectedIds([]);
+      setCurrentPage(1);
+    }
+  };
+
+  // Handle view criterion
+  const handleViewCriterion = (criterion: Criteria) => {
+    setViewCriterion(criterion);
+  };
+
+  // Handle edit criterion
+  const handleEditCriterion = (criterion: Criteria) => {
+    setEditCriterion(criterion);
+    setIsModalOpen(true);
+  };
+
+  // Handle duplicate criterion
+  const handleDuplicateCriterion = (criterion: Criteria) => {
     const maxId = Math.max(...criteria.map((c) => parseInt(c.id)), 0);
     const newId = String(maxId + 1).padStart(3, "0");
 
-    const criterionToAdd: Criteria = {
-      ...newCriterion,
+    const duplicatedCriterion: Criteria = {
+      ...criterion,
       id: newId,
+      name: `${criterion.name} (Cópia)`,
       companiesUsing: 0,
       modelsUsing: 0,
     };
 
-    // Add to the beginning of the list
-    setCriteria([criterionToAdd, ...criteria]);
+    setCriteria([duplicatedCriterion, ...criteria]);
 
-    // Show success toast
     toast({
-      title: "✓ Critério criado com sucesso!",
-      description: `${newCriterion.name} foi adicionado à biblioteca.`,
+      title: "✓ Critério duplicado com sucesso!",
+      description: `${criterion.name} foi duplicado.`,
       duration: 3000,
     });
 
-    // Reset selections and go to first page
-    setSelectedIds([]);
     setCurrentPage(1);
+  };
+
+  // Handle modal close
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditCriterion(null);
   };
 
   return (
@@ -204,6 +265,9 @@ const BibliotecaCriterios = () => {
           selectedIds={selectedIds}
           onSelectAll={handleSelectAll}
           onSelectOne={handleSelectOne}
+          onView={handleViewCriterion}
+          onEdit={handleEditCriterion}
+          onDuplicate={handleDuplicateCriterion}
         />
 
         {/* Pagination */}
@@ -224,8 +288,23 @@ const BibliotecaCriterios = () => {
         {/* Criterion Form Modal */}
         <CriterionFormModal
           open={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={handleCloseModal}
           onSave={handleSaveCriterion}
+          criterion={editCriterion}
+          mode={editCriterion ? "edit" : "create"}
+        />
+
+        {/* View Criterion Modal */}
+        <ViewCriterionModal
+          open={!!viewCriterion}
+          onClose={() => setViewCriterion(null)}
+          criterion={viewCriterion}
+          onEdit={() => {
+            if (viewCriterion) {
+              setViewCriterion(null);
+              handleEditCriterion(viewCriterion);
+            }
+          }}
         />
       </main>
     </div>

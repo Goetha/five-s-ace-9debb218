@@ -27,6 +27,9 @@ interface CriteriaTableProps {
   selectedIds: string[];
   onSelectAll: (checked: boolean) => void;
   onSelectOne: (id: string, checked: boolean) => void;
+  onView?: (criterion: Criteria) => void;
+  onEdit?: (criterion: Criteria) => void;
+  onDuplicate?: (criterion: Criteria) => void;
 }
 
 const CriteriaTable = ({
@@ -34,6 +37,9 @@ const CriteriaTable = ({
   selectedIds,
   onSelectAll,
   onSelectOne,
+  onView,
+  onEdit,
+  onDuplicate,
 }: CriteriaTableProps) => {
   const { toast } = useToast();
   const allSelected = criteria.length > 0 && selectedIds.length === criteria.length;
@@ -162,12 +168,7 @@ const CriteriaTable = ({
                       className="h-8 w-8"
                       title="Editar"
                       aria-label={`Editar ${item.name}`}
-                      onClick={() =>
-                        toast({
-                          title: "Editar critério",
-                          description: `${item.id} — ${item.name}`,
-                        })
-                      }
+                      onClick={() => onEdit?.(item)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -177,12 +178,7 @@ const CriteriaTable = ({
                       className="h-8 w-8"
                       title="Duplicar"
                       aria-label={`Duplicar ${item.name}`}
-                      onClick={() =>
-                        toast({
-                          title: "Cópia criada",
-                          description: `Critério duplicado: ${item.name}`,
-                        })
-                      }
+                      onClick={() => onDuplicate?.(item)}
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -192,12 +188,7 @@ const CriteriaTable = ({
                       className="h-8 w-8"
                       title="Visualizar"
                       aria-label={`Visualizar ${item.name}`}
-                      onClick={() =>
-                        toast({
-                          title: "Visualizar critério",
-                          description: `${item.id} — ${item.name}`,
-                        })
-                      }
+                      onClick={() => onView?.(item)}
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -215,13 +206,13 @@ const CriteriaTable = ({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="z-50">
                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => toast({ title: "Editar", description: item.name })}>
+                        <DropdownMenuItem onClick={() => onEdit?.(item)}>
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toast({ title: "Duplicar", description: item.name })}>
+                        <DropdownMenuItem onClick={() => onDuplicate?.(item)}>
                           Duplicar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toast({ title: "Visualizar", description: item.name })}>
+                        <DropdownMenuItem onClick={() => onView?.(item)}>
                           Visualizar
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />

@@ -67,6 +67,8 @@ interface CriterionFormModalProps {
   open: boolean;
   onClose: () => void;
   onSave: (criterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">) => void;
+  criterion?: Criteria | null;
+  mode?: "create" | "edit";
 }
 
 const sensoDescriptions: Record<SensoType, string> = {
@@ -93,7 +95,7 @@ const availableTags: CriteriaTag[] = [
   "Almoxarifado",
 ];
 
-const CriterionFormModal = ({ open, onClose, onSave }: CriterionFormModalProps) => {
+const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" }: CriterionFormModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState("");
@@ -117,14 +119,36 @@ const CriterionFormModal = ({ open, onClose, onSave }: CriterionFormModalProps) 
   const weight = form.watch("weight");
   const selectedTags = form.watch("tags");
 
-  // Reset form when modal closes
+  // Reset form or load criterion data when modal opens
   useEffect(() => {
-    if (!open) {
-      form.reset();
+    if (open) {
+      if (mode === "edit" && criterion) {
+        // Load criterion data for editing
+        form.reset({
+          name: criterion.name,
+          description: "",
+          senso: criterion.senso,
+          scoreType: criterion.scoreType,
+          weight: criterion.weight,
+          tags: criterion.tags,
+          status: criterion.status,
+        });
+      } else {
+        // Reset form for new criterion
+        form.reset({
+          name: "",
+          description: "",
+          senso: undefined,
+          scoreType: "0-10",
+          weight: 5,
+          tags: [],
+          status: "Ativo",
+        });
+      }
       setCustomTags([]);
       setNewTagInput("");
     }
-  }, [open, form]);
+  }, [open, mode, criterion, form]);
 
   const getWeightCategory = (weight: number) => {
     if (weight >= 8) return { label: "Alto", icon: "🔴", color: "text-red-500" };
@@ -188,9 +212,13 @@ const CriterionFormModal = ({ open, onClose, onSave }: CriterionFormModalProps) 
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Novo Critério Mestre</DialogTitle>
+          <DialogTitle className="text-2xl">
+            {mode === "edit" ? "Editar Critério Mestre" : "Novo Critério Mestre"}
+          </DialogTitle>
           <DialogDescription>
-            Crie um novo critério de avaliação 5S
+            {mode === "edit" 
+              ? "Altere as informações do critério de avaliação 5S" 
+              : "Crie um novo critério de avaliação 5S"}
           </DialogDescription>
         </DialogHeader>
 
@@ -644,7 +672,7 @@ const CriterionFormModal = ({ open, onClose, onSave }: CriterionFormModalProps) 
                   disabled={!form.formState.isValid || isSubmitting}
                 >
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Salvar Critério
+                  {mode === "edit" ? "Salvar Alterações" : "Salvar Critério"}
                 </Button>
               </span>
             </TooltipTrigger>
