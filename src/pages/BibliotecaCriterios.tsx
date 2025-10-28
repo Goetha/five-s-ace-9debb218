@@ -257,6 +257,49 @@ const BibliotecaCriterios = () => {
         <BulkActions
           selectedCount={selectedIds.length}
           onClearSelection={() => setSelectedIds([])}
+          onAddTags={() => {
+            // Add a default tag to selected criteria
+            setCriteria(criteria.map(c =>
+              selectedIds.includes(c.id)
+                ? { ...c, tags: c.tags.includes("Industrial") ? c.tags : [...c.tags, "Industrial"] }
+                : c
+            ));
+            toast({
+              title: "Tags adicionadas",
+              description: `${selectedIds.length} ${selectedIds.length === 1 ? "item" : "itens"} receberam a tag \"Industrial\".`,
+              duration: 3000,
+            });
+          }}
+          onAddToModel={() => {
+            toast({
+              title: "Adicionar a Modelo",
+              description: "Ação disponível em breve.",
+              duration: 3000,
+            });
+          }}
+          onDeactivate={() => {
+            setCriteria(criteria.map(c =>
+              selectedIds.includes(c.id)
+                ? { ...c, status: "Inativo" }
+                : c
+            ));
+            toast({
+              title: "Itens desativados",
+              description: `${selectedIds.length} ${selectedIds.length === 1 ? "item" : "itens"} marcados como Inativo.`,
+              duration: 3000,
+            });
+          }}
+          onDelete={() => {
+            const remaining = criteria.filter(c => !selectedIds.includes(c.id));
+            const removedCount = criteria.length - remaining.length;
+            setCriteria(remaining);
+            setSelectedIds([]);
+            toast({
+              title: "Itens excluídos",
+              description: `${removedCount} ${removedCount === 1 ? "item" : "itens"} removidos da biblioteca.`,
+              duration: 3000,
+            });
+          }}
         />
 
         {/* Criteria Table */}

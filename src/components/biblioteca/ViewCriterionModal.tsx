@@ -3,6 +3,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,9 +54,12 @@ const ViewCriterionModal = ({
         <DialogHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <DialogTitle className="text-2xl mb-2">
+              <DialogTitle className="text-2xl mb-1">
                 {criterion.name}
               </DialogTitle>
+              <DialogDescription className="mb-2">
+                Detalhes do critério mestre 5S
+              </DialogDescription>
               <div className="flex items-center gap-2">
                 <Badge className={getSensoColor(criterion.senso)}>
                   {criterion.senso}

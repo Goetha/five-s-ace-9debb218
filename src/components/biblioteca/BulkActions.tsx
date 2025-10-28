@@ -5,9 +5,13 @@ import { Tag, FileText, ToggleLeft, Trash2 } from "lucide-react";
 interface BulkActionsProps {
   selectedCount: number;
   onClearSelection: () => void;
+  onAddTags?: () => void;
+  onAddToModel?: () => void;
+  onDeactivate?: () => void;
+  onDelete?: () => void;
 }
 
-const BulkActions = ({ selectedCount, onClearSelection }: BulkActionsProps) => {
+const BulkActions = ({ selectedCount, onClearSelection, onAddTags, onAddToModel, onDeactivate, onDelete }: BulkActionsProps) => {
   if (selectedCount === 0) return null;
 
   return (
@@ -28,15 +32,15 @@ const BulkActions = ({ selectedCount, onClearSelection }: BulkActionsProps) => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={onAddTags}>
             <Tag className="h-4 w-4" />
             Adicionar Tags
           </Button>
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={onAddToModel}>
             <FileText className="h-4 w-4" />
             Adicionar a Modelo
           </Button>
-          <Button variant="outline" size="sm" className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={onDeactivate}>
             <ToggleLeft className="h-4 w-4" />
             Desativar
           </Button>
@@ -44,6 +48,7 @@ const BulkActions = ({ selectedCount, onClearSelection }: BulkActionsProps) => {
             variant="outline"
             size="sm"
             className="flex items-center gap-2 text-error hover:bg-error/10"
+            onClick={onDelete}
           >
             <Trash2 className="h-4 w-4" />
             Excluir
