@@ -9,10 +9,12 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { EmpresasTabs } from "@/components/empresas/EmpresasTabs";
 import { CompanyStatsCards } from "@/components/empresas/CompanyStatsCards";
 import { CompanySearchBar } from "@/components/empresas/CompanySearchBar";
 import { CompanyBulkActions } from "@/components/empresas/CompanyBulkActions";
 import { CompaniesTable } from "@/components/empresas/CompaniesTable";
+import { CompanyOverviewDashboard } from "@/components/empresas/overview/CompanyOverviewDashboard";
 import { NewCompanyModal } from "@/components/empresas/NewCompanyModal";
 import { ViewCompanyModal } from "@/components/empresas/ViewCompanyModal";
 import { EditCompanyModal } from "@/components/empresas/EditCompanyModal";
@@ -58,6 +60,7 @@ export default function Empresas() {
   useEffect(() => {
     localStorage.setItem('models', JSON.stringify(models));
   }, [models]);
+  const [activeTab, setActiveTab] = useState<"list" | "overview">("list");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
@@ -278,77 +281,89 @@ export default function Empresas() {
           <p className="text-muted-foreground">Gerencie suas empresas clientes e seus administradores</p>
         </div>
 
-        {/* Stats Cards */}
-        <CompanyStatsCards companies={companies} />
-
-        {/* Search and Filters */}
-        <div className="mt-8">
-          <CompanySearchBar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            statusFilter={statusFilter}
-            onStatusFilterChange={setStatusFilter}
-            sortBy={sortBy}
-            onSortByChange={setSortBy}
-            onNewCompany={() => setShowNewCompanyModal(true)}
-          />
+        {/* Tabs */}
+        <div className="mb-6">
+          <EmpresasTabs activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
 
-        {/* Bulk Actions */}
-        <div className="mt-6">
-          <CompanyBulkActions
-            selectedCount={selectedCompanies.length}
-            onClearSelection={() => setSelectedCompanies([])}
-            onAssignModels={() => {
-              if (selectedCompanies.length === 1) {
-                const company = companies.find(c => c.id === selectedCompanies[0]);
-                if (company) handleAssignModels(company);
-              } else {
-                toast({
-                  title: "Atribuir modelos em massa",
-                  description: "Funcionalidade disponível em breve para múltiplas empresas.",
-                });
-              }
-            }}
-            onDeactivate={() => {
-              setCompanies(companies.map(c =>
-                selectedCompanies.includes(c.id) ? { ...c, status: 'inactive' } : c
-              ));
-              toast({
-                title: "Empresas desativadas",
-                description: `${selectedCompanies.length} ${selectedCompanies.length === 1 ? "empresa foi desativada" : "empresas foram desativadas"}`,
-              });
-              setSelectedCompanies([]);
-            }}
-            onDelete={() => {
-              const remaining = companies.filter(c => !selectedCompanies.includes(c.id));
-              const removedCount = companies.length - remaining.length;
-              setCompanies(remaining);
-              toast({
-                title: "Empresas excluídas",
-                description: `${removedCount} ${removedCount === 1 ? "empresa foi removida" : "empresas foram removidas"}`,
-                variant: "destructive",
-              });
-              setSelectedCompanies([]);
-            }}
-          />
-        </div>
+        {/* Tab Content */}
+        {activeTab === "list" ? (
+          <>
+            {/* Stats Cards */}
+            <CompanyStatsCards companies={companies} />
 
-        {/* Companies Table */}
-        <div className="mt-6">
-          <CompaniesTable
-            companies={filteredCompanies}
-            selectedCompanies={selectedCompanies}
-            onSelectionChange={handleSelectionChange}
-            onSelectAll={handleSelectAll}
-            onView={handleView}
-            onEdit={handleEdit}
-            onAssignModels={handleAssignModels}
-            onToggleStatus={handleToggleStatus}
-            onDelete={handleDelete}
-            onSendEmail={setSendEmailCompany}
-          />
-        </div>
+            {/* Search and Filters */}
+            <div className="mt-8">
+              <CompanySearchBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                statusFilter={statusFilter}
+                onStatusFilterChange={setStatusFilter}
+                sortBy={sortBy}
+                onSortByChange={setSortBy}
+                onNewCompany={() => setShowNewCompanyModal(true)}
+              />
+            </div>
+
+            {/* Bulk Actions */}
+            <div className="mt-6">
+              <CompanyBulkActions
+                selectedCount={selectedCompanies.length}
+                onClearSelection={() => setSelectedCompanies([])}
+                onAssignModels={() => {
+                  if (selectedCompanies.length === 1) {
+                    const company = companies.find(c => c.id === selectedCompanies[0]);
+                    if (company) handleAssignModels(company);
+                  } else {
+                    toast({
+                      title: "Atribuir modelos em massa",
+                      description: "Funcionalidade disponível em breve para múltiplas empresas.",
+                    });
+                  }
+                }}
+                onDeactivate={() => {
+                  setCompanies(companies.map(c =>
+                    selectedCompanies.includes(c.id) ? { ...c, status: 'inactive' } : c
+                  ));
+                  toast({
+                    title: "Empresas desativadas",
+                    description: `${selectedCompanies.length} ${selectedCompanies.length === 1 ? "empresa foi desativada" : "empresas foram desativadas"}`,
+                  });
+                  setSelectedCompanies([]);
+                }}
+                onDelete={() => {
+                  const remaining = companies.filter(c => !selectedCompanies.includes(c.id));
+                  const removedCount = companies.length - remaining.length;
+                  setCompanies(remaining);
+                  toast({
+                    title: "Empresas excluídas",
+                    description: `${removedCount} ${removedCount === 1 ? "empresa foi removida" : "empresas foram removidas"}`,
+                    variant: "destructive",
+                  });
+                  setSelectedCompanies([]);
+                }}
+              />
+            </div>
+
+            {/* Companies Table */}
+            <div className="mt-6">
+              <CompaniesTable
+                companies={filteredCompanies}
+                selectedCompanies={selectedCompanies}
+                onSelectionChange={handleSelectionChange}
+                onSelectAll={handleSelectAll}
+                onView={handleView}
+                onEdit={handleEdit}
+                onAssignModels={handleAssignModels}
+                onToggleStatus={handleToggleStatus}
+                onDelete={handleDelete}
+                onSendEmail={setSendEmailCompany}
+              />
+            </div>
+          </>
+        ) : (
+          <CompanyOverviewDashboard companies={companies} models={models} />
+        )}
       </main>
 
       {/* Modals */}
