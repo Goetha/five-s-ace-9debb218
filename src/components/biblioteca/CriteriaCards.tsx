@@ -30,6 +30,17 @@ const CriteriaCards = ({
 }: CriteriaCardsProps) => {
   const getSensoColor = (senso: string) => {
     const colors = {
+      "1S": "border-l-red-500",
+      "2S": "border-l-orange-500",
+      "3S": "border-l-yellow-500",
+      "4S": "border-l-green-500",
+      "5S": "border-l-blue-500",
+    };
+    return colors[senso as keyof typeof colors] || "border-l-gray-500";
+  };
+
+  const getSensoBadgeColor = (senso: string) => {
+    const colors = {
       "1S": "bg-red-500",
       "2S": "bg-orange-500",
       "3S": "bg-yellow-500",
@@ -56,7 +67,7 @@ const CriteriaCards = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {criteria.map((criterion) => (
-        <Card key={criterion.id} className={`hover:shadow-md transition-shadow border-t-4 ${getSensoColor(criterion.senso)}`}>
+        <Card key={criterion.id} className={`hover:shadow-md transition-shadow border-l-4 ${getSensoColor(criterion.senso)}`}>
           <CardContent className="p-4 space-y-4">
             {/* Header com checkbox e actions */}
             <div className="flex items-start justify-between gap-2">
@@ -73,7 +84,7 @@ const CriteriaCards = ({
                     <span className="text-xs font-mono text-muted-foreground">
                       {criterion.id}
                     </span>
-                    <Badge className={getSensoColor(criterion.senso)}>
+                    <Badge className={getSensoBadgeColor(criterion.senso)}>
                       {criterion.senso}
                     </Badge>
                   </div>
