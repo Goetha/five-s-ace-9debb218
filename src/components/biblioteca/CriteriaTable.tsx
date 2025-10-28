@@ -205,7 +205,6 @@ const CriteriaTable = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="z-50">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => onEdit?.(item)}>
                           Editar
                         </DropdownMenuItem>
