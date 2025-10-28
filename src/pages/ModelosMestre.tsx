@@ -18,6 +18,8 @@ import ModelStatsCards from "@/components/modelos/ModelStatsCards";
 import ModelCard from "@/components/modelos/ModelCard";
 import NewModelModal from "@/components/modelos/NewModelModal";
 import ModelDetailsModal from "@/components/modelos/ModelDetailsModal";
+import EditModelModal from "@/components/modelos/EditModelModal";
+import LinkCompaniesModal from "@/components/modelos/LinkCompaniesModal";
 import { useToast } from "@/hooks/use-toast";
 import { MasterModel, ModelFilters } from "@/types/model";
 
@@ -30,6 +32,8 @@ const ModelosMestre = () => {
   });
   const [newModelOpen, setNewModelOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<MasterModel | null>(null);
 
   const filteredModels = models.filter((model) => {
@@ -116,6 +120,50 @@ const ModelosMestre = () => {
     }
   };
 
+  const handleEditModel = (data: any) => {
+    if (!selectedModel) return;
+    
+    setModels(
+      models.map((m) =>
+        m.id === selectedModel.id
+          ? {
+              ...m,
+              name: data.name,
+              description: data.description,
+              status: data.status,
+              total_criteria: data.total_criteria,
+              criteria_by_senso: data.criteria_by_senso,
+              criteria_ids: data.criteria_ids,
+              updated_at: new Date().toISOString(),
+            }
+          : m
+      )
+    );
+    
+    toast({
+      title: "✓ Modelo atualizado",
+      description: `O modelo "${data.name}" foi atualizado com sucesso.`,
+    });
+    
+    setEditOpen(false);
+    setSelectedModel(null);
+  };
+
+  const handleLinkCompanies = (modelId: string, companyIds: string[]) => {
+    setModels(
+      models.map((m) =>
+        m.id === modelId
+          ? { ...m, companies_using: companyIds.length }
+          : m
+      )
+    );
+    
+    toast({
+      title: "✓ Empresas vinculadas",
+      description: `${companyIds.length} empresa(s) vinculada(s) ao modelo com sucesso.`,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -189,22 +237,16 @@ const ModelosMestre = () => {
                 key={model.id}
                 model={model}
                 onViewDetails={() => {
-                  toast({
-                    title: "Ver Detalhes",
-                    description: "Modal de detalhes em desenvolvimento",
-                  });
+                  setSelectedModel(model);
+                  setDetailsOpen(true);
                 }}
                 onEdit={() => {
-                  toast({
-                    title: "Editar Modelo",
-                    description: "Modal de edição em desenvolvimento",
-                  });
+                  setSelectedModel(model);
+                  setEditOpen(true);
                 }}
                 onLink={() => {
-                  toast({
-                    title: "Vincular Empresas",
-                    description: "Modal de vinculação em desenvolvimento",
-                  });
+                  setSelectedModel(model);
+                  setLinkOpen(true);
                 }}
                 onDuplicate={() => handleDuplicate(model.id)}
                 onToggleStatus={() => handleToggleStatus(model.id)}
@@ -250,6 +292,28 @@ const ModelosMestre = () => {
           if (!open) setSelectedModel(null);
         }}
         model={selectedModel}
+      />
+
+      {/* Edit Modal */}
+      <EditModelModal
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) setSelectedModel(null);
+        }}
+        model={selectedModel}
+        onSave={handleEditModel}
+      />
+
+      {/* Link Companies Modal */}
+      <LinkCompaniesModal
+        open={linkOpen}
+        onOpenChange={(open) => {
+          setLinkOpen(open);
+          if (!open) setSelectedModel(null);
+        }}
+        model={selectedModel}
+        onSave={handleLinkCompanies}
       />
     </div>
   );
