@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import Header from "@/components/layout/Header";
 import StatsCards from "@/components/biblioteca/StatsCards";
@@ -141,9 +142,9 @@ const BibliotecaCriterios = () => {
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-muted-foreground">
-          <a href="#" className="hover:text-primary transition-colors">
+          <Link to="/" className="hover:text-primary transition-colors">
             Home
-          </a>
+          </Link>
           <ChevronRight className="h-4 w-4" />
           <span className="text-foreground font-medium">
             Biblioteca de Critérios
