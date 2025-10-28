@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Slider } from "@/components/ui/slider";
+
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card } from "@/components/ui/card";
@@ -335,14 +335,11 @@ const CriterionFormModal = ({
                             Peso Padrão <span className="text-destructive">*</span>
                           </FormLabel>
                           <FormControl>
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-3">
-                                <Input type="number" min={1} max={10} value={field.value} onChange={e => field.onChange(parseInt(e.target.value) || 1)} className="w-20" />
-                                <span className={`text-lg ${weightCategory.color}`}>
-                                  {weightCategory.icon} {weightCategory.label}
-                                </span>
-                              </div>
-                              <Slider min={1} max={10} step={1} value={[field.value]} onValueChange={vals => field.onChange(vals[0])} />
+                            <div className="flex items-center gap-3">
+                              <Input type="number" min={1} max={10} value={field.value} onChange={e => field.onChange(parseInt(e.target.value) || 1)} className="w-20" />
+                              <span className={`text-lg ${weightCategory.color}`}>
+                                {weightCategory.icon} {weightCategory.label}
+                              </span>
                             </div>
                           </FormControl>
                           <FormDescription>
