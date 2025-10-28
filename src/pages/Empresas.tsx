@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { CompanyStatsCards } from "@/components/empresas/CompanyStatsCards";
 import { CompanySearchBar } from "@/components/empresas/CompanySearchBar";
+import { CompanyBulkActions } from "@/components/empresas/CompanyBulkActions";
 import { CompaniesTable } from "@/components/empresas/CompaniesTable";
 import { NewCompanyModal } from "@/components/empresas/NewCompanyModal";
 import { ViewCompanyModal } from "@/components/empresas/ViewCompanyModal";
@@ -257,6 +258,46 @@ export default function Empresas() {
             sortBy={sortBy}
             onSortByChange={setSortBy}
             onNewCompany={() => setShowNewCompanyModal(true)}
+          />
+        </div>
+
+        {/* Bulk Actions */}
+        <div className="mt-6">
+          <CompanyBulkActions
+            selectedCount={selectedCompanies.length}
+            onClearSelection={() => setSelectedCompanies([])}
+            onAssignModels={() => {
+              if (selectedCompanies.length === 1) {
+                const company = companies.find(c => c.id === selectedCompanies[0]);
+                if (company) handleAssignModels(company);
+              } else {
+                toast({
+                  title: "Atribuir modelos em massa",
+                  description: "Funcionalidade disponível em breve para múltiplas empresas.",
+                });
+              }
+            }}
+            onDeactivate={() => {
+              setCompanies(companies.map(c =>
+                selectedCompanies.includes(c.id) ? { ...c, status: 'inactive' } : c
+              ));
+              toast({
+                title: "Empresas desativadas",
+                description: `${selectedCompanies.length} ${selectedCompanies.length === 1 ? "empresa foi desativada" : "empresas foram desativadas"}`,
+              });
+              setSelectedCompanies([]);
+            }}
+            onDelete={() => {
+              const remaining = companies.filter(c => !selectedCompanies.includes(c.id));
+              const removedCount = companies.length - remaining.length;
+              setCompanies(remaining);
+              toast({
+                title: "Empresas excluídas",
+                description: `${removedCount} ${removedCount === 1 ? "empresa foi removida" : "empresas foram removidas"}`,
+                variant: "destructive",
+              });
+              setSelectedCompanies([]);
+            }}
           />
         </div>
 
