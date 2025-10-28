@@ -56,7 +56,7 @@ const CriteriaCards = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {criteria.map((criterion) => (
-        <Card key={criterion.id} className="hover:shadow-md transition-shadow">
+        <Card key={criterion.id} className={`hover:shadow-md transition-shadow border-t-4 ${getSensoColor(criterion.senso)}`}>
           <CardContent className="p-4 space-y-4">
             {/* Header com checkbox e actions */}
             <div className="flex items-start justify-between gap-2">
