@@ -28,18 +28,18 @@ const CriteriaCards = ({
   onEdit,
   onDuplicate,
 }: CriteriaCardsProps) => {
-  const getSensoColor = (senso: string) => {
+  const getSensoBackgroundColor = (senso: string) => {
     const colors = {
-      "1S": "border-l-red-500",
-      "2S": "border-l-orange-500",
-      "3S": "border-l-yellow-500",
-      "4S": "border-l-green-500",
-      "5S": "border-l-blue-500",
+      "1S": "bg-red-500/10 border-red-500/20",
+      "2S": "bg-orange-500/10 border-orange-500/20",
+      "3S": "bg-yellow-500/10 border-yellow-500/20",
+      "4S": "bg-green-500/10 border-green-500/20",
+      "5S": "bg-blue-500/10 border-blue-500/20",
     };
-    return colors[senso as keyof typeof colors] || "border-l-gray-500";
+    return colors[senso as keyof typeof colors] || "bg-gray-500/10 border-gray-500/20";
   };
 
-  const getSensoBadgeColor = (senso: string) => {
+  const getSensoCircleColor = (senso: string) => {
     const colors = {
       "1S": "bg-red-500",
       "2S": "bg-orange-500",
@@ -67,83 +67,67 @@ const CriteriaCards = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {criteria.map((criterion) => (
-        <Card key={criterion.id} className={`hover:shadow-md transition-shadow border-l-4 ${getSensoColor(criterion.senso)}`}>
-          <CardContent className="p-4 space-y-4">
-            {/* Header com checkbox e actions */}
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-start gap-2">
-                <Checkbox
-                  checked={selectedIds.includes(criterion.id)}
-                  onCheckedChange={(checked) =>
-                    onSelectOne(criterion.id, checked === true)
-                  }
-                  className="mt-1"
-                />
-                <div className="space-y-1 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-muted-foreground">
-                      {criterion.id}
-                    </span>
-                    <Badge className={getSensoBadgeColor(criterion.senso)}>
-                      {criterion.senso}
-                    </Badge>
-                  </div>
-                  <h3 className="font-semibold text-sm leading-tight">
-                    {criterion.name}
-                  </h3>
+        <Card key={criterion.id} className={`hover:shadow-lg transition-all relative overflow-hidden ${getSensoBackgroundColor(criterion.senso)}`}>
+          {/* Círculo colorido no canto superior direito */}
+          <div className={`absolute top-4 right-4 w-12 h-12 rounded-full ${getSensoCircleColor(criterion.senso)}`} />
+          
+          <CardContent className="p-6 space-y-4 relative">
+            {/* Header com checkbox e título */}
+            <div className="flex items-start gap-3">
+              <Checkbox
+                checked={selectedIds.includes(criterion.id)}
+                onCheckedChange={(checked) =>
+                  onSelectOne(criterion.id, checked === true)
+                }
+                className="mt-1"
+              />
+              <div className="space-y-2 flex-1 pr-12">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-muted-foreground font-semibold">
+                    {criterion.id}
+                  </span>
+                  <Badge variant="secondary" className="text-xs">
+                    {criterion.senso}
+                  </Badge>
                 </div>
+                <h3 className="font-semibold text-base leading-tight">
+                  {criterion.name}
+                </h3>
               </div>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onView(criterion)}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Ver Detalhes
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onEdit(criterion)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onDuplicate(criterion)}>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Duplicar
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
 
             {/* Tipo e Peso */}
-            <div className="flex items-center gap-2 text-sm">
-              <Badge variant="outline">{criterion.scoreType}</Badge>
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">Peso:</span>
-                <div className={`h-2 w-8 rounded ${getWeightColor(criterion.weight)}`} />
-                <span className="font-semibold">{criterion.weight}</span>
+            <div className="flex items-center gap-3 text-sm">
+              <Badge variant="outline" className="bg-background/50">
+                {criterion.scoreType}
+              </Badge>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-xs">Peso:</span>
+                <div className={`h-2 w-10 rounded-full ${getWeightColor(criterion.weight)}`} />
+                <span className="font-bold text-foreground">{criterion.weight}</span>
               </div>
             </div>
 
             {/* Tags */}
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {criterion.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">
+                <Badge key={tag} variant="secondary" className="text-xs bg-background/60">
                   {tag}
                 </Badge>
               ))}
             </div>
 
             {/* Em Uso */}
-            <div className="text-xs text-muted-foreground pt-2 border-t">
-              {criterion.companiesUsing} empresas, {criterion.modelsUsing} modelos
+            <div className="text-xs text-muted-foreground pt-3 border-t border-border/50">
+              {criterion.companiesUsing} empresas • {criterion.modelsUsing} modelos
             </div>
 
             {/* Status e Actions */}
-            <div className="flex items-center justify-between pt-2 border-t">
-              <Badge variant={criterion.status === "Ativo" ? "default" : "secondary"}>
+            <div className="flex items-center justify-between pt-3 border-t border-border/50">
+              <Badge 
+                variant={criterion.status === "Ativo" ? "default" : "secondary"}
+                className={criterion.status === "Ativo" ? "bg-green-600" : ""}
+              >
                 {criterion.status}
               </Badge>
 
@@ -151,7 +135,7 @@ const CriteriaCards = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-8 w-8 hover:bg-background/80"
                   onClick={() => onEdit(criterion)}
                 >
                   <Edit className="h-4 w-4" />
@@ -159,7 +143,7 @@ const CriteriaCards = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-8 w-8 hover:bg-background/80"
                   onClick={() => onDuplicate(criterion)}
                 >
                   <Copy className="h-4 w-4" />
@@ -167,7 +151,7 @@ const CriteriaCards = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-8 w-8 hover:bg-background/80"
                   onClick={() => onView(criterion)}
                 >
                   <Eye className="h-4 w-4" />
