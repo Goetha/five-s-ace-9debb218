@@ -31,6 +31,7 @@ interface CompaniesTableProps {
   onAssignModels: (company: Company) => void;
   onToggleStatus: (company: Company) => void;
   onDelete: (company: Company) => void;
+  onSendEmail: (company: Company) => void;
 }
 
 export function CompaniesTable({
@@ -43,6 +44,7 @@ export function CompaniesTable({
   onAssignModels,
   onToggleStatus,
   onDelete,
+  onSendEmail,
 }: CompaniesTableProps) {
   const allSelected = companies.length > 0 && selectedCompanies.length === companies.length;
 
@@ -181,7 +183,9 @@ export function CompaniesTable({
                         </DropdownMenuItem>
                         <DropdownMenuItem>👥 Ver Usuários</DropdownMenuItem>
                         <DropdownMenuItem>📊 Ver Estatísticas</DropdownMenuItem>
-                        <DropdownMenuItem>📧 Enviar Email</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onSendEmail(company)}>
+                          📧 Enviar Email
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onToggleStatus(company)}>
                           🔄 {company.status === 'active' ? 'Desativar' : 'Ativar'}
                         </DropdownMenuItem>
