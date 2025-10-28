@@ -7,6 +7,7 @@ interface SearchAndFiltersProps {
   onSearchChange: (value: string) => void;
   onToggleFilters: () => void;
   showFilters: boolean;
+  onNewCriterion: () => void;
 }
 
 const SearchAndFilters = ({
@@ -14,6 +15,7 @@ const SearchAndFilters = ({
   onSearchChange,
   onToggleFilters,
   showFilters,
+  onNewCriterion,
 }: SearchAndFiltersProps) => {
   return (
     <div className="flex flex-col md:flex-row gap-3">
@@ -39,7 +41,10 @@ const SearchAndFilters = ({
       </Button>
 
       {/* New Criteria Button */}
-      <Button className="flex items-center gap-2 bg-primary hover:bg-primary-hover">
+      <Button 
+        className="flex items-center gap-2 bg-primary hover:bg-primary-hover"
+        onClick={onNewCriterion}
+      >
         <Plus className="h-4 w-4" />
         <span>Novo Critério</span>
       </Button>

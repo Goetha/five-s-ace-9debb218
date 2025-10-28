@@ -8,17 +8,23 @@ import SensoTabs from "@/components/biblioteca/SensoTabs";
 import CriteriaTable from "@/components/biblioteca/CriteriaTable";
 import BulkActions from "@/components/biblioteca/BulkActions";
 import Pagination from "@/components/biblioteca/Pagination";
+import CriterionFormModal from "@/components/biblioteca/CriterionFormModal";
 import { mockCriteria } from "@/data/mockCriteria";
-import { CriteriaFilters, SensoType } from "@/types/criteria";
+import { Criteria, CriteriaFilters, SensoType } from "@/types/criteria";
+import { useToast } from "@/hooks/use-toast";
 
 const BibliotecaCriterios = () => {
+  const { toast } = useToast();
+  
   // State management
+  const [criteria, setCriteria] = useState<Criteria[]>(mockCriteria);
   const [searchValue, setSearchValue] = useState("");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<SensoType | "Todos">("Todos");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [filters, setFilters] = useState<CriteriaFilters>({
     search: "",
@@ -31,7 +37,7 @@ const BibliotecaCriterios = () => {
 
   // Filter criteria based on all filters
   const filteredCriteria = useMemo(() => {
-    let result = [...mockCriteria];
+    let result = [...criteria];
 
     // Search filter
     if (searchValue.trim()) {
@@ -74,7 +80,7 @@ const BibliotecaCriterios = () => {
     }
 
     return result;
-  }, [mockCriteria, searchValue, activeTab, filters]);
+  }, [criteria, searchValue, activeTab, filters]);
 
   // Pagination
   const totalPages = Math.ceil(filteredCriteria.length / itemsPerPage);
@@ -98,6 +104,34 @@ const BibliotecaCriterios = () => {
     } else {
       setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id));
     }
+  };
+
+  // Handle new criterion save
+  const handleSaveCriterion = (newCriterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">) => {
+    // Generate new ID (next sequential number)
+    const maxId = Math.max(...criteria.map((c) => parseInt(c.id)), 0);
+    const newId = String(maxId + 1).padStart(3, "0");
+
+    const criterionToAdd: Criteria = {
+      ...newCriterion,
+      id: newId,
+      companiesUsing: 0,
+      modelsUsing: 0,
+    };
+
+    // Add to the beginning of the list
+    setCriteria([criterionToAdd, ...criteria]);
+
+    // Show success toast
+    toast({
+      title: "✓ Critério criado com sucesso!",
+      description: `${newCriterion.name} foi adicionado à biblioteca.`,
+      duration: 3000,
+    });
+
+    // Reset selections and go to first page
+    setSelectedIds([]);
+    setCurrentPage(1);
   };
 
   return (
@@ -127,7 +161,7 @@ const BibliotecaCriterios = () => {
         </div>
 
         {/* Stats Cards */}
-        <StatsCards criteria={mockCriteria} />
+        <StatsCards criteria={criteria} />
 
         {/* Search and Filters */}
         <SearchAndFilters
@@ -135,6 +169,7 @@ const BibliotecaCriterios = () => {
           onSearchChange={setSearchValue}
           onToggleFilters={() => setShowAdvancedFilters(!showAdvancedFilters)}
           showFilters={showAdvancedFilters}
+          onNewCriterion={() => setIsModalOpen(true)}
         />
 
         {/* Advanced Filters Panel */}
@@ -184,6 +219,13 @@ const BibliotecaCriterios = () => {
             }}
           />
         )}
+
+        {/* Criterion Form Modal */}
+        <CriterionFormModal
+          open={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleSaveCriterion}
+        />
       </main>
     </div>
   );
