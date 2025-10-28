@@ -2,30 +2,9 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -42,27 +21,19 @@ import { Criteria, SensoType, ScoreType, CriteriaTag } from "@/types/criteria";
 
 // Validation Schema
 const criterionSchema = z.object({
-  name: z
-    .string()
-    .min(10, "O nome deve ter no mínimo 10 caracteres")
-    .max(100, "O nome deve ter no máximo 100 caracteres"),
-  description: z
-    .string()
-    .max(500, "A descrição deve ter no máximo 500 caracteres")
-    .optional(),
+  name: z.string().min(10, "O nome deve ter no mínimo 10 caracteres").max(100, "O nome deve ter no máximo 100 caracteres"),
+  description: z.string().max(500, "A descrição deve ter no máximo 500 caracteres").optional(),
   senso: z.enum(["1S", "2S", "3S", "4S", "5S"], {
-    required_error: "Selecione um senso",
+    required_error: "Selecione um senso"
   }),
   scoreType: z.enum(["0-10", "C/NC", "0-5", "Percentual"], {
-    required_error: "Selecione um tipo de avaliação",
+    required_error: "Selecione um tipo de avaliação"
   }),
   weight: z.number().min(1).max(10),
   tags: z.array(z.string()).default([]),
-  status: z.enum(["Ativo", "Inativo"]).default("Ativo"),
+  status: z.enum(["Ativo", "Inativo"]).default("Ativo")
 });
-
 type CriterionFormValues = z.infer<typeof criterionSchema>;
-
 interface CriterionFormModalProps {
   open: boolean;
   onClose: () => void;
@@ -70,39 +41,35 @@ interface CriterionFormModalProps {
   criterion?: Criteria | null;
   mode?: "create" | "edit";
 }
-
 const sensoDescriptions: Record<SensoType, string> = {
   "1S": "Separar o necessário do desnecessário",
   "2S": "Organizar e identificar para facilitar o uso",
   "3S": "Manter o ambiente limpo e higienizado",
   "4S": "Padronizar procedimentos e práticas",
-  "5S": "Manter a disciplina e melhorar continuamente",
+  "5S": "Manter a disciplina e melhorar continuamente"
 };
-
 const sensoColors: Record<SensoType, string> = {
   "1S": "bg-senso-1s text-white",
   "2S": "bg-senso-2s text-white",
   "3S": "bg-senso-3s text-white",
   "4S": "bg-senso-4s text-white",
-  "5S": "bg-senso-5s text-white",
+  "5S": "bg-senso-5s text-white"
 };
-
-const availableTags: CriteriaTag[] = [
-  "Industrial",
-  "Escritório",
-  "Banheiro",
-  "Refeitório",
-  "Almoxarifado",
-];
-
-const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" }: CriterionFormModalProps) => {
+const availableTags: CriteriaTag[] = ["Industrial", "Escritório", "Banheiro", "Refeitório", "Almoxarifado"];
+const CriterionFormModal = ({
+  open,
+  onClose,
+  onSave,
+  criterion,
+  mode = "create"
+}: CriterionFormModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState("");
-
   const form = useForm<CriterionFormValues>({
     resolver: zodResolver(criterionSchema),
-    mode: "onChange", // Validate on change to enable button in real-time
+    mode: "onChange",
+    // Validate on change to enable button in real-time
     defaultValues: {
       name: "",
       description: "",
@@ -110,10 +77,9 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
       scoreType: "0-10",
       weight: 5,
       tags: [],
-      status: "Ativo",
-    },
+      status: "Ativo"
+    }
   });
-
   const selectedSenso = form.watch("senso");
   const description = form.watch("description");
   const weight = form.watch("weight");
@@ -131,7 +97,7 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
           scoreType: criterion.scoreType,
           weight: criterion.weight,
           tags: criterion.tags,
-          status: criterion.status,
+          status: criterion.status
         });
       } else {
         // Reset form for new criterion
@@ -142,20 +108,30 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
           scoreType: "0-10",
           weight: 5,
           tags: [],
-          status: "Ativo",
+          status: "Ativo"
         });
       }
       setCustomTags([]);
       setNewTagInput("");
     }
   }, [open, mode, criterion, form]);
-
   const getWeightCategory = (weight: number) => {
-    if (weight >= 8) return { label: "Alto", icon: "🔴", color: "text-red-500" };
-    if (weight >= 4) return { label: "Médio", icon: "🟡", color: "text-yellow-500" };
-    return { label: "Baixo", icon: "🟢", color: "text-green-500" };
+    if (weight >= 8) return {
+      label: "Alto",
+      icon: "🔴",
+      color: "text-red-500"
+    };
+    if (weight >= 4) return {
+      label: "Médio",
+      icon: "🟡",
+      color: "text-yellow-500"
+    };
+    return {
+      label: "Baixo",
+      icon: "🟢",
+      color: "text-green-500"
+    };
   };
-
   const handleAddCustomTag = () => {
     if (newTagInput.trim() && !customTags.includes(newTagInput.trim())) {
       const newTag = newTagInput.trim();
@@ -164,40 +140,33 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
       setNewTagInput("");
     }
   };
-
   const handleRemoveTag = (tag: string) => {
-    const updatedTags = selectedTags.filter((t) => t !== tag);
+    const updatedTags = selectedTags.filter(t => t !== tag);
     form.setValue("tags", updatedTags);
     if (customTags.includes(tag)) {
-      setCustomTags(customTags.filter((t) => t !== tag));
+      setCustomTags(customTags.filter(t => t !== tag));
     }
   };
-
   const onSubmit = async (data: CriterionFormValues) => {
     setIsSubmitting(true);
-    
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
 
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 800));
     onSave({
       name: data.name,
       senso: data.senso,
       scoreType: data.scoreType,
       weight: data.weight,
       tags: data.tags as CriteriaTag[],
-      status: data.status,
+      status: data.status
     });
-
     setIsSubmitting(false);
     onClose();
   };
-
   const handleCancel = () => {
     const hasChanges = form.formState.isDirty;
     if (hasChanges) {
-      const confirmed = window.confirm(
-        "Deseja descartar as alterações?"
-      );
+      const confirmed = window.confirm("Deseja descartar as alterações?");
       if (confirmed) {
         onClose();
       }
@@ -205,22 +174,10 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
       onClose();
     }
   };
-
   const weightCategory = getWeightCategory(weight);
-
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
+  return <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">
-            {mode === "edit" ? "Editar Critério Mestre" : "Novo Critério Mestre"}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === "edit" 
-              ? "Altere as informações do critério de avaliação 5S" 
-              : "Crie um novo critério de avaliação 5S"}
-          </DialogDescription>
-        </DialogHeader>
+        
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Form Section - 2 columns */}
@@ -233,39 +190,26 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
                     Informações Básicas
                   </h3>
 
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
+                  <FormField control={form.control} name="name" render={({
+                  field
+                }) => <FormItem>
                         <FormLabel>
                           Nome do Critério <span className="text-destructive">*</span>
                         </FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Ex: Ausência de materiais desnecessários"
-                            {...field}
-                          />
+                          <Input placeholder="Ex: Ausência de materiais desnecessários" {...field} />
                         </FormControl>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      </FormItem>} />
 
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
+                  <FormField control={form.control} name="description" render={({
+                  field
+                }) => <FormItem>
                         <FormLabel>
                           Descrição/Instrução
                         </FormLabel>
                         <FormControl>
-                          <Textarea
-                            placeholder="Descreva como avaliar este critério. Ex: Verificar se há materiais, ferramentas ou equipamentos que não são utilizados no local..."
-                            rows={4}
-                            {...field}
-                          />
+                          <Textarea placeholder="Descreva como avaliar este critério. Ex: Verificar se há materiais, ferramentas ou equipamentos que não são utilizados no local..." rows={4} {...field} />
                         </FormControl>
                         <FormDescription className="flex justify-between">
                           <span className="text-muted-foreground">
@@ -276,9 +220,7 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
                           </span>
                         </FormDescription>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      </FormItem>} />
                 </div>
 
                 {/* SEÇÃO 2: Classificação 5S */}
@@ -287,18 +229,13 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
                     Classificação 5S
                   </h3>
 
-                  <FormField
-                    control={form.control}
-                    name="senso"
-                    render={({ field }) => (
-                      <FormItem>
+                  <FormField control={form.control} name="senso" render={({
+                  field
+                }) => <FormItem>
                         <FormLabel>
                           Senso 5S <span className="text-destructive">*</span>
                         </FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione o senso..." />
@@ -340,17 +277,13 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
                         <FormMessage />
 
                         {/* Senso Description Card */}
-                        {selectedSenso && (
-                          <Card className="p-3 bg-muted/50 border-none animate-fade-in">
+                        {selectedSenso && <Card className="p-3 bg-muted/50 border-none animate-fade-in">
                             <p className="text-sm text-muted-foreground">
                               <strong>{selectedSenso}:</strong>{" "}
                               {sensoDescriptions[selectedSenso]}
                             </p>
-                          </Card>
-                        )}
-                      </FormItem>
-                    )}
-                  />
+                          </Card>}
+                      </FormItem>} />
                 </div>
 
                 {/* SEÇÃO 3: Sistema de Pontuação */}
@@ -360,11 +293,9 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="scoreType"
-                      render={({ field }) => (
-                        <FormItem>
+                    <FormField control={form.control} name="scoreType" render={({
+                    field
+                  }) => <FormItem>
                           <FormLabel className="flex items-center gap-2">
                             Tipo de Avaliação <span className="text-destructive">*</span>
                             <Tooltip>
@@ -381,10 +312,7 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
                               </TooltipContent>
                             </Tooltip>
                           </FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione o tipo..." />
@@ -398,51 +326,30 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
                             </SelectContent>
                           </Select>
                           <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        </FormItem>} />
 
-                    <FormField
-                      control={form.control}
-                      name="weight"
-                      render={({ field }) => (
-                        <FormItem>
+                    <FormField control={form.control} name="weight" render={({
+                    field
+                  }) => <FormItem>
                           <FormLabel>
                             Peso Padrão <span className="text-destructive">*</span>
                           </FormLabel>
                           <FormControl>
                             <div className="space-y-3">
                               <div className="flex items-center gap-3">
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  max={10}
-                                  value={field.value}
-                                  onChange={(e) =>
-                                    field.onChange(parseInt(e.target.value) || 1)
-                                  }
-                                  className="w-20"
-                                />
+                                <Input type="number" min={1} max={10} value={field.value} onChange={e => field.onChange(parseInt(e.target.value) || 1)} className="w-20" />
                                 <span className={`text-lg ${weightCategory.color}`}>
                                   {weightCategory.icon} {weightCategory.label}
                                 </span>
                               </div>
-                              <Slider
-                                min={1}
-                                max={10}
-                                step={1}
-                                value={[field.value]}
-                                onValueChange={(vals) => field.onChange(vals[0])}
-                              />
+                              <Slider min={1} max={10} step={1} value={[field.value]} onValueChange={vals => field.onChange(vals[0])} />
                             </div>
                           </FormControl>
                           <FormDescription>
                             As empresas poderão ajustar este peso depois
                           </FormDescription>
                           <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        </FormItem>} />
                   </div>
                 </div>
 
@@ -452,85 +359,46 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
                     Categorização
                   </h3>
 
-                  <FormField
-                    control={form.control}
-                    name="tags"
-                    render={() => (
-                      <FormItem>
+                  <FormField control={form.control} name="tags" render={() => <FormItem>
                         <FormLabel>Tags/Categorias</FormLabel>
                         
                         {/* Selected Tags Display */}
-                        {selectedTags.length > 0 && (
-                          <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-md">
-                            {selectedTags.map((tag) => (
-                              <Badge
-                                key={tag}
-                                variant="secondary"
-                                className="gap-1 animate-fade-in"
-                              >
+                        {selectedTags.length > 0 && <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-md">
+                            {selectedTags.map(tag => <Badge key={tag} variant="secondary" className="gap-1 animate-fade-in">
                                 {tag}
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveTag(tag)}
-                                  className="ml-1 hover:text-destructive"
-                                >
+                                <button type="button" onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
                                   <X className="h-3 w-3" />
                                 </button>
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                              </Badge>)}
+                          </div>}
 
                         <div className="space-y-3">
                           {/* Predefined Tags */}
                           <div className="grid grid-cols-2 gap-2">
-                            {availableTags.map((tag) => (
-                              <FormField
-                                key={tag}
-                                control={form.control}
-                                name="tags"
-                                render={({ field }) => (
-                                  <FormItem className="flex items-center space-x-2 space-y-0">
+                            {availableTags.map(tag => <FormField key={tag} control={form.control} name="tags" render={({
+                        field
+                      }) => <FormItem className="flex items-center space-x-2 space-y-0">
                                     <FormControl>
-                                      <Checkbox
-                                        checked={field.value?.includes(tag)}
-                                        onCheckedChange={(checked) => {
-                                          const updatedTags = checked
-                                            ? [...field.value, tag]
-                                            : field.value.filter((t) => t !== tag);
-                                          field.onChange(updatedTags);
-                                        }}
-                                      />
+                                      <Checkbox checked={field.value?.includes(tag)} onCheckedChange={checked => {
+                            const updatedTags = checked ? [...field.value, tag] : field.value.filter(t => t !== tag);
+                            field.onChange(updatedTags);
+                          }} />
                                     </FormControl>
                                     <FormLabel className="font-normal cursor-pointer">
                                       {tag}
                                     </FormLabel>
-                                  </FormItem>
-                                )}
-                              />
-                            ))}
+                                  </FormItem>} />)}
                           </div>
 
                           {/* Custom Tag Input */}
                           <div className="flex gap-2">
-                            <Input
-                              placeholder="Nova tag customizada..."
-                              value={newTagInput}
-                              onChange={(e) => setNewTagInput(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  handleAddCustomTag();
-                                }
-                              }}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={handleAddCustomTag}
-                              disabled={!newTagInput.trim()}
-                            >
+                            <Input placeholder="Nova tag customizada..." value={newTagInput} onChange={e => setNewTagInput(e.target.value)} onKeyDown={e => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddCustomTag();
+                        }
+                      }} />
+                            <Button type="button" variant="outline" size="icon" onClick={handleAddCustomTag} disabled={!newTagInput.trim()}>
                               <Plus className="h-4 w-4" />
                             </Button>
                           </div>
@@ -540,22 +408,14 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
                           Ajuda a filtrar e organizar os critérios
                         </FormDescription>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      </FormItem>} />
 
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
+                  <FormField control={form.control} name="status" render={({
+                  field
+                }) => <FormItem className="space-y-3">
                         <FormLabel>Status</FormLabel>
                         <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            className="flex gap-4"
-                          >
+                          <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
                             <div className="flex items-center space-x-2">
                               <RadioGroupItem value="Ativo" id="ativo" />
                               <Label htmlFor="ativo" className="cursor-pointer font-normal">
@@ -574,9 +434,7 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
                           Critérios inativos não ficam disponíveis para as empresas
                         </FormDescription>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      </FormItem>} />
                 </div>
 
                 {/* Hidden submit button for form */}
@@ -594,11 +452,9 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
               
               <div className="space-y-4">
                 {/* Senso Badge */}
-                {selectedSenso && (
-                  <Badge className={sensoColors[selectedSenso]}>
+                {selectedSenso && <Badge className={sensoColors[selectedSenso]}>
                     {selectedSenso}
-                  </Badge>
-                )}
+                  </Badge>}
 
                 {/* Criterion Name */}
                 <div>
@@ -625,26 +481,19 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
                 </div>
 
                 {/* Tags */}
-                {selectedTags.length > 0 && (
-                  <div>
+                {selectedTags.length > 0 && <div>
                     <p className="text-sm text-muted-foreground mb-2">Tags:</p>
                     <div className="flex flex-wrap gap-1">
-                      {selectedTags.map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
+                      {selectedTags.map(tag => <Badge key={tag} variant="outline" className="text-xs">
                           {tag}
-                        </Badge>
-                      ))}
+                        </Badge>)}
                     </div>
-                  </div>
-                )}
+                  </div>}
 
                 {/* Status */}
                 <div>
                   <span className="text-sm text-muted-foreground">Status: </span>
-                  <Badge
-                    variant={form.watch("status") === "Ativo" ? "default" : "secondary"}
-                    className="text-xs"
-                  >
+                  <Badge variant={form.watch("status") === "Ativo" ? "default" : "secondary"} className="text-xs">
                     {form.watch("status") === "Ativo" ? "🟢" : "⭕"} {form.watch("status")}
                   </Badge>
                 </div>
@@ -654,38 +503,25 @@ const CriterionFormModal = ({ open, onClose, onSave, criterion, mode = "create" 
         </div>
 
         <DialogFooter className="flex justify-between gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleCancel}
-            disabled={isSubmitting}
-          >
+          <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
             Cancelar
           </Button>
           
           <Tooltip>
             <TooltipTrigger asChild>
               <span>
-                <Button
-                  type="button"
-                  onClick={form.handleSubmit(onSubmit)}
-                  disabled={!form.formState.isValid || isSubmitting}
-                >
+                <Button type="button" onClick={form.handleSubmit(onSubmit)} disabled={!form.formState.isValid || isSubmitting}>
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {mode === "edit" ? "Salvar Alterações" : "Salvar Critério"}
                 </Button>
               </span>
             </TooltipTrigger>
-            {!form.formState.isValid && (
-              <TooltipContent>
+            {!form.formState.isValid && <TooltipContent>
                 <p>Preencha todos os campos obrigatórios</p>
-              </TooltipContent>
-            )}
+              </TooltipContent>}
           </Tooltip>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>;
 };
-
 export default CriterionFormModal;
