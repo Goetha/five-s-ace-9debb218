@@ -1,4 +1,4 @@
-import { Target, MoreVertical, Eye, Edit, Link as LinkIcon, Calendar, RefreshCw, Building } from "lucide-react";
+import { MoreVertical, Eye, Edit, Link as LinkIcon, Calendar, RefreshCw, Building, Copy, Download, BarChart, Trash2, List, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -48,7 +48,6 @@ const ModelCard = ({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2 flex-1 min-w-0">
-            <Target className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
             <h3 className="font-bold text-lg leading-tight break-words">{model.name}</h3>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -60,20 +59,25 @@ const ModelCard = ({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={onDuplicate}>
-                  📋 Duplicar Modelo
+                  <Copy className="h-4 w-4 mr-2" />
+                  Duplicar Modelo
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  📥 Exportar Lista de Critérios
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar Lista de Critérios
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  📊 Ver Estatísticas de Uso
+                  <BarChart className="h-4 w-4 mr-2" />
+                  Ver Estatísticas de Uso
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onToggleStatus}>
-                  🔄 {isActive ? "Desativar" : "Ativar"}
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {isActive ? "Desativar" : "Ativar"}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onDelete} className="text-destructive">
-                  🗑️ Excluir Modelo
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir Modelo
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -88,7 +92,8 @@ const ModelCard = ({
 
         <div className="space-y-2 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <span className="font-medium">📊 {model.total_criteria} critérios</span>
+            <List className="h-4 w-4" />
+            <span className="font-medium">{model.total_criteria} critérios</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
             <Building className="h-4 w-4" />
@@ -105,9 +110,12 @@ const ModelCard = ({
         </div>
 
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-2">
-            🏷️ Distribuição por Senso:
-          </p>
+          <div className="flex items-center gap-1 mb-2">
+            <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="text-xs font-medium text-muted-foreground">
+              Distribuição por Senso:
+            </p>
+          </div>
           <div className="flex flex-wrap gap-2">
             {Object.entries(model.criteria_by_senso).map(([senso, count]) => (
               <Badge
