@@ -39,17 +39,6 @@ const CriteriaCards = ({
     return colors[senso as keyof typeof colors] || "bg-gray-500/10 border-gray-500/20";
   };
 
-  const getSensoCircleColor = (senso: string) => {
-    const colors = {
-      "1S": "bg-red-500",
-      "2S": "bg-orange-500",
-      "3S": "bg-yellow-500",
-      "4S": "bg-green-500",
-      "5S": "bg-blue-500",
-    };
-    return colors[senso as keyof typeof colors] || "bg-gray-500";
-  };
-
   const getWeightColor = (weight: number) => {
     if (weight >= 8) return "bg-red-500";
     if (weight >= 4) return "bg-orange-500";
@@ -68,9 +57,6 @@ const CriteriaCards = ({
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {criteria.map((criterion) => (
         <Card key={criterion.id} className={`hover:shadow-lg transition-all relative overflow-hidden ${getSensoBackgroundColor(criterion.senso)}`}>
-          {/* Círculo colorido no canto superior direito */}
-          <div className={`absolute top-4 right-4 w-12 h-12 rounded-full ${getSensoCircleColor(criterion.senso)}`} />
-          
           <CardContent className="p-6 space-y-4 relative">
             {/* Header com checkbox e título */}
             <div className="flex items-start gap-3">
@@ -81,7 +67,7 @@ const CriteriaCards = ({
                 }
                 className="mt-1"
               />
-              <div className="space-y-2 flex-1 pr-12">
+              <div className="space-y-2 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono text-muted-foreground font-semibold">
                     {criterion.id}
