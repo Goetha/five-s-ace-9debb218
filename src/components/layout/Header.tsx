@@ -44,6 +44,16 @@ const Header = () => {
               Dashboard
             </Link>
             <Link
+              to="/criterios"
+              className={`text-sm font-medium transition-colors ${
+                isActive("/criterios") 
+                  ? "text-primary border-b-2 border-primary pb-1" 
+                  : "text-foreground hover:text-primary"
+              }`}
+            >
+              Biblioteca
+            </Link>
+            <Link
               to="/empresas"
               className={`text-sm font-medium transition-colors ${
                 isActive("/empresas") 
@@ -53,12 +63,6 @@ const Header = () => {
             >
               Empresas
             </Link>
-            <a
-              href="#"
-              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
-            >
-              Biblioteca de Critérios
-            </a>
             <a
               href="#"
               className="text-sm font-medium text-foreground hover:text-primary transition-colors"

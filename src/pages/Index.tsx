@@ -1,7 +1,7 @@
-import BibliotecaCriterios from "./BibliotecaCriterios";
+import Dashboard from "./Dashboard";
 
 const Index = () => {
-  return <BibliotecaCriterios />;
+  return <Dashboard />;
 };
 
 export default Index;
