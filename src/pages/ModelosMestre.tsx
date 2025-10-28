@@ -17,6 +17,7 @@ import { mockModels } from "@/data/mockModels";
 import ModelStatsCards from "@/components/modelos/ModelStatsCards";
 import ModelCard from "@/components/modelos/ModelCard";
 import NewModelModal from "@/components/modelos/NewModelModal";
+import ModelDetailsModal from "@/components/modelos/ModelDetailsModal";
 import { useToast } from "@/hooks/use-toast";
 import { MasterModel, ModelFilters } from "@/types/model";
 
@@ -28,6 +29,8 @@ const ModelosMestre = () => {
     status: "Todos",
   });
   const [newModelOpen, setNewModelOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<MasterModel | null>(null);
 
   const filteredModels = models.filter((model) => {
     const matchesSearch =
@@ -237,6 +240,16 @@ const ModelosMestre = () => {
         open={newModelOpen}
         onOpenChange={setNewModelOpen}
         onSave={handleSaveModel}
+      />
+
+      {/* Details Modal */}
+      <ModelDetailsModal
+        open={detailsOpen}
+        onOpenChange={(open) => {
+          setDetailsOpen(open);
+          if (!open) setSelectedModel(null);
+        }}
+        model={selectedModel}
       />
     </div>
   );
