@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ import { MasterModel, ModelFilters } from "@/types/model";
 
 const ModelosMestre = () => {
   const { toast } = useToast();
-  const [models, setModels] = useState<MasterModel[]>(mockModels);
+  const [models, setModels] = useState<MasterModel[]>([]);
   const [filters, setFilters] = useState<ModelFilters>({
     search: "",
     status: "Todos",
@@ -35,6 +35,14 @@ const ModelosMestre = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<MasterModel | null>(null);
+
+  // Load models from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("masterModels");
+    if (stored) {
+      setModels(JSON.parse(stored));
+    }
+  }, []);
 
   const filteredModels = models.filter((model) => {
     const matchesSearch =
@@ -61,7 +69,10 @@ const ModelosMestre = () => {
       criteria_ids: data.criteria_ids,
     };
 
-    setModels([newModel, ...models]);
+    const updatedModels = [newModel, ...models];
+    setModels(updatedModels);
+    localStorage.setItem("masterModels", JSON.stringify(updatedModels));
+    
     toast({
       title: "✓ Modelo criado com sucesso!",
       description: `O modelo "${data.name}" foi criado.`,
@@ -69,13 +80,14 @@ const ModelosMestre = () => {
   };
 
   const handleToggleStatus = (id: string) => {
-    setModels(
-      models.map((m) =>
-        m.id === id
-          ? { ...m, status: m.status === "active" ? "inactive" : "active" }
-          : m
-      )
+    const updatedModels = models.map((m) =>
+      m.id === id
+        ? { ...m, status: (m.status === "active" ? "inactive" : "active") as "active" | "inactive" }
+        : m
     );
+    setModels(updatedModels);
+    localStorage.setItem("masterModels", JSON.stringify(updatedModels));
+    
     toast({
       title: "Status atualizado",
       description: "O status do modelo foi alterado.",
@@ -93,7 +105,10 @@ const ModelosMestre = () => {
       return;
     }
 
-    setModels(models.filter((m) => m.id !== id));
+    const updatedModels = models.filter((m) => m.id !== id);
+    setModels(updatedModels);
+    localStorage.setItem("masterModels", JSON.stringify(updatedModels));
+    
     toast({
       title: "✓ Modelo excluído",
       description: "O modelo foi excluído com sucesso.",
@@ -112,7 +127,10 @@ const ModelosMestre = () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      setModels([duplicate, ...models]);
+      const updatedModels = [duplicate, ...models];
+      setModels(updatedModels);
+      localStorage.setItem("masterModels", JSON.stringify(updatedModels));
+      
       toast({
         title: "✓ Modelo duplicado",
         description: `Cópia criada: "${duplicate.name}"`,
@@ -123,22 +141,23 @@ const ModelosMestre = () => {
   const handleEditModel = (data: any) => {
     if (!selectedModel) return;
     
-    setModels(
-      models.map((m) =>
-        m.id === selectedModel.id
-          ? {
-              ...m,
-              name: data.name,
-              description: data.description,
-              status: data.status,
-              total_criteria: data.total_criteria,
-              criteria_by_senso: data.criteria_by_senso,
-              criteria_ids: data.criteria_ids,
-              updated_at: new Date().toISOString(),
-            }
-          : m
-      )
+    const updatedModels = models.map((m) =>
+      m.id === selectedModel.id
+        ? {
+            ...m,
+            name: data.name,
+            description: data.description,
+            status: data.status,
+            total_criteria: data.total_criteria,
+            criteria_by_senso: data.criteria_by_senso,
+            criteria_ids: data.criteria_ids,
+            updated_at: new Date().toISOString(),
+          }
+        : m
     );
+    
+    setModels(updatedModels);
+    localStorage.setItem("masterModels", JSON.stringify(updatedModels));
     
     toast({
       title: "✓ Modelo atualizado",
@@ -150,13 +169,14 @@ const ModelosMestre = () => {
   };
 
   const handleLinkCompanies = (modelId: string, companyIds: string[]) => {
-    setModels(
-      models.map((m) =>
-        m.id === modelId
-          ? { ...m, companies_using: companyIds.length }
-          : m
-      )
+    const updatedModels = models.map((m) =>
+      m.id === modelId
+        ? { ...m, companies_using: companyIds.length }
+        : m
     );
+    
+    setModels(updatedModels);
+    localStorage.setItem("masterModels", JSON.stringify(updatedModels));
     
     toast({
       title: "✓ Empresas vinculadas",
