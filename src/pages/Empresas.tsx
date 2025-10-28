@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import {
@@ -26,7 +26,21 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Empresas() {
   const { toast } = useToast();
-  const [companies, setCompanies] = useState<Company[]>(mockCompanies);
+  
+  // Load companies from localStorage on mount
+  const [companies, setCompanies] = useState<Company[]>(() => {
+    try {
+      const saved = localStorage.getItem('companies');
+      return saved ? JSON.parse(saved) : mockCompanies;
+    } catch {
+      return mockCompanies;
+    }
+  });
+
+  // Save companies to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('companies', JSON.stringify(companies));
+  }, [companies]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
@@ -90,7 +104,7 @@ export default function Empresas() {
     const newCompany: Company = {
       id: String(companies.length + 1).padStart(3, '0'),
       name: data.name,
-      cnpj: data.cnpj,
+      cnpj: '-',
       logo: null,
       admin: {
         name: data.adminName,
@@ -99,11 +113,8 @@ export default function Empresas() {
       total_users: 1,
       created_at: new Date().toISOString(),
       last_activity: null,
-      status: data.status,
-      address: data.address,
-      city: data.city,
-      state: data.state,
-      cep: data.cep,
+      status: 'active',
+      address: '-',
       phone: data.phone,
       email: data.email,
     };
@@ -112,9 +123,7 @@ export default function Empresas() {
     
     toast({
       title: "✓ Empresa cadastrada com sucesso!",
-      description: data.sendCredentials 
-        ? `Email enviado para ${data.adminEmail}` 
-        : "Empresa criada sem envio de credenciais",
+      description: `${data.name} foi criada no sistema`,
       className: "bg-green-50 border-green-200",
     });
   };
@@ -134,13 +143,12 @@ export default function Empresas() {
       c.id === editCompany.id ? {
         ...c,
         name: data.name,
-        address: data.address,
-        city: data.city,
-        state: data.state,
-        cep: data.cep,
         phone: data.phone,
         email: data.email,
-        status: data.status,
+        admin: {
+          name: data.adminName,
+          email: data.adminEmail,
+        }
       } : c
     ));
     

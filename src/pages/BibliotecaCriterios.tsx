@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import Header from "@/components/layout/Header";
@@ -19,8 +19,20 @@ import { useToast } from "@/hooks/use-toast";
 const BibliotecaCriterios = () => {
   const { toast } = useToast();
   
-  // State management
-  const [criteria, setCriteria] = useState<Criteria[]>(mockCriteria);
+  // State management - Load criteria from localStorage
+  const [criteria, setCriteria] = useState<Criteria[]>(() => {
+    try {
+      const saved = localStorage.getItem('criteria');
+      return saved ? JSON.parse(saved) : mockCriteria;
+    } catch {
+      return mockCriteria;
+    }
+  });
+
+  // Save criteria to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('criteria', JSON.stringify(criteria));
+  }, [criteria]);
   const [searchValue, setSearchValue] = useState("");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<SensoType | "Todos">("Todos");

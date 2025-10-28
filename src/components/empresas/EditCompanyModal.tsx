@@ -6,15 +6,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react";
-import { formatCNPJ, formatPhone, formatCEP } from "@/lib/formatters";
+import { Loader2 } from "lucide-react";
+import { formatPhone } from "@/lib/formatters";
 
 interface EditCompanyModalProps {
   company: Company | null;
@@ -24,211 +22,142 @@ interface EditCompanyModalProps {
 }
 
 export function EditCompanyModal({ company, open, onOpenChange, onSave }: EditCompanyModalProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<CompanyFormData>({
     name: '',
-    cnpj: '',
-    address: '',
-    city: '',
-    state: '',
-    cep: '',
     phone: '',
     email: '',
     adminName: '',
     adminEmail: '',
-    sendCredentials: false,
-    status: 'active',
-    assignedModels: []
   });
 
   useEffect(() => {
     if (company) {
       setFormData({
         name: company.name,
-        cnpj: company.cnpj,
-        address: company.address,
-        city: company.city || '',
-        state: company.state || '',
-        cep: company.cep || '',
         phone: company.phone,
         email: company.email || '',
         adminName: company.admin.name,
         adminEmail: company.admin.email,
-        sendCredentials: false,
-        status: company.status,
-        assignedModels: []
       });
     }
   }, [company]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
     onSave(formData);
+    setIsSubmitting(false);
     onOpenChange(false);
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhone(e.target.value);
+    setFormData(prev => ({ ...prev, phone: formatted }));
   };
 
   if (!company) return null;
 
-  const statusChanged = formData.status !== company.status;
-  const showInactiveWarning = statusChanged && formData.status === 'inactive';
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Empresa - {company.name}</DialogTitle>
+          <DialogDescription>
+            Atualize as informações essenciais da empresa
+          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-2 gap-6">
-            {/* Coluna Esquerda: Dados da Empresa */}
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">Nome da Empresa *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  minLength={3}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="cnpj">CNPJ *</Label>
-                <Input
-                  id="cnpj"
-                  value={formatCNPJ(formData.cnpj)}
-                  disabled
-                  className="bg-muted cursor-not-allowed"
-                  title="CNPJ não pode ser alterado"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  CNPJ não pode ser alterado
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="address">Endereço</Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-6">
+            {/* Informações da Empresa */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Informações da Empresa</h3>
+              
+              <div className="space-y-4">
                 <div>
-                  <Label htmlFor="city">Cidade</Label>
+                  <Label htmlFor="name">Nome da Empresa *</Label>
                   <Input
-                    id="city"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Ex: Indústria XYZ Ltda"
+                    required
                   />
                 </div>
+
                 <div>
-                  <Label htmlFor="state">Estado</Label>
+                  <Label htmlFor="phone">Telefone *</Label>
                   <Input
-                    id="state"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase() })}
-                    maxLength={2}
-                    placeholder="UF"
+                    id="phone"
+                    value={formData.phone}
+                    onChange={handlePhoneChange}
+                    placeholder="(00) 00000-0000"
+                    maxLength={15}
+                    required
                   />
                 </div>
-              </div>
 
-              <div>
-                <Label htmlFor="cep">CEP</Label>
-                <Input
-                  id="cep"
-                  value={formData.cep}
-                  onChange={(e) => setFormData({ ...formData, cep: e.target.value.replace(/\D/g, '') })}
-                  placeholder="00000-000"
-                  maxLength={9}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="phone">Telefone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })}
-                  placeholder="(00) 00000-0000"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="email">Email da Empresa</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
+                <div>
+                  <Label htmlFor="email">Email da Empresa *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="contato@empresa.com.br"
+                    required
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Coluna Direita: Status e Observações */}
-            <div className="space-y-4">
-              <div>
-                <Label>Status da Empresa *</Label>
-                <RadioGroup
-                  value={formData.status}
-                  onValueChange={(value: 'active' | 'inactive') => 
-                    setFormData({ ...formData, status: value })
-                  }
-                  className="mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="active" id="active" />
-                    <Label htmlFor="active" className="cursor-pointer font-normal">
-                      Ativa - Usuários podem acessar
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="inactive" id="inactive" />
-                    <Label htmlFor="inactive" className="cursor-pointer font-normal">
-                      Inativa - Bloqueia acesso de todos os usuários
-                    </Label>
-                  </div>
-                </RadioGroup>
+            {/* Administrador */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Administrador Principal</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="adminName">Nome Completo do Admin *</Label>
+                  <Input
+                    id="adminName"
+                    value={formData.adminName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, adminName: e.target.value }))}
+                    placeholder="Ex: João da Silva"
+                    required
+                  />
+                </div>
 
-                {showInactiveWarning && (
-                  <Alert variant="destructive" className="mt-4">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>⚠️ Ao desativar esta empresa:</strong>
-                      <ul className="list-disc list-inside mt-2 space-y-1">
-                        <li>Todos os {company.total_users} usuários perderão acesso ao sistema</li>
-                        <li>Dados não serão excluídos</li>
-                        <li>Você pode reativar depois</li>
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="observations">Observações</Label>
-                <Textarea
-                  id="observations"
-                  placeholder="Notas internas do IFA (não visível para a empresa)"
-                  rows={8}
-                  className="resize-none"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Para uso interno do IFA
-                </p>
+                <div>
+                  <Label htmlFor="adminEmail">Email do Admin *</Label>
+                  <Input
+                    id="adminEmail"
+                    type="email"
+                    value={formData.adminEmail}
+                    onChange={(e) => setFormData(prev => ({ ...prev, adminEmail: e.target.value }))}
+                    placeholder="joao.silva@empresa.com.br"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Este email é usado para login no sistema
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
-          <DialogFooter className="mt-6">
-            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
               Cancelar
             </Button>
-            <Button type="submit">
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Salvar Alterações
             </Button>
           </DialogFooter>

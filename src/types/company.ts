@@ -21,16 +21,8 @@ export interface Company {
 
 export interface CompanyFormData {
   name: string;
-  cnpj: string;
-  address: string;
-  city: string;
-  state: string;
-  cep: string;
   phone: string;
   email: string;
   adminName: string;
   adminEmail: string;
-  sendCredentials: boolean;
-  status: 'active' | 'inactive';
-  assignedModels: string[];
 }
