@@ -71,23 +71,6 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
-                <BookOpen className="h-6 w-6 text-blue-500" />
-              </div>
-              <CardTitle>Biblioteca de Critérios</CardTitle>
-              <CardDescription>
-                Gerencie a base de conhecimento 5S global com todos os critérios mestre
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link to="/criterios">
-                <Button className="w-full">Acessar Biblioteca</Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
               <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center mb-4">
                 <Building2 className="h-6 w-6 text-green-500" />
               </div>
@@ -114,9 +97,26 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full" variant="outline" disabled>
-                Em Breve
-              </Button>
+              <Link to="/modelos-mestre">
+                <Button className="w-full">Acessar Modelos</Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
+                <BookOpen className="h-6 w-6 text-blue-500" />
+              </div>
+              <CardTitle>Biblioteca de Critérios</CardTitle>
+              <CardDescription>
+                Gerencie a base de conhecimento 5S global com todos os critérios mestre
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/criterios">
+                <Button className="w-full">Acessar Biblioteca</Button>
+              </Link>
             </CardContent>
           </Card>
 
