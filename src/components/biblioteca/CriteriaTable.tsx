@@ -12,6 +12,15 @@ import { Button } from "@/components/ui/button";
 import { Edit, Copy, Eye, MoreVertical } from "lucide-react";
 import { Criteria, SensoType } from "@/types/criteria";
 import { Progress } from "@/components/ui/progress";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 interface CriteriaTableProps {
   criteria: Criteria[];
@@ -26,6 +35,7 @@ const CriteriaTable = ({
   onSelectAll,
   onSelectOne,
 }: CriteriaTableProps) => {
+  const { toast } = useToast();
   const allSelected = criteria.length > 0 && selectedIds.length === criteria.length;
 
   const getSensoColor = (senso: SensoType) => {
@@ -151,6 +161,13 @@ const CriteriaTable = ({
                       size="icon"
                       className="h-8 w-8"
                       title="Editar"
+                      aria-label={`Editar ${item.name}`}
+                      onClick={() =>
+                        toast({
+                          title: "Editar critério",
+                          description: `${item.id} — ${item.name}`,
+                        })
+                      }
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -159,6 +176,13 @@ const CriteriaTable = ({
                       size="icon"
                       className="h-8 w-8"
                       title="Duplicar"
+                      aria-label={`Duplicar ${item.name}`}
+                      onClick={() =>
+                        toast({
+                          title: "Cópia criada",
+                          description: `Critério duplicado: ${item.name}`,
+                        })
+                      }
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -167,17 +191,52 @@ const CriteriaTable = ({
                       size="icon"
                       className="h-8 w-8"
                       title="Visualizar"
+                      aria-label={`Visualizar ${item.name}`}
+                      onClick={() =>
+                        toast({
+                          title: "Visualizar critério",
+                          description: `${item.id} — ${item.name}`,
+                        })
+                      }
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      title="Mais opções"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Mais opções"
+                          aria-label={`Mais opções para ${item.name}`}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="z-50">
+                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => toast({ title: "Editar", description: item.name })}>
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toast({ title: "Duplicar", description: item.name })}>
+                          Duplicar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toast({ title: "Visualizar", description: item.name })}>
+                          Visualizar
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() =>
+                            toast({
+                              title: "Em uso",
+                              description: `${item.companiesUsing} empresas, ${item.modelsUsing} modelos`,
+                            })
+                          }
+                        >
+                          Ver uso
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>
