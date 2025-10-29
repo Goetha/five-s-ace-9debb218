@@ -33,13 +33,15 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Forward caller's JWT so we can identify the requester
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    // Client A: authenticated (to read the requester from the Bearer token)
+    const authedClient = createClient(supabaseUrl, serviceRoleKey, {
       global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
     });
 
-    // Identify requester
-    const { data: authData, error: authError } = await supabase.auth.getUser();
+    // Client B: pure service-role (no Authorization header) for admin ops and DB cleanup
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    // Identify requester using the Bearer token
+    const { data: authData, error: authError } = await authedClient.auth.getUser();
     if (authError || !authData?.user) {
       return new Response(JSON.stringify({ success: false, message: "Unauthorized" }), {
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -49,12 +51,15 @@ serve(async (req) => {
 
     const requesterId = authData.user.id;
 
+    // Prevent deleting own account in this action
+    const filteredIds = userIds.filter((id: string) => id !== requesterId);
+
     // Check if IFA admin
-    const { data: isAdminData } = await supabase.rpc("is_ifa_admin", { _user_id: requesterId });
+    const { data: isAdminData } = await adminClient.rpc("is_ifa_admin", { _user_id: requesterId });
 
     if (!isAdminData) {
       // Not IFA admin, verify all target users belong to the requester's company
-      const { data: companyIdData } = await supabase.rpc("get_user_company_id", { _user_id: requesterId });
+      const { data: companyIdData } = await adminClient.rpc("get_user_company_id", { _user_id: requesterId });
       if (!companyIdData) {
         return new Response(JSON.stringify({ success: false, message: "Empresa do solicitante não encontrada" }), {
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -62,10 +67,10 @@ serve(async (req) => {
         });
       }
 
-      const { data: links, error: linksError } = await supabase
+      const { data: links, error: linksError } = await adminClient
         .from("user_companies")
         .select("user_id, company_id")
-        .in("user_id", userIds);
+        .in("user_id", filteredIds);
 
       if (linksError) {
         return new Response(JSON.stringify({ success: false, message: linksError.message }), {
@@ -86,14 +91,14 @@ serve(async (req) => {
     }
 
     // Optional cleanup of related tables (best-effort)
-    await supabase.from("user_environments").delete().in("user_id", userIds);
-    await supabase.from("user_roles").delete().in("user_id", userIds);
-    await supabase.from("user_companies").delete().in("user_id", userIds);
+    await adminClient.from("user_environments").delete().in("user_id", filteredIds);
+    await adminClient.from("user_roles").delete().in("user_id", filteredIds);
+    await adminClient.from("user_companies").delete().in("user_id", filteredIds);
 
     // Delete users from auth
     const results = await Promise.all(
-      userIds.map(async (id: string) => {
-        const { error } = await supabase.auth.admin.deleteUser(id);
+      filteredIds.map(async (id: string) => {
+        const { error } = await adminClient.auth.admin.deleteUser(id);
         return { id, error: error?.message ?? null };
       })
     );

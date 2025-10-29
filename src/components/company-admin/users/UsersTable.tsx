@@ -79,9 +79,12 @@ export function UsersTable({ users, onRefresh }: UsersTableProps) {
       });
 
       if (error || !data?.success) {
+        const failedCount = Array.isArray((data as any)?.failed) ? (data as any).failed.length : 0;
         toast({
           title: "Erro ao excluir",
-          description: data?.message || error?.message || 'Falha ao excluir usuários',
+          description: failedCount > 0 
+            ? `Falha ao excluir ${failedCount} usuário(s). Tente novamente.`
+            : (data as any)?.message || error?.message || 'Falha ao excluir usuários',
           variant: "destructive",
         });
         return;
