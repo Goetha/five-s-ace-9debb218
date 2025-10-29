@@ -62,10 +62,9 @@ serve(async (req) => {
         });
       }
 
-      const { data: allowedLinks, error: linksError } = await supabase
+      const { data: links, error: linksError } = await supabase
         .from("user_companies")
-        .select("user_id")
-        .eq("company_id", companyIdData as string)
+        .select("user_id, company_id")
         .in("user_id", userIds);
 
       if (linksError) {
@@ -75,9 +74,10 @@ serve(async (req) => {
         });
       }
 
-      const allowedIds = new Set((allowedLinks ?? []).map((r: any) => r.user_id));
-      const notAllowed = userIds.filter((id: string) => !allowedIds.has(id));
-      if (notAllowed.length > 0) {
+      const companyId = String(companyIdData);
+      // Usuários sem vínculo explícito são permitidos; bloqueie apenas os vinculados a outra empresa
+      const forbidden = (links ?? []).filter((r: any) => r.company_id !== companyId).map((r: any) => r.user_id);
+      if (forbidden.length > 0) {
         return new Response(JSON.stringify({ success: false, message: "Você só pode excluir usuários da sua empresa" }), {
           headers: { "Content-Type": "application/json", ...corsHeaders },
           status: 403,
