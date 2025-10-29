@@ -37,19 +37,26 @@ export default function Usuarios() {
 
   useEffect(() => {
     if (user) {
+      console.log("🔍 Fetching users for user:", user.id);
       fetchUsers();
     }
   }, [user]);
 
   const fetchUsers = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log("⚠️ No user available to fetch users");
+      return;
+    }
 
     try {
+      console.log("📡 Calling list-company-users...");
       setLoading(true);
       const { data, error } = await supabase.functions.invoke('list-company-users');
 
+      console.log("📥 Response from list-company-users:", { data, error });
+
       if (error) {
-        console.error("Error fetching users:", error);
+        console.error("❌ Error fetching users:", error);
         toast({
           title: "Erro ao carregar usuários",
           description: error.message,
@@ -59,6 +66,7 @@ export default function Usuarios() {
       }
 
       if (data?.success && data?.users) {
+        console.log("✅ Users loaded:", data.users.length);
         // Map to CompanyUser format
         const mappedUsers: CompanyUser[] = data.users.map((u: any) => ({
           id: u.id,
@@ -75,9 +83,16 @@ export default function Usuarios() {
           created_at: new Date().toISOString(),
         }));
         setUsers(mappedUsers);
+      } else {
+        console.log("⚠️ No users in response or not success");
       }
     } catch (error) {
-      console.error("Error:", error);
+      console.error("💥 Exception in fetchUsers:", error);
+      toast({
+        title: "Erro inesperado",
+        description: "Não foi possível carregar os usuários",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
