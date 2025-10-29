@@ -414,7 +414,11 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess }: NewEnviro
       </DialogContent>
       
       {/* Modal de Criar Usuário */}
-      <NewUserModal open={isUserModalOpen} onOpenChange={setIsUserModalOpen} />
+      <NewUserModal 
+        open={isUserModalOpen} 
+        onOpenChange={setIsUserModalOpen}
+        onSuccess={() => fetchData()}
+      />
     </Dialog>
   );
 }
