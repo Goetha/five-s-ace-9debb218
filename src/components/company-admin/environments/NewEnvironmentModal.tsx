@@ -97,21 +97,21 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess }: NewEnviro
 
       setParentEnvironments(envData || []);
 
-      // Fetch users (admins and area managers) who can be responsible
+      // Fetch users (admins, gestores e avaliadores) que podem ser responsáveis
       const { data: usersData, error: usersError } = await supabase.functions.invoke('list-company-users');
       
       if (usersError) {
         console.error("Error fetching users:", usersError);
         setEligibleUsers([]);
       } else if (usersData?.success && usersData?.users) {
-        // Filter only admins and area_managers
+        // Incluir company_admin, area_manager e auditor
         const eligible = usersData.users
-          .filter((u: any) => ['company_admin', 'area_manager'].includes(u.role))
+          .filter((u: any) => ['company_admin', 'area_manager', 'auditor'].includes(u.role))
           .map((u: any) => ({
             id: u.id,
             name: u.name || 'Usuário',
             email: u.email || '',
-            role_label: u.role === 'company_admin' ? 'Admin' : 'Gestor',
+            role_label: u.role === 'company_admin' ? 'Admin' : u.role === 'area_manager' ? 'Gestor' : 'Avaliador',
           }));
         setEligibleUsers(eligible);
       }
