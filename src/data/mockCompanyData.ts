@@ -14,36 +14,13 @@ export const currentCompanyAdmin = {
   company_id: 'company-001'
 };
 
-export const mockNotifications = [
-  {
-    id: '1',
-    title: 'Auditoria atrasada',
-    message: 'A auditoria do Almoxarifado está 1 dia atrasada',
-    type: 'warning',
-    read: false,
-    created_at: '2025-01-21T10:00:00Z'
-  },
-  {
-    id: '2',
-    title: 'Novo plano de ação',
-    message: '3 planos de ação gerados na Linha 1',
-    type: 'info',
-    read: false,
-    created_at: '2025-01-21T09:00:00Z'
-  },
-  {
-    id: '3',
-    title: 'Usuário cadastrado',
-    message: 'Maria Santos foi adicionada como Avaliadora',
-    type: 'success',
-    read: true,
-    created_at: '2025-01-20T15:30:00Z'
-  }
-];
+// Empty notifications
+export const mockNotifications: any[] = [];
 
+// Stats with zero values
 export const mockCompanyStats = {
-  totalEnvironments: 8,
-  totalUsers: 15,
-  totalAudits: 45,
-  averageScore: 7.8
+  totalEnvironments: 0,
+  totalUsers: 0,
+  totalAudits: 0,
+  averageScore: 0
 };
