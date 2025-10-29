@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { currentCompany } from "@/data/mockCompanyData";
 
 const menuItems = [
   { title: "Dashboard", url: "/admin-empresa", icon: LayoutDashboard },
@@ -26,6 +27,7 @@ const menuItems = [
 
 export function CompanyAdminSidebar() {
   const { open } = useSidebar();
+  const companyInitials = currentCompany.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <Sidebar className={!open ? "w-14" : "w-64"}>
@@ -36,14 +38,14 @@ export function CompanyAdminSidebar() {
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12 bg-emerald-100">
                 <AvatarFallback className="bg-emerald-500 text-white font-semibold">
-                  IM
+                  {companyInitials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <h2 className="font-semibold text-sm truncate">
-                  Indústria Metalúrgica ABC
+                  {currentCompany.name}
                 </h2>
-                <Badge variant="secondary" className="text-xs mt-1">
+                <Badge variant="secondary" className="text-xs mt-1 bg-emerald-100 text-emerald-700">
                   Admin
                 </Badge>
               </div>
@@ -52,7 +54,7 @@ export function CompanyAdminSidebar() {
           {!open && (
             <Avatar className="h-10 w-10 bg-emerald-100 mx-auto">
               <AvatarFallback className="bg-emerald-500 text-white font-semibold text-xs">
-                IM
+                {companyInitials}
               </AvatarFallback>
             </Avatar>
           )}

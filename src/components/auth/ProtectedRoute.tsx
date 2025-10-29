@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
@@ -7,7 +7,8 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, isLoading } = useAuth();
+  const { user, userRole, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -19,6 +20,25 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Role-based routing
+  if (userRole) {
+    const currentPath = location.pathname;
+    
+    // IFA Admin should access IFA admin routes (/, /criterios, /empresas, /modelos-mestre)
+    if (userRole === 'ifa_admin') {
+      if (currentPath.startsWith('/admin-empresa')) {
+        return <Navigate to="/" replace />;
+      }
+    }
+    
+    // Company Admin should access company admin routes (/admin-empresa/*)
+    if (userRole === 'company_admin') {
+      if (!currentPath.startsWith('/admin-empresa')) {
+        return <Navigate to="/admin-empresa" replace />;
+      }
+    }
   }
 
   return <>{children}</>;

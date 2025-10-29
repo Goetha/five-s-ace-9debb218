@@ -11,6 +11,7 @@ import Empresas from "./pages/Empresas";
 import ModelosMestre from "./pages/ModelosMestre";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import CompanyAdminDashboard from "./pages/company-admin/Dashboard";
 import Ambientes from "./pages/company-admin/Ambientes";
 import Usuarios from "./pages/company-admin/Usuarios";
 
@@ -25,10 +26,15 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            
+            {/* IFA Admin Routes */}
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/criterios" element={<ProtectedRoute><BibliotecaCriterios /></ProtectedRoute>} />
             <Route path="/empresas" element={<ProtectedRoute><Empresas /></ProtectedRoute>} />
             <Route path="/modelos-mestre" element={<ProtectedRoute><ModelosMestre /></ProtectedRoute>} />
+            
+            {/* Company Admin Routes */}
+            <Route path="/admin-empresa" element={<ProtectedRoute><CompanyAdminDashboard /></ProtectedRoute>} />
             <Route path="/admin-empresa/ambientes" element={<ProtectedRoute><Ambientes /></ProtectedRoute>} />
             <Route path="/admin-empresa/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
