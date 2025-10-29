@@ -32,79 +32,31 @@ export function useCreateUser() {
         ? generateTemporaryPassword() 
         : data.password!;
 
-      // 1. Create user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: data.email,
-        password: password,
-        email_confirm: true, // Auto-confirm email
-        user_metadata: {
-          full_name: data.name,
+      // Call Edge Function to create user (requires admin privileges)
+      const { data: result, error: functionError } = await supabase.functions.invoke('create-company-user', {
+        body: {
+          name: data.name,
+          email: data.email,
           phone: data.phone,
+          position: data.position,
+          role: data.role,
+          linkedEnvironments: data.linkedEnvironments,
+          status: data.status,
+          password: password,
+          companyId: data.companyId,
         },
       });
 
-      if (authError) {
-        throw new Error(`Erro ao criar usuário: ${authError.message}`);
+      if (functionError) {
+        console.error("Function error:", functionError);
+        throw new Error(functionError.message || "Erro ao criar usuário");
       }
 
-      if (!authData.user) {
-        throw new Error("Usuário não foi criado");
+      if (!result?.success) {
+        throw new Error(result?.error || "Erro ao criar usuário");
       }
 
-      // 2. Update profile with additional info
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          full_name: data.name,
-          phone: data.phone || null,
-        })
-        .eq('id', authData.user.id);
-
-      if (profileError) {
-        console.error("Error updating profile:", profileError);
-      }
-
-      // 3. Assign role to user
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert([{
-          user_id: authData.user.id,
-          role: data.role as Database["public"]["Enums"]["app_role"],
-        }]);
-
-      if (roleError) {
-        throw new Error(`Erro ao atribuir role: ${roleError.message}`);
-      }
-
-      // 4. Link user to company
-      const { error: companyError } = await supabase
-        .from('user_companies')
-        .insert([{
-          user_id: authData.user.id,
-          company_id: data.companyId,
-        }]);
-
-      if (companyError) {
-        throw new Error(`Erro ao vincular à empresa: ${companyError.message}`);
-      }
-
-      // 5. Link auditor to environments (if applicable)
-      if (data.role === 'auditor' && data.linkedEnvironments.length > 0) {
-        const environmentLinks = data.linkedEnvironments.map(envId => ({
-          user_id: authData.user.id,
-          environment_id: envId,
-        }));
-
-        const { error: envError } = await supabase
-          .from('user_environments')
-          .insert(environmentLinks);
-
-        if (envError) {
-          console.error("Error linking environments:", envError);
-        }
-      }
-
-      // 6. Send credentials email (if requested)
+      // Send credentials email (if requested)
       if (data.sendEmail && data.passwordType === 'auto') {
         try {
           const { error: emailError } = await supabase.functions.invoke('send-user-credentials', {
@@ -136,7 +88,7 @@ export function useCreateUser() {
           : "Usuário cadastrado com sucesso.",
       });
 
-      return { success: true, userId: authData.user.id };
+      return { success: true, userId: result.userId };
     } catch (error: any) {
       console.error("Error creating user:", error);
       toast({
