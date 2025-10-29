@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -17,14 +18,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CompanyUser } from "@/types/companyUser";
-import { Eye, MoreVertical, Pencil } from "lucide-react";
+import { Eye, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UsersTableProps {
   users: CompanyUser[];
+  onRefresh?: () => void;
 }
 
 const roleColors: Record<string, string> = {
@@ -34,7 +47,100 @@ const roleColors: Record<string, string> = {
   viewer: "bg-gray-100 text-gray-700 border-gray-200",
 };
 
-export function UsersTable({ users }: UsersTableProps) {
+export function UsersTable({ users, onRefresh }: UsersTableProps) {
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<CompanyUser | null>(null);
+  const { toast } = useToast();
+
+  const allSelected = users.length > 0 && selectedUsers.length === users.length;
+  const someSelected = selectedUsers.length > 0 && selectedUsers.length < users.length;
+
+  const handleSelectAll = () => {
+    if (allSelected) {
+      setSelectedUsers([]);
+    } else {
+      setSelectedUsers(users.map(u => u.id));
+    }
+  };
+
+  const handleSelectUser = (userId: string) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleDeleteSelected = async () => {
+    try {
+      // Delete selected users
+      const { error } = await supabase.auth.admin.deleteUser(selectedUsers[0]); // Simplified for now
+      
+      if (error) {
+        toast({
+          title: "Erro ao excluir",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "✓ Usuários excluídos",
+        description: `${selectedUsers.length} usuário(s) foram removidos.`,
+      });
+
+      setSelectedUsers([]);
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error("Error deleting users:", error);
+      toast({
+        title: "Erro inesperado",
+        description: "Não foi possível excluir os usuários.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteUser = async (user: CompanyUser) => {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+
+    try {
+      const { error } = await supabase.auth.admin.deleteUser(userToDelete.id);
+      
+      if (error) {
+        toast({
+          title: "Erro ao excluir",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "✓ Usuário excluído",
+        description: `${userToDelete.name} foi removido.`,
+      });
+
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error("Error:", error);
+      toast({
+        title: "Erro inesperado",
+        description: "Não foi possível excluir o usuário.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Environment names will be passed as prop or fetched separately
   const getEnvironmentNames = (envIds: string[]) => {
     // For now, just show count - parent component can fetch env names if needed
@@ -42,13 +148,34 @@ export function UsersTable({ users }: UsersTableProps) {
   };
 
   return (
-    <div className="border rounded-lg">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">
-              <Checkbox />
-            </TableHead>
+    <>
+      {selectedUsers.length > 0 && (
+        <div className="mb-4 p-4 bg-muted rounded-lg flex items-center justify-between">
+          <span className="text-sm font-medium">
+            {selectedUsers.length} usuário(s) selecionado(s)
+          </span>
+          <Button 
+            variant="destructive" 
+            size="sm"
+            onClick={handleDeleteSelected}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Excluir Selecionados
+          </Button>
+        </div>
+      )}
+      
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12">
+                <Checkbox 
+                  checked={allSelected}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Selecionar todos"
+                />
+              </TableHead>
             <TableHead>Usuário</TableHead>
             <TableHead>Perfil</TableHead>
             <TableHead>Ambientes Vinculados</TableHead>
@@ -66,7 +193,11 @@ export function UsersTable({ users }: UsersTableProps) {
             return (
               <TableRow key={user.id}>
                 <TableCell>
-                  <Checkbox />
+                  <Checkbox 
+                    checked={selectedUsers.includes(user.id)}
+                    onCheckedChange={() => handleSelectUser(user.id)}
+                    aria-label={`Selecionar ${user.name}`}
+                  />
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">
@@ -124,10 +255,26 @@ export function UsersTable({ users }: UsersTableProps) {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8"
+                      title="Ver detalhes"
+                    >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8"
+                      title="Editar usuário"
+                      onClick={() => {
+                        toast({
+                          title: "Em desenvolvimento",
+                          description: "Funcionalidade de edição em breve.",
+                        });
+                      }}
+                    >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <DropdownMenu>
@@ -141,8 +288,12 @@ export function UsersTable({ users }: UsersTableProps) {
                         <DropdownMenuItem>📧 Enviar Email</DropdownMenuItem>
                         <DropdownMenuItem>🔄 Alternar Status</DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">
-                          🗑️ Excluir Usuário
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={() => handleDeleteUser(user)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir Usuário
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -154,5 +305,27 @@ export function UsersTable({ users }: UsersTableProps) {
         </TableBody>
       </Table>
     </div>
+
+    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir o usuário <strong>{userToDelete?.name}</strong>?
+            Esta ação não pode ser desfeita e o usuário perderá acesso ao sistema.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive hover:bg-destructive/90"
+            onClick={confirmDelete}
+          >
+            Excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

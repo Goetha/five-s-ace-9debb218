@@ -216,7 +216,7 @@ export default function Usuarios() {
             </CardContent>
           </Card>
         ) : (
-          <UsersTable users={filteredUsers} />
+          <UsersTable users={filteredUsers} onRefresh={fetchUsers} />
         )}
       </div>
 
