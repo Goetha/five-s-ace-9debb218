@@ -36,7 +36,7 @@ export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
   const [sendEmail, setSendEmail] = useState(true);
   const { toast } = useToast();
 
-  const showEnvironments = role === "auditor" || role === "area_manager";
+  const showEnvironments = role === "auditor";
 
   const toggleEnvironment = (envId: string) => {
     setLinkedEnvironments((prev) =>
@@ -106,7 +106,7 @@ export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
 
                 <div className="flex justify-center">
                   <Avatar className="h-20 w-20">
-                    <AvatarFallback className="bg-emerald-100 text-emerald-700 text-2xl">
+                    <AvatarFallback className="bg-primary/10 text-primary text-2xl">
                       {name.substring(0, 2).toUpperCase() || "?"}
                     </AvatarFallback>
                   </Avatar>
@@ -183,26 +183,6 @@ export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
                           <div className="font-medium">🟢 Avaliador</div>
                           <div className="text-xs text-muted-foreground">
                             Aplica auditorias nos ambientes designados
-                          </div>
-                        </Label>
-                      </div>
-
-                      <div className="flex items-start space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-muted">
-                        <RadioGroupItem value="area_manager" id="manager" />
-                        <Label htmlFor="manager" className="cursor-pointer flex-1">
-                          <div className="font-medium">🟡 Gestor de Área</div>
-                          <div className="text-xs text-muted-foreground">
-                            Gerencia ambientes e resolve planos de ação
-                          </div>
-                        </Label>
-                      </div>
-
-                      <div className="flex items-start space-x-2 p-3 border rounded-lg cursor-pointer hover:bg-muted">
-                        <RadioGroupItem value="viewer" id="viewer" />
-                        <Label htmlFor="viewer" className="cursor-pointer flex-1">
-                          <div className="font-medium">⚪ Visualizador</div>
-                          <div className="text-xs text-muted-foreground">
-                            Apenas visualiza relatórios e dashboards
                           </div>
                         </Label>
                       </div>
@@ -336,7 +316,7 @@ export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">
+              <Button type="submit" className="bg-primary hover:bg-primary-hover text-primary-foreground">
                 Criar Usuário
               </Button>
             </div>
