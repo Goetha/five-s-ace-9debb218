@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CompanyUserRole } from "@/types/companyUser";
 import { generateTemporaryPassword } from "@/lib/passwordGenerator";
 import { useToast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
 
 interface CreateUserData {
   name: string;
@@ -68,7 +69,7 @@ export function useCreateUser() {
         .from('user_roles')
         .insert([{
           user_id: authData.user.id,
-          role: data.role,
+          role: data.role as Database["public"]["Enums"]["app_role"],
         }]);
 
       if (roleError) {

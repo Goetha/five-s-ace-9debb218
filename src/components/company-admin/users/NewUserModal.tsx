@@ -18,6 +18,8 @@ import { useCreateUser } from "@/hooks/useCreateUser";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 interface NewUserModalProps {
   open: boolean;
@@ -47,8 +49,11 @@ export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
   
   const { createUser, isLoading } = useCreateUser();
   const { user } = useAuth();
+  const location = useLocation();
+  const { toast } = useToast();
+  const hideEnvSectionOnAmbientes = location.pathname.startsWith("/admin-empresa/ambientes");
 
-  const showEnvironments = role === "auditor";
+  const showEnvironments = role === "auditor" && !hideEnvSectionOnAmbientes;
 
   // Fetch user's company and environments
   useEffect(() => {
@@ -61,26 +66,23 @@ export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
     if (!user) return;
 
     try {
-      // Get user's company
-      const { data: companyData, error: companyError } = await supabase
-        .from('user_companies')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .single();
+      // Safer: get company id using backend function (handles no-row case)
+      const { data: companyIdRpc, error: companyError } = await supabase.rpc('get_user_company_id', { _user_id: user.id });
 
       if (companyError) {
-        console.error("Error fetching company:", companyError);
+        console.error("Error fetching company id via RPC:", companyError);
         return;
       }
 
-      if (companyData) {
-        setCompanyId(companyData.company_id);
+      if (companyIdRpc) {
+        const cid = companyIdRpc as string;
+        setCompanyId(cid);
 
         // Fetch environments for this company
         const { data: envData, error: envError } = await supabase
           .from('environments')
           .select('id, name, parent_id')
-          .eq('company_id', companyData.company_id)
+          .eq('company_id', cid)
           .eq('status', 'active')
           .order('name');
 
@@ -109,14 +111,27 @@ export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
     e.preventDefault();
 
     if (!name.trim() || !email.trim()) {
+      toast({ title: "Dados obrigatórios", description: "Preencha nome e email.", variant: "destructive" });
       return;
     }
 
     if (passwordType === "manual" && (!password || password !== confirmPassword)) {
+      toast({ title: "Senha inválida", description: "As senhas não conferem.", variant: "destructive" });
       return;
     }
 
-    if (!companyId) {
+    // Garante companyId (tenta via RPC se ainda não carregou)
+    let cid = companyId;
+    if (!cid && user) {
+      const { data: companyIdRpc } = await supabase.rpc('get_user_company_id', { _user_id: user.id });
+      if (companyIdRpc) {
+        cid = companyIdRpc as string;
+        setCompanyId(cid);
+      }
+    }
+
+    if (!cid) {
+      toast({ title: "Empresa não encontrada", description: "Sua conta não está vinculada a uma empresa.", variant: "destructive" });
       return;
     }
 
