@@ -178,7 +178,11 @@ export function EnvironmentCard({ environment, subEnvironments, onEdit, onAddSub
           </div>
 
           <div className="flex gap-2 mt-4 pt-4 border-t">
-            <Button variant="outline" size="sm" onClick={() => onEdit(environment)}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onEdit(environment)}
+            >
               <Pencil className="h-4 w-4 mr-1" />
               Editar
             </Button>
@@ -190,6 +194,18 @@ export function EnvironmentCard({ environment, subEnvironments, onEdit, onAddSub
             >
               <Plus className="h-4 w-4 mr-1" />
               Adicionar Sub-ambiente
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="text-destructive hover:bg-destructive/10"
+              onClick={() => {
+                setDeletingId(environment.id);
+                setDeleteDialogOpen(true);
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Excluir
             </Button>
           </div>
         </CardContent>
@@ -223,32 +239,28 @@ export function EnvironmentCard({ environment, subEnvironments, onEdit, onAddSub
                           </span>
                         </div>
                       </div>
-                    </div>
+                     </div>
                     <div className="flex items-center gap-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onEdit(subEnv)}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            className="text-destructive"
-                            onClick={() => {
-                              setDeletingId(subEnv.id);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => onEdit(subEnv)}
+                      >
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Editar
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          setDeletingId(subEnv.id);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Excluir
+                      </Button>
                       <Badge
                         variant={isSubActive ? "default" : "secondary"}
                         className="text-xs"
