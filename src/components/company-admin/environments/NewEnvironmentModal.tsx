@@ -37,11 +37,14 @@ import { useToast } from "@/hooks/use-toast";
 import { NewUserModal } from "../users/NewUserModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import type { Environment } from "@/types/environment";
 
 interface NewEnvironmentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  editingEnvironment?: Environment | null;
+  parentId?: string | null;
 }
 
 const iconOptions = [
@@ -56,12 +59,12 @@ const iconOptions = [
   { value: "Cog", label: "Outros", Icon: Cog },
 ];
 
-export function NewEnvironmentModal({ open, onOpenChange, onSuccess }: NewEnvironmentModalProps) {
+export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvironment, parentId }: NewEnvironmentModalProps) {
   const [environmentType, setEnvironmentType] = useState<"parent" | "sub">("parent");
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("Factory");
   const [description, setDescription] = useState("");
-  const [parentId, setParentId] = useState("");
+  const [selectedParentId, setSelectedParentId] = useState("");
   const [responsibleId, setResponsibleId] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -71,12 +74,32 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess }: NewEnviro
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Fetch parent environments and eligible users when modal opens
+  const isEditing = !!editingEnvironment;
+
+  // Populate form when editing or adding sub-environment
   useEffect(() => {
-    if (open && user) {
-      fetchData();
+    if (open) {
+      if (editingEnvironment) {
+        setName(editingEnvironment.name);
+        setDescription(editingEnvironment.description || "");
+        setResponsibleId(editingEnvironment.responsible_user_id || "");
+        setStatus(editingEnvironment.status);
+        setEnvironmentType(editingEnvironment.parent_id ? "sub" : "parent");
+        setSelectedParentId(editingEnvironment.parent_id || "");
+      } else if (parentId) {
+        setEnvironmentType("sub");
+        setSelectedParentId(parentId);
+      } else {
+        // Reset form for new environment
+        setName("");
+        setDescription("");
+        setResponsibleId("");
+        setStatus("active");
+        setEnvironmentType("parent");
+        setSelectedParentId("");
+      }
     }
-  }, [open, user]);
+  }, [open, editingEnvironment, parentId]);
 
   const fetchData = async () => {
     if (!user) return;
@@ -134,7 +157,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess }: NewEnviro
       return;
     }
 
-    if (environmentType === "sub" && !parentId) {
+    if (environmentType === "sub" && !selectedParentId) {
       toast({
         title: "Campos obrigatórios",
         description: "Selecione o ambiente pai.",
@@ -159,38 +182,67 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess }: NewEnviro
         return;
       }
 
-      // Insert environment
-      const { error } = await supabase
-        .from('environments')
-        .insert([{
-          company_id: companyIdData as string,
-          name: name.trim(),
-          description: description.trim() || null,
-          parent_id: environmentType === "sub" ? parentId : null,
-          responsible_user_id: responsibleId || null,
-          status,
-        }]);
+      if (isEditing && editingEnvironment) {
+        // Update existing environment
+        const { error } = await supabase
+          .from('environments')
+          .update({
+            name: name.trim(),
+            description: description.trim() || null,
+            parent_id: environmentType === "sub" ? selectedParentId : null,
+            responsible_user_id: responsibleId || null,
+            status,
+          })
+          .eq('id', editingEnvironment.id);
 
-      if (error) {
-        console.error("Error creating environment:", error);
+        if (error) {
+          console.error("Error updating environment:", error);
+          toast({
+            title: "Erro ao atualizar ambiente",
+            description: error.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
         toast({
-          title: "Erro ao criar ambiente",
-          description: error.message,
-          variant: "destructive",
+          title: "✓ Ambiente atualizado!",
+          description: `O ambiente "${name}" foi atualizado.`,
         });
-        return;
-      }
+      } else {
+        // Insert new environment
+        const { error } = await supabase
+          .from('environments')
+          .insert([{
+            company_id: companyIdData as string,
+            name: name.trim(),
+            description: description.trim() || null,
+            parent_id: environmentType === "sub" ? selectedParentId : null,
+            responsible_user_id: responsibleId || null,
+            status,
+          }]);
 
-      toast({
-        title: "✓ Ambiente criado com sucesso!",
-        description: `O ambiente "${name}" foi criado.`,
-      });
+        if (error) {
+          console.error("Error creating environment:", error);
+          toast({
+            title: "Erro ao criar ambiente",
+            description: error.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        toast({
+          title: "✓ Ambiente criado com sucesso!",
+          description: `O ambiente "${name}" foi criado.`,
+        });
+      }
 
       // Reset form
       setName("");
       setIcon("Factory");
       setDescription("");
-      setParentId("");
+      setSelectedParentId("");
       setResponsibleId("");
       setStatus("active");
       setEnvironmentType("parent");
@@ -216,9 +268,9 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess }: NewEnviro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Criar Novo Ambiente</DialogTitle>
+          <DialogTitle>{isEditing ? "Editar Ambiente" : "Criar Novo Ambiente"}</DialogTitle>
           <DialogDescription>
-            Adicione uma área ou setor para auditorias
+            {isEditing ? "Atualize as informações do ambiente" : "Adicione uma área ou setor para auditorias"}
           </DialogDescription>
         </DialogHeader>
 
@@ -252,7 +304,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess }: NewEnviro
             {environmentType === "sub" && (
               <div className="ml-8 space-y-2">
                 <Label htmlFor="parent">Sub-ambiente de *</Label>
-                <Select value={parentId} onValueChange={setParentId}>
+                <Select value={selectedParentId} onValueChange={setSelectedParentId}>
                   <SelectTrigger id="parent">
                     <SelectValue placeholder="Selecione o ambiente pai" />
                   </SelectTrigger>
@@ -403,10 +455,10 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess }: NewEnviro
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Criando...
+                  {isEditing ? "Salvando..." : "Criando..."}
                 </>
               ) : (
-                "Criar Ambiente"
+                isEditing ? "Salvar Alterações" : "Criar Ambiente"
               )}
             </Button>
           </div>

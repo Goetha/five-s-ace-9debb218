@@ -22,6 +22,8 @@ export default function Ambientes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [editingEnvironment, setEditingEnvironment] = useState<Environment | null>(null);
+  const [newSubEnvironmentParentId, setNewSubEnvironmentParentId] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -206,6 +208,15 @@ export default function Ambientes() {
               subEnvironments={filteredEnvironments.filter(
                 (sub) => sub.parent_id === env.id
               )}
+              onEdit={(environment) => {
+                setEditingEnvironment(environment);
+                setIsNewModalOpen(true);
+              }}
+              onAddSubEnvironment={(parentId) => {
+                setNewSubEnvironmentParentId(parentId);
+                setIsNewModalOpen(true);
+              }}
+              onRefresh={fetchEnvironments}
             />
           ))}
 
@@ -232,8 +243,16 @@ export default function Ambientes() {
 
       <NewEnvironmentModal 
         open={isNewModalOpen} 
-        onOpenChange={setIsNewModalOpen}
+        onOpenChange={(open) => {
+          setIsNewModalOpen(open);
+          if (!open) {
+            setEditingEnvironment(null);
+            setNewSubEnvironmentParentId(null);
+          }
+        }}
         onSuccess={fetchEnvironments}
+        editingEnvironment={editingEnvironment}
+        parentId={newSubEnvironmentParentId}
       />
     </CompanyAdminLayout>
   );
