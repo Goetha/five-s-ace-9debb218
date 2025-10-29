@@ -35,11 +35,10 @@ const roleColors: Record<string, string> = {
 };
 
 export function UsersTable({ users }: UsersTableProps) {
+  // Environment names will be passed as prop or fetched separately
   const getEnvironmentNames = (envIds: string[]) => {
-    return envIds.map((id) => {
-      const env = mockEnvironments.find((e) => e.id === id);
-      return env?.name || "";
-    });
+    // For now, just show count - parent component can fetch env names if needed
+    return envIds.map(() => "Ambiente");
   };
 
   return (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CompanyAdminLayout } from "@/components/company-admin/CompanyAdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,19 +9,81 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users as UsersIcon, Plus } from "lucide-react";
+import { Users as UsersIcon, Plus, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { mockCompanyUsers } from "@/data/mockCompanyUsers";
 import { UsersTable } from "@/components/company-admin/users/UsersTable";
 import { NewUserModal } from "@/components/company-admin/users/NewUserModal";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import type { CompanyUser } from "@/types/companyUser";
+
+const roleLabels: Record<string, string> = {
+  company_admin: "Admin",
+  auditor: "Avaliador",
+  area_manager: "Gestor",
+  viewer: "Visualizador",
+};
 
 export default function Usuarios() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [users, setUsers] = useState<CompanyUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const filteredUsers = mockCompanyUsers.filter((user) => {
+  useEffect(() => {
+    if (user) {
+      fetchUsers();
+    }
+  }, [user]);
+
+  const fetchUsers = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke('list-company-users');
+
+      if (error) {
+        console.error("Error fetching users:", error);
+        toast({
+          title: "Erro ao carregar usuários",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data?.success && data?.users) {
+        // Map to CompanyUser format
+        const mappedUsers: CompanyUser[] = data.users.map((u: any) => ({
+          id: u.id,
+          company_id: '', // Not needed for display
+          name: u.name || 'Usuário',
+          email: u.email || '',
+          phone: '',
+          role: u.role || 'auditor',
+          role_label: roleLabels[u.role] || u.role,
+          avatar: null,
+          status: u.status || 'active',
+          linked_environments: u.linked_environments || [],
+          last_access: null,
+          created_at: new Date().toISOString(),
+        }));
+        setUsers(mappedUsers);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -30,11 +92,11 @@ export default function Usuarios() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const totalUsers = mockCompanyUsers.length;
-  const admins = mockCompanyUsers.filter((u) => u.role === "company_admin").length;
-  const auditors = mockCompanyUsers.filter((u) => u.role === "auditor").length;
-  const managers = mockCompanyUsers.filter((u) => u.role === "area_manager").length;
-  const viewers = mockCompanyUsers.filter((u) => u.role === "viewer").length;
+  const totalUsers = users.length;
+  const admins = users.filter((u) => u.role === "company_admin").length;
+  const auditors = users.filter((u) => u.role === "auditor").length;
+  const managers = users.filter((u) => u.role === "area_manager").length;
+  const viewers = users.filter((u) => u.role === "viewer").length;
 
   return (
     <CompanyAdminLayout breadcrumbs={[{ label: "Dashboard" }, { label: "Usuários" }]}>
@@ -141,10 +203,23 @@ export default function Usuarios() {
         </div>
 
         {/* Users Table */}
-        <UsersTable users={filteredUsers} />
+        {loading ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <Loader2 className="h-12 w-12 mx-auto text-primary animate-spin mb-4" />
+              <p className="text-muted-foreground">Carregando usuários...</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <UsersTable users={filteredUsers} />
+        )}
       </div>
 
-      <NewUserModal open={isNewModalOpen} onOpenChange={setIsNewModalOpen} />
+      <NewUserModal 
+        open={isNewModalOpen} 
+        onOpenChange={setIsNewModalOpen}
+        onSuccess={fetchUsers}
+      />
     </CompanyAdminLayout>
   );
 }

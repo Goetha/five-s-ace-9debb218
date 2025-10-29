@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 interface NewUserModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 interface Environment {
@@ -32,7 +33,7 @@ interface Environment {
   parent_id: string | null;
 }
 
-export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
+export function NewUserModal({ open, onOpenChange, onSuccess }: NewUserModalProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -163,6 +164,11 @@ export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
       setConfirmPassword("");
       setSendEmail(true);
       onOpenChange(false);
+      
+      // Refresh parent list
+      if (onSuccess) {
+        onSuccess();
+      }
     }
   };
 

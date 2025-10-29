@@ -2,3 +2,12 @@ project_id = "xqmwcyyhhaneebqjjzpl"
 
 [functions.send-company-email]
 verify_jwt = false
+
+[functions.list-company-users]
+verify_jwt = true
+
+[functions.create-company-user]
+verify_jwt = true
+
+[functions.send-user-credentials]
+verify_jwt = false

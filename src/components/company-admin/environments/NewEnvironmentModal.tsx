@@ -97,8 +97,24 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess }: NewEnviro
 
       setParentEnvironments(envData || []);
 
-      // For now, we'll skip fetching users since we don't have proper user data structure yet
-      setEligibleUsers([]);
+      // Fetch users (admins and area managers) who can be responsible
+      const { data: usersData, error: usersError } = await supabase.functions.invoke('list-company-users');
+      
+      if (usersError) {
+        console.error("Error fetching users:", usersError);
+        setEligibleUsers([]);
+      } else if (usersData?.success && usersData?.users) {
+        // Filter only admins and area_managers
+        const eligible = usersData.users
+          .filter((u: any) => ['company_admin', 'area_manager'].includes(u.role))
+          .map((u: any) => ({
+            id: u.id,
+            name: u.name || 'Usuário',
+            email: u.email || '',
+            role_label: u.role === 'company_admin' ? 'Admin' : 'Gestor',
+          }));
+        setEligibleUsers(eligible);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
     }
