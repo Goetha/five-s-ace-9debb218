@@ -44,11 +44,11 @@ export default function Ambientes() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-emerald-50 border-emerald-200">
+          <Card className="bg-card border-border">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-emerald-100 rounded-lg">
-                  <Building2 className="h-6 w-6 text-emerald-600" />
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <Building2 className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total de Ambientes</p>
@@ -58,11 +58,11 @@ export default function Ambientes() {
             </CardContent>
           </Card>
 
-          <Card className="bg-green-50 border-green-200">
+          <Card className="bg-card border-border">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
+                <div className="p-3 bg-success/10 rounded-lg">
+                  <CheckCircle className="h-6 w-6 text-success" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Ativos</p>
@@ -72,11 +72,11 @@ export default function Ambientes() {
             </CardContent>
           </Card>
 
-          <Card className="bg-teal-50 border-teal-200">
+          <Card className="bg-card border-border">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-teal-100 rounded-lg">
-                  <Folder className="h-6 w-6 text-teal-600" />
+                <div className="p-3 bg-accent/20 rounded-lg">
+                  <Folder className="h-6 w-6 text-accent-foreground" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Sub-ambientes</p>
@@ -110,7 +110,7 @@ export default function Ambientes() {
           </Select>
           <Button
             onClick={() => setIsNewModalOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700"
+            className="bg-primary hover:bg-primary-hover text-primary-foreground"
           >
             <Plus className="h-4 w-4 mr-2" />
             Novo Ambiente
@@ -139,7 +139,7 @@ export default function Ambientes() {
                 </p>
                 <Button
                   onClick={() => setIsNewModalOpen(true)}
-                  className="bg-emerald-600 hover:bg-emerald-700"
+                  className="bg-primary hover:bg-primary-hover text-primary-foreground"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Criar Primeiro Ambiente

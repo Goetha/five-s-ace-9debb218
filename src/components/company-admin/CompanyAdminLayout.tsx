@@ -14,7 +14,7 @@ export function CompanyAdminLayout({ children, breadcrumbs }: CompanyAdminLayout
         <CompanyAdminSidebar />
         <div className="flex-1 flex flex-col">
           <CompanyAdminHeader breadcrumbs={breadcrumbs} />
-          <main className="flex-1 overflow-auto bg-gray-50">
+          <main className="flex-1 overflow-auto">
             {children}
           </main>
         </div>

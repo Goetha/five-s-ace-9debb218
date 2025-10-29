@@ -86,7 +86,7 @@ export function CompanyAdminHeader({ breadcrumbs }: CompanyAdminHeaderProps) {
                     </div>
                   </div>
                   {!notification.read && (
-                    <div className="h-2 w-2 rounded-full bg-emerald-500 mt-1" />
+                    <div className="h-2 w-2 rounded-full bg-primary mt-1" />
                   )}
                 </div>
               </DropdownMenuItem>
@@ -100,7 +100,7 @@ export function CompanyAdminHeader({ breadcrumbs }: CompanyAdminHeaderProps) {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="gap-2">
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-emerald-500 text-white text-sm">
+              <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                 {currentCompanyAdmin.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
               </AvatarFallback>
             </Avatar>

@@ -8,18 +8,19 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 15%;
+    /* Dark theme as default */
+    --background: 0 0% 9%;
+    --foreground: 0 0% 90%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 15%;
+    --card: 0 0% 15%;
+    --card-foreground: 0 0% 90%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 15%;
+    --popover: 0 0% 15%;
+    --popover-foreground: 0 0% 90%;
 
-    /* Primary Amber - Modern SaaS */
+    /* Primary Amber */
     --primary: 38 92% 50%;
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
     --primary-hover: 32 95% 44%;
 
     /* Success Green */
@@ -43,73 +44,6 @@ All colors MUST be HSL.
     --senso-4s: 142 71% 45%;    /* Verde - Padronização */
     --senso-5s: 217 91% 60%;    /* Azul - Disciplina */
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 9% 34%;
-
-    --muted: 220 13% 98%;
-    --muted-foreground: 220 9% 46%;
-
-    --accent: 48 100% 96%;
-    --accent-foreground: 32 87% 30%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 38 92% 50%;
-
-    --radius: 0.375rem;
-    
-    /* Custom shadows */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    
-    /* Transitions */
-    --transition-base: all 0.2s ease;
-
-    --sidebar-background: 220 13% 98%;
-    --sidebar-foreground: 0 0% 15%;
-    --sidebar-primary: 38 92% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 48 100% 96%;
-    --sidebar-accent-foreground: 32 87% 30%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 38 92% 50%;
-  }
-
-  .dark {
-    --background: 0 0% 9%;
-    --foreground: 0 0% 90%;
-
-    --card: 0 0% 15%;
-    --card-foreground: 0 0% 90%;
-
-    --popover: 0 0% 15%;
-    --popover-foreground: 0 0% 90%;
-
-    --primary: 38 92% 50%;
-    --primary-foreground: 0 0% 0%;
-    --primary-hover: 32 95% 44%;
-
-    --success: 160 84% 39%;
-    --success-foreground: 0 0% 100%;
-    --success-light: 142 50% 95%;
-    --success-border: 142 45% 80%;
-    
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 0%;
-    
-    --error: 0 84% 60%;
-    --error-foreground: 0 0% 100%;
-
-    --senso-1s: 0 84% 60%;
-    --senso-2s: 25 95% 53%;
-    --senso-3s: 45 93% 47%;
-    --senso-4s: 142 71% 45%;
-    --senso-5s: 217 91% 60%;
-
     --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 90%;
 
@@ -125,6 +59,16 @@ All colors MUST be HSL.
     --border: 0 0% 25%;
     --input: 0 0% 25%;
     --ring: 38 92% 50%;
+
+    --radius: 0.375rem;
+    
+    /* Custom shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    
+    /* Transitions */
+    --transition-base: all 0.2s ease;
 
     --sidebar-background: 0 0% 6%;
     --sidebar-foreground: 0 0% 90%;

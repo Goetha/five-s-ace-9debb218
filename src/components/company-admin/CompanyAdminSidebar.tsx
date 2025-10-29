@@ -33,11 +33,11 @@ export function CompanyAdminSidebar() {
     <Sidebar className={!open ? "w-14" : "w-64"}>
       <SidebarContent>
         {/* Company Header */}
-        <div className="p-4 border-b">
+        <div className="p-4 border-b border-sidebar-border">
           {open && (
             <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12 bg-emerald-100">
-                <AvatarFallback className="bg-emerald-500 text-white font-semibold">
+              <Avatar className="h-12 w-12 bg-primary/10">
+                <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
                   {companyInitials}
                 </AvatarFallback>
               </Avatar>
@@ -45,15 +45,15 @@ export function CompanyAdminSidebar() {
                 <h2 className="font-semibold text-sm truncate">
                   {currentCompany.name}
                 </h2>
-                <Badge variant="secondary" className="text-xs mt-1 bg-emerald-100 text-emerald-700">
+                <Badge variant="secondary" className="text-xs mt-1 bg-accent/20 text-accent-foreground">
                   Admin
                 </Badge>
               </div>
             </div>
           )}
           {!open && (
-            <Avatar className="h-10 w-10 bg-emerald-100 mx-auto">
-              <AvatarFallback className="bg-emerald-500 text-white font-semibold text-xs">
+            <Avatar className="h-10 w-10 bg-primary/10 mx-auto">
+              <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-xs">
                 {companyInitials}
               </AvatarFallback>
             </Avatar>
@@ -72,7 +72,7 @@ export function CompanyAdminSidebar() {
                       end
                       className={({ isActive }) =>
                         isActive
-                          ? "bg-emerald-50 text-emerald-700 font-medium"
+                          ? "bg-primary/10 text-primary font-medium"
                           : "hover:bg-muted/50"
                       }
                     >

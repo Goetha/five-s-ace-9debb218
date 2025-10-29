@@ -6,7 +6,7 @@ import { mockCompanyStats, currentCompanyAdmin } from "@/data/mockCompanyData";
 export default function Dashboard() {
   return (
     <CompanyAdminLayout breadcrumbs={[{ label: "Dashboard" }]}>
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="p-6 max-w-7xl mx-auto space-y-8">
         {/* Welcome Header */}
         <div>
           <h1 className="text-3xl font-bold text-foreground">
@@ -19,70 +19,70 @@ export default function Dashboard() {
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="border-emerald-200 bg-emerald-50/50">
+          <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-emerald-900">
+              <CardTitle className="text-sm font-medium text-foreground">
                 Ambientes
               </CardTitle>
-              <Building2 className="h-5 w-5 text-emerald-600" />
+              <Building2 className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-emerald-700">
+              <div className="text-3xl font-bold text-foreground">
                 {mockCompanyStats.totalEnvironments}
               </div>
-              <p className="text-xs text-emerald-600 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Áreas cadastradas
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-blue-200 bg-blue-50/50">
+          <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-blue-900">
+              <CardTitle className="text-sm font-medium text-foreground">
                 Usuários
               </CardTitle>
-              <Users className="h-5 w-5 text-blue-600" />
+              <Users className="h-5 w-5 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-700">
+              <div className="text-3xl font-bold text-foreground">
                 {mockCompanyStats.totalUsers}
               </div>
-              <p className="text-xs text-blue-600 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Colaboradores ativos
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-purple-200 bg-purple-50/50">
+          <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-purple-900">
+              <CardTitle className="text-sm font-medium text-foreground">
                 Auditorias
               </CardTitle>
-              <CheckCircle2 className="h-5 w-5 text-purple-600" />
+              <CheckCircle2 className="h-5 w-5 text-accent-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-purple-700">
+              <div className="text-3xl font-bold text-foreground">
                 {mockCompanyStats.totalAudits}
               </div>
-              <p className="text-xs text-purple-600 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Realizadas
               </p>
             </CardContent>
           </Card>
 
-          <Card className="border-amber-200 bg-amber-50/50">
+          <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-amber-900">
+              <CardTitle className="text-sm font-medium text-foreground">
                 Score Médio
               </CardTitle>
-              <TrendingUp className="h-5 w-5 text-amber-600" />
+              <TrendingUp className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-amber-700">
+              <div className="text-3xl font-bold text-foreground">
                 {mockCompanyStats.averageScore}
                 <span className="text-xl">/10</span>
               </div>
-              <p className="text-xs text-amber-600 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Performance geral
               </p>
             </CardContent>

@@ -53,8 +53,8 @@ export function EnvironmentCard({ environment, subEnvironments }: EnvironmentCar
         <CardContent className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3 flex-1">
-              <div className="p-2 bg-emerald-100 rounded-lg">
-                <Icon className="h-6 w-6 text-emerald-600" />
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Icon className="h-6 w-6 text-primary" />
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold">{environment.name}</h3>
@@ -83,7 +83,7 @@ export function EnvironmentCard({ environment, subEnvironments }: EnvironmentCar
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Badge variant={isActive ? "default" : "secondary"} className={isActive ? "bg-emerald-500" : ""}>
+              <Badge variant={isActive ? "default" : "secondary"}>
                 {isActive ? "Ativo" : "Inativo"}
               </Badge>
             </div>
@@ -118,7 +118,7 @@ export function EnvironmentCard({ environment, subEnvironments }: EnvironmentCar
               <Pencil className="h-4 w-4 mr-1" />
               Editar
             </Button>
-            <Button variant="outline" size="sm" className="bg-emerald-50 hover:bg-emerald-100">
+            <Button variant="outline" size="sm" className="bg-accent/20 hover:bg-accent/30">
               <Plus className="h-4 w-4 mr-1" />
               Adicionar Sub-ambiente
             </Button>
@@ -128,7 +128,7 @@ export function EnvironmentCard({ environment, subEnvironments }: EnvironmentCar
 
       {/* Sub-environments */}
       {subEnvironments.length > 0 && (
-        <div className="ml-8 space-y-2 border-l-2 border-emerald-200 pl-4">
+        <div className="ml-8 space-y-2 border-l-2 border-primary/30 pl-4">
           {subEnvironments.map((subEnv) => {
             const SubIcon = iconMap[subEnv.icon] || Cog;
             const isSubActive = subEnv.status === "active";
@@ -138,8 +138,8 @@ export function EnvironmentCard({ environment, subEnvironments }: EnvironmentCar
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3 flex-1">
-                      <div className="p-2 bg-teal-50 rounded-lg">
-                        <SubIcon className="h-5 w-5 text-teal-600" />
+                      <div className="p-2 bg-accent/20 rounded-lg">
+                        <SubIcon className="h-5 w-5 text-accent-foreground" />
                       </div>
                       <div className="flex-1">
                         <h4 className="font-medium">{subEnv.name}</h4>
@@ -175,7 +175,7 @@ export function EnvironmentCard({ environment, subEnvironments }: EnvironmentCar
                       </DropdownMenu>
                       <Badge
                         variant={isSubActive ? "default" : "secondary"}
-                        className={isSubActive ? "bg-emerald-500 text-xs" : "text-xs"}
+                        className="text-xs"
                       >
                         {isSubActive ? "Ativo" : "Inativo"}
                       </Badge>
