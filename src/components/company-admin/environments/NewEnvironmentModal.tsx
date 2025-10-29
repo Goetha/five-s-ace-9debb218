@@ -29,11 +29,13 @@ import {
   Trees,
   Cog,
   Folder,
+  Plus,
 } from "lucide-react";
 import { mockEnvironments } from "@/data/mockEnvironments";
 import { mockCompanyUsers } from "@/data/mockCompanyUsers";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
+import { NewUserModal } from "../users/NewUserModal";
 
 interface NewEnvironmentModalProps {
   open: boolean;
@@ -60,6 +62,7 @@ export function NewEnvironmentModal({ open, onOpenChange }: NewEnvironmentModalP
   const [parentId, setParentId] = useState("");
   const [responsibleId, setResponsibleId] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const { toast } = useToast();
 
   const parentEnvironments = mockEnvironments.filter((env) => !env.parent_id);
@@ -72,10 +75,10 @@ export function NewEnvironmentModal({ open, onOpenChange }: NewEnvironmentModalP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !responsibleId) {
+    if (!name.trim()) {
       toast({
         title: "Campos obrigatórios",
-        description: "Preencha todos os campos obrigatórios.",
+        description: "Preencha o nome do ambiente.",
         variant: "destructive",
       });
       return;
@@ -115,7 +118,7 @@ export function NewEnvironmentModal({ open, onOpenChange }: NewEnvironmentModalP
               <div className="flex items-center space-x-2 p-4 border rounded-lg cursor-pointer hover:bg-muted">
                 <RadioGroupItem value="parent" id="parent" />
                 <Label htmlFor="parent" className="flex items-center gap-2 cursor-pointer flex-1">
-                  <Building2 className="h-5 w-5 text-emerald-600" />
+                  <Building2 className="h-5 w-5 text-primary" />
                   <div>
                     <div className="font-medium">Ambiente Principal</div>
                     <div className="text-sm text-muted-foreground">Raiz da hierarquia</div>
@@ -125,7 +128,7 @@ export function NewEnvironmentModal({ open, onOpenChange }: NewEnvironmentModalP
               <div className="flex items-center space-x-2 p-4 border rounded-lg cursor-pointer hover:bg-muted">
                 <RadioGroupItem value="sub" id="sub" />
                 <Label htmlFor="sub" className="flex items-center gap-2 cursor-pointer flex-1">
-                  <Folder className="h-5 w-5 text-teal-600" />
+                  <Folder className="h-5 w-5 text-accent-foreground" />
                   <div>
                     <div className="font-medium">Sub-ambiente</div>
                     <div className="text-sm text-muted-foreground">Pertence a um ambiente pai</div>
@@ -185,8 +188,8 @@ export function NewEnvironmentModal({ open, onOpenChange }: NewEnvironmentModalP
                 </SelectContent>
               </Select>
               {selectedIcon && (
-                <div className="p-4 bg-emerald-50 rounded-lg">
-                  <selectedIcon.Icon className="h-8 w-8 text-emerald-600" />
+                <div className="p-4 bg-primary/10 rounded-lg">
+                  <selectedIcon.Icon className="h-8 w-8 text-primary" />
                 </div>
               )}
             </div>
@@ -210,30 +213,50 @@ export function NewEnvironmentModal({ open, onOpenChange }: NewEnvironmentModalP
 
           {/* Responsável */}
           <div className="space-y-2">
-            <Label htmlFor="responsible">Responsável pelo Ambiente *</Label>
-            <Select value={responsibleId} onValueChange={setResponsibleId}>
-              <SelectTrigger id="responsible">
-                <SelectValue placeholder="Selecione o responsável" />
-              </SelectTrigger>
-              <SelectContent>
-                {eligibleUsers.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-xs">
-                          {user.name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-xs text-muted-foreground">{user.email}</div>
-                        <div className="text-xs text-muted-foreground">{user.role_label}</div>
-                      </div>
+            <Label htmlFor="responsible">Responsável pelo Ambiente</Label>
+            <div className="flex gap-2">
+              <Select value={responsibleId} onValueChange={setResponsibleId}>
+                <SelectTrigger id="responsible" className="flex-1">
+                  <SelectValue placeholder="Selecione o responsável" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  {eligibleUsers.length === 0 ? (
+                    <div className="p-4 text-sm text-muted-foreground text-center">
+                      Nenhum usuário disponível
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  ) : (
+                    eligibleUsers.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                              {user.name.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{user.name}</div>
+                            <div className="text-xs text-muted-foreground">{user.email}</div>
+                            <div className="text-xs text-muted-foreground">{user.role_label}</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setIsUserModalOpen(true)}
+                className="shrink-0"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Opcional: Você pode atribuir um responsável agora ou depois
+            </p>
           </div>
 
           {/* Status */}
@@ -260,12 +283,15 @@ export function NewEnvironmentModal({ open, onOpenChange }: NewEnvironmentModalP
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">
+            <Button type="submit" className="bg-primary hover:bg-primary-hover text-primary-foreground">
               Criar Ambiente
             </Button>
           </div>
         </form>
       </DialogContent>
+      
+      {/* Modal de Criar Usuário */}
+      <NewUserModal open={isUserModalOpen} onOpenChange={setIsUserModalOpen} />
     </Dialog>
   );
 }
