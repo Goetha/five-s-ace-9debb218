@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,14 +12,22 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { mockEnvironments } from "@/data/mockEnvironments";
 import { CompanyUserRole } from "@/types/companyUser";
-import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useCreateUser } from "@/hooks/useCreateUser";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
 interface NewUserModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+interface Environment {
+  id: string;
+  name: string;
+  parent_id: string | null;
 }
 
 export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
@@ -34,9 +42,58 @@ export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [sendEmail, setSendEmail] = useState(true);
-  const { toast } = useToast();
+  const [environments, setEnvironments] = useState<Environment[]>([]);
+  const [companyId, setCompanyId] = useState<string>("");
+  
+  const { createUser, isLoading } = useCreateUser();
+  const { user } = useAuth();
 
   const showEnvironments = role === "auditor";
+
+  // Fetch user's company and environments
+  useEffect(() => {
+    if (open && user) {
+      fetchCompanyAndEnvironments();
+    }
+  }, [open, user]);
+
+  const fetchCompanyAndEnvironments = async () => {
+    if (!user) return;
+
+    try {
+      // Get user's company
+      const { data: companyData, error: companyError } = await supabase
+        .from('user_companies')
+        .select('company_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (companyError) {
+        console.error("Error fetching company:", companyError);
+        return;
+      }
+
+      if (companyData) {
+        setCompanyId(companyData.company_id);
+
+        // Fetch environments for this company
+        const { data: envData, error: envError } = await supabase
+          .from('environments')
+          .select('id, name, parent_id')
+          .eq('company_id', companyData.company_id)
+          .eq('status', 'active')
+          .order('name');
+
+        if (envError) {
+          console.error("Error fetching environments:", envError);
+        } else {
+          setEnvironments(envData || []);
+        }
+      }
+    } catch (error) {
+      console.error("Error in fetchCompanyAndEnvironments:", error);
+    }
+  };
 
   const toggleEnvironment = (envId: string) => {
     setLinkedEnvironments((prev) =>
@@ -45,48 +102,53 @@ export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
   };
 
   const selectAllEnvironments = () => {
-    setLinkedEnvironments(mockEnvironments.map((env) => env.id));
+    setLinkedEnvironments(environments.map((env) => env.id));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name.trim() || !email.trim()) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Preencha nome e email.",
-        variant: "destructive",
-      });
       return;
     }
 
     if (passwordType === "manual" && (!password || password !== confirmPassword)) {
-      toast({
-        title: "Erro nas senhas",
-        description: "As senhas não coincidem.",
-        variant: "destructive",
-      });
       return;
     }
 
-    toast({
-      title: "✓ Usuário criado!",
-      description: "Credenciais enviadas por email.",
+    if (!companyId) {
+      return;
+    }
+
+    const result = await createUser({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      phone,
+      position,
+      role,
+      linkedEnvironments,
+      status,
+      passwordType,
+      password,
+      sendEmail,
+      companyId,
     });
 
-    // Reset form
-    setName("");
-    setEmail("");
-    setPhone("");
-    setPosition("");
-    setRole("auditor");
-    setLinkedEnvironments([]);
-    setStatus("active");
-    setPasswordType("auto");
-    setPassword("");
-    setConfirmPassword("");
-    setSendEmail(true);
-    onOpenChange(false);
+    if (result.success) {
+      // Reset form
+      setName("");
+      setEmail("");
+      setPhone("");
+      setPosition("");
+      setRole("auditor");
+      setLinkedEnvironments([]);
+      setStatus("active");
+      setPasswordType("auto");
+      setPassword("");
+      setConfirmPassword("");
+      setSendEmail(true);
+      onOpenChange(false);
+    }
   };
 
   return (
@@ -204,36 +266,42 @@ export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
                       </Button>
                     </div>
                     <div className="border rounded-lg p-3 space-y-2 max-h-40 overflow-y-auto">
-                      {mockEnvironments
-                        .filter((env) => !env.parent_id)
-                        .map((env) => (
-                          <div key={env.id}>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={env.id}
-                                checked={linkedEnvironments.includes(env.id)}
-                                onCheckedChange={() => toggleEnvironment(env.id)}
-                              />
-                              <Label htmlFor={env.id} className="cursor-pointer font-medium">
-                                {env.name}
-                              </Label>
+                      {environments.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          Nenhum ambiente cadastrado
+                        </p>
+                      ) : (
+                        environments
+                          .filter((env) => !env.parent_id)
+                          .map((env) => (
+                            <div key={env.id}>
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={env.id}
+                                  checked={linkedEnvironments.includes(env.id)}
+                                  onCheckedChange={() => toggleEnvironment(env.id)}
+                                />
+                                <Label htmlFor={env.id} className="cursor-pointer font-medium">
+                                  {env.name}
+                                </Label>
+                              </div>
+                              {environments
+                                .filter((sub) => sub.parent_id === env.id)
+                                .map((sub) => (
+                                  <div key={sub.id} className="ml-6 flex items-center space-x-2 mt-1">
+                                    <Checkbox
+                                      id={sub.id}
+                                      checked={linkedEnvironments.includes(sub.id)}
+                                      onCheckedChange={() => toggleEnvironment(sub.id)}
+                                    />
+                                    <Label htmlFor={sub.id} className="cursor-pointer text-sm">
+                                      {sub.name}
+                                    </Label>
+                                  </div>
+                                ))}
                             </div>
-                            {mockEnvironments
-                              .filter((sub) => sub.parent_id === env.id)
-                              .map((sub) => (
-                                <div key={sub.id} className="ml-6 flex items-center space-x-2 mt-1">
-                                  <Checkbox
-                                    id={sub.id}
-                                    checked={linkedEnvironments.includes(sub.id)}
-                                    onCheckedChange={() => toggleEnvironment(sub.id)}
-                                  />
-                                  <Label htmlFor={sub.id} className="cursor-pointer text-sm">
-                                    {sub.name}
-                                  </Label>
-                                </div>
-                              ))}
-                          </div>
-                        ))}
+                          ))
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Selecione os ambientes que este usuário poderá acessar
@@ -313,11 +381,27 @@ export function NewUserModal({ open, onOpenChange }: NewUserModalProps) {
             </div>
 
             <div className="flex gap-3 justify-end pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+                disabled={isLoading}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-primary hover:bg-primary-hover text-primary-foreground">
-                Criar Usuário
+              <Button 
+                type="submit" 
+                className="bg-primary hover:bg-primary-hover text-primary-foreground"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  "Criar Usuário"
+                )}
               </Button>
             </div>
           </form>
