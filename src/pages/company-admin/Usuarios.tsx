@@ -67,21 +67,23 @@ export default function Usuarios() {
 
       if (data?.success && data?.users) {
         console.log("✅ Users loaded:", data.users.length);
-        // Map to CompanyUser format
-        const mappedUsers: CompanyUser[] = data.users.map((u: any) => ({
-          id: u.id,
-          company_id: '', // Not needed for display
-          name: u.name || 'Usuário',
-          email: u.email || '',
-          phone: '',
-          role: u.role || 'auditor',
-          role_label: roleLabels[u.role] || u.role,
-          avatar: null,
-          status: u.status || 'active',
-          linked_environments: u.linked_environments || [],
-          last_access: null,
-          created_at: new Date().toISOString(),
-        }));
+        // Map to CompanyUser format and filter out company_admin
+        const mappedUsers: CompanyUser[] = data.users
+          .filter((u: any) => u.role !== 'company_admin') // Excluir admins
+          .map((u: any) => ({
+            id: u.id,
+            company_id: '', // Not needed for display
+            name: u.name || 'Usuário',
+            email: u.email || '',
+            phone: '',
+            role: u.role || 'auditor',
+            role_label: roleLabels[u.role] || u.role,
+            avatar: null,
+            status: u.status || 'active',
+            linked_environments: u.linked_environments || [],
+            last_access: null,
+            created_at: new Date().toISOString(),
+          }));
         setUsers(mappedUsers);
       } else {
         console.log("⚠️ No users in response or not success");
@@ -108,7 +110,6 @@ export default function Usuarios() {
   });
 
   const totalUsers = users.length;
-  const admins = users.filter((u) => u.role === "company_admin").length;
   const auditors = users.filter((u) => u.role === "auditor").length;
   const managers = users.filter((u) => u.role === "area_manager").length;
   const viewers = users.filter((u) => u.role === "viewer").length;
@@ -125,7 +126,7 @@ export default function Usuarios() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -136,16 +137,6 @@ export default function Usuarios() {
                   <p className="text-xs text-muted-foreground">Total</p>
                   <p className="text-2xl font-bold">{totalUsers}</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-blue-200">
-            <CardContent className="p-4">
-              <div>
-                <p className="text-xs text-muted-foreground">🔵 Admins</p>
-                <p className="text-2xl font-bold">{admins}</p>
-                <p className="text-xs text-muted-foreground">(você)</p>
               </div>
             </CardContent>
           </Card>
@@ -192,7 +183,6 @@ export default function Usuarios() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os Perfis</SelectItem>
-              <SelectItem value="company_admin">Admin</SelectItem>
               <SelectItem value="auditor">Avaliador</SelectItem>
               <SelectItem value="area_manager">Gestor</SelectItem>
               <SelectItem value="viewer">Visualizador</SelectItem>
