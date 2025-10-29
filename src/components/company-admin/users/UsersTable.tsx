@@ -74,13 +74,14 @@ export function UsersTable({ users, onRefresh }: UsersTableProps) {
 
   const handleDeleteSelected = async () => {
     try {
-      // Delete selected users
-      const { error } = await supabase.auth.admin.deleteUser(selectedUsers[0]); // Simplified for now
-      
-      if (error) {
+      const { data, error } = await supabase.functions.invoke('delete-company-users', {
+        body: { userIds: selectedUsers }
+      });
+
+      if (error || !data?.success) {
         toast({
           title: "Erro ao excluir",
-          description: error.message,
+          description: data?.message || error?.message || 'Falha ao excluir usuários',
           variant: "destructive",
         });
         return;
@@ -112,12 +113,14 @@ export function UsersTable({ users, onRefresh }: UsersTableProps) {
     if (!userToDelete) return;
 
     try {
-      const { error } = await supabase.auth.admin.deleteUser(userToDelete.id);
+      const { data, error } = await supabase.functions.invoke('delete-company-users', {
+        body: { userIds: [userToDelete.id] }
+      });
       
-      if (error) {
+      if (error || !data?.success) {
         toast({
           title: "Erro ao excluir",
-          description: error.message,
+          description: data?.message || error?.message || 'Falha ao excluir usuário',
           variant: "destructive",
         });
         return;
