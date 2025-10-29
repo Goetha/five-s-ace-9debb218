@@ -21,7 +21,7 @@ import { CompanyUser } from "@/types/companyUser";
 import { Eye, MoreVertical, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { mockEnvironments } from "@/data/mockEnvironments";
+
 
 interface UsersTableProps {
   users: CompanyUser[];
