@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -30,16 +30,18 @@ import {
   Cog,
   Folder,
   Plus,
+  Loader2,
 } from "lucide-react";
-import { mockEnvironments } from "@/data/mockEnvironments";
-import { mockCompanyUsers } from "@/data/mockCompanyUsers";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { NewUserModal } from "../users/NewUserModal";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface NewEnvironmentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 const iconOptions = [
@@ -54,7 +56,7 @@ const iconOptions = [
   { value: "Cog", label: "Outros", Icon: Cog },
 ];
 
-export function NewEnvironmentModal({ open, onOpenChange }: NewEnvironmentModalProps) {
+export function NewEnvironmentModal({ open, onOpenChange, onSuccess }: NewEnvironmentModalProps) {
   const [environmentType, setEnvironmentType] = useState<"parent" | "sub">("parent");
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("Factory");
@@ -63,16 +65,48 @@ export function NewEnvironmentModal({ open, onOpenChange }: NewEnvironmentModalP
   const [responsibleId, setResponsibleId] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [parentEnvironments, setParentEnvironments] = useState<any[]>([]);
+  const [eligibleUsers, setEligibleUsers] = useState<any[]>([]);
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  const parentEnvironments = mockEnvironments.filter((env) => !env.parent_id);
-  const eligibleUsers = mockCompanyUsers.filter(
-    (user) => user.role === "company_admin" || user.role === "area_manager"
-  );
+  // Fetch parent environments and eligible users when modal opens
+  useEffect(() => {
+    if (open && user) {
+      fetchData();
+    }
+  }, [open, user]);
+
+  const fetchData = async () => {
+    if (!user) return;
+
+    try {
+      // Get company ID
+      const { data: companyIdData } = await supabase.rpc('get_user_company_id', { _user_id: user.id });
+      if (!companyIdData) return;
+
+      // Fetch parent environments
+      const { data: envData } = await supabase
+        .from('environments')
+        .select('id, name')
+        .eq('company_id', companyIdData as string)
+        .is('parent_id', null)
+        .eq('status', 'active')
+        .order('name');
+
+      setParentEnvironments(envData || []);
+
+      // For now, we'll skip fetching users since we don't have proper user data structure yet
+      setEligibleUsers([]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
 
   const selectedIcon = iconOptions.find((opt) => opt.value === icon);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim()) {
@@ -84,20 +118,82 @@ export function NewEnvironmentModal({ open, onOpenChange }: NewEnvironmentModalP
       return;
     }
 
-    toast({
-      title: "✓ Ambiente criado com sucesso!",
-      description: `O ambiente "${name}" foi criado.`,
-    });
+    if (environmentType === "sub" && !parentId) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Selecione o ambiente pai.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Reset form
-    setName("");
-    setIcon("Factory");
-    setDescription("");
-    setParentId("");
-    setResponsibleId("");
-    setStatus("active");
-    setEnvironmentType("parent");
-    onOpenChange(false);
+    if (!user) return;
+
+    try {
+      setLoading(true);
+
+      // Get company ID
+      const { data: companyIdData } = await supabase.rpc('get_user_company_id', { _user_id: user.id });
+      if (!companyIdData) {
+        toast({
+          title: "Erro",
+          description: "Empresa não encontrada.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Insert environment
+      const { error } = await supabase
+        .from('environments')
+        .insert([{
+          company_id: companyIdData as string,
+          name: name.trim(),
+          description: description.trim() || null,
+          parent_id: environmentType === "sub" ? parentId : null,
+          responsible_user_id: responsibleId || null,
+          status,
+        }]);
+
+      if (error) {
+        console.error("Error creating environment:", error);
+        toast({
+          title: "Erro ao criar ambiente",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "✓ Ambiente criado com sucesso!",
+        description: `O ambiente "${name}" foi criado.`,
+      });
+
+      // Reset form
+      setName("");
+      setIcon("Factory");
+      setDescription("");
+      setParentId("");
+      setResponsibleId("");
+      setStatus("active");
+      setEnvironmentType("parent");
+      onOpenChange(false);
+
+      // Call onSuccess callback to refresh parent component
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast({
+        title: "Erro inesperado",
+        description: "Ocorreu um erro ao criar o ambiente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -280,11 +376,22 @@ export function NewEnvironmentModal({ open, onOpenChange }: NewEnvironmentModalP
 
           {/* Footer */}
           <div className="flex gap-3 justify-end pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-primary hover:bg-primary-hover text-primary-foreground">
-              Criar Ambiente
+            <Button 
+              type="submit" 
+              className="bg-primary hover:bg-primary-hover text-primary-foreground"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Criando...
+                </>
+              ) : (
+                "Criar Ambiente"
+              )}
             </Button>
           </div>
         </form>

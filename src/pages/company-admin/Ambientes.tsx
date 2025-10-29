@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CompanyAdminLayout } from "@/components/company-admin/CompanyAdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,25 +11,93 @@ import {
 } from "@/components/ui/select";
 import { Building2, CheckCircle, Folder, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { mockEnvironments } from "@/data/mockEnvironments";
 import { EnvironmentCard } from "@/components/company-admin/environments/EnvironmentCard";
 import { NewEnvironmentModal } from "@/components/company-admin/environments/NewEnvironmentModal";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import type { Environment } from "@/types/environment";
 
 export default function Ambientes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [environments, setEnvironments] = useState<Environment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const filteredEnvironments = mockEnvironments.filter((env) => {
+  // Fetch environments from Supabase
+  useEffect(() => {
+    if (user) {
+      fetchEnvironments();
+    }
+  }, [user]);
+
+  const fetchEnvironments = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      
+      // Get user's company ID
+      const { data: companyIdData } = await supabase.rpc('get_user_company_id', { _user_id: user.id });
+      
+      if (!companyIdData) {
+        toast({
+          title: "Empresa não encontrada",
+          description: "Sua conta não está vinculada a uma empresa.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Fetch environments for this company
+      const { data, error } = await supabase
+        .from('environments')
+        .select('*')
+        .eq('company_id', companyIdData as string)
+        .order('name');
+
+      if (error) {
+        console.error("Error fetching environments:", error);
+        toast({
+          title: "Erro ao carregar ambientes",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Map database rows to Environment type with default values
+      const mappedEnvironments: Environment[] = (data || []).map(env => ({
+        ...env,
+        status: env.status as 'active' | 'inactive',
+        icon: 'Factory', // Default icon
+        responsible_name: env.responsible_user_id || '',
+        responsible_email: '',
+        responsible_avatar: null,
+        audits_count: 0,
+      }));
+
+      setEnvironments(mappedEnvironments);
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredEnvironments = environments.filter((env) => {
     const matchesSearch = env.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || env.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   const parentEnvironments = filteredEnvironments.filter((env) => !env.parent_id);
-  const totalEnvironments = mockEnvironments.length;
-  const activeEnvironments = mockEnvironments.filter((env) => env.status === "active").length;
-  const subEnvironments = mockEnvironments.filter((env) => env.parent_id !== null).length;
+  const totalEnvironments = environments.length;
+  const activeEnvironments = environments.filter((env) => env.status === "active").length;
+  const subEnvironments = environments.filter((env) => env.parent_id !== null).length;
 
   return (
     <CompanyAdminLayout breadcrumbs={[{ label: "Dashboard" }, { label: "Ambientes" }]}>
@@ -150,7 +218,11 @@ export default function Ambientes() {
         </div>
       </div>
 
-      <NewEnvironmentModal open={isNewModalOpen} onOpenChange={setIsNewModalOpen} />
+      <NewEnvironmentModal 
+        open={isNewModalOpen} 
+        onOpenChange={setIsNewModalOpen}
+        onSuccess={fetchEnvironments}
+      />
     </CompanyAdminLayout>
   );
 }
