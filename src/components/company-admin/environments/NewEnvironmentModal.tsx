@@ -76,6 +76,13 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
   const isEditing = !!editingEnvironment;
 
+  // Fetch data when modal opens
+  useEffect(() => {
+    if (open) {
+      fetchData();
+    }
+  }, [open, user]);
+
   // Populate form when editing or adding sub-environment
   useEffect(() => {
     if (open) {
