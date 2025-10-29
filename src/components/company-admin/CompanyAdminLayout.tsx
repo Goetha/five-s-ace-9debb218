@@ -10,11 +10,11 @@ interface CompanyAdminLayoutProps {
 export function CompanyAdminLayout({ children, breadcrumbs }: CompanyAdminLayoutProps) {
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full bg-background">
         <CompanyAdminSidebar />
         <div className="flex-1 flex flex-col">
           <CompanyAdminHeader breadcrumbs={breadcrumbs} />
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto bg-gray-50">
             {children}
           </main>
         </div>
