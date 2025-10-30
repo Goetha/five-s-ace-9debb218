@@ -116,6 +116,48 @@ export type Database = {
         }
         Relationships: []
       }
+      company_models: {
+        Row: {
+          company_id: string
+          id: string
+          linked_at: string
+          model_id: string
+          notify_admin: boolean
+          status: string
+        }
+        Insert: {
+          company_id: string
+          id?: string
+          linked_at?: string
+          model_id: string
+          notify_admin?: boolean
+          status?: string
+        }
+        Update: {
+          company_id?: string
+          id?: string
+          linked_at?: string
+          model_id?: string
+          notify_admin?: boolean
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_models_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_models_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "master_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       environments: {
         Row: {
           company_id: string
@@ -166,6 +208,108 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      master_criteria: {
+        Row: {
+          created_at: string
+          default_weight: number
+          description: string | null
+          id: string
+          name: string
+          scoring_type: string
+          senso: string
+          status: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_weight: number
+          description?: string | null
+          id?: string
+          name: string
+          scoring_type: string
+          senso: string
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_weight?: number
+          description?: string | null
+          id?: string
+          name?: string
+          scoring_type?: string
+          senso?: string
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      master_model_criteria: {
+        Row: {
+          created_at: string
+          criterion_id: string
+          id: string
+          model_id: string
+        }
+        Insert: {
+          created_at?: string
+          criterion_id: string
+          id?: string
+          model_id: string
+        }
+        Update: {
+          created_at?: string
+          criterion_id?: string
+          id?: string
+          model_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "master_model_criteria_criterion_id_fkey"
+            columns: ["criterion_id"]
+            isOneToOne: false
+            referencedRelation: "master_criteria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "master_model_criteria_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "master_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      master_models: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
