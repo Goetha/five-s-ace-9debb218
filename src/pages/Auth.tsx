@@ -44,7 +44,6 @@ export default function Auth() {
           : error.message,
         variant: "destructive",
       });
-      setIsLoading(false);
     } else {
       toast({
         title: "Login realizado!",
@@ -52,8 +51,9 @@ export default function Auth() {
         className: "bg-green-50 border-green-200",
       });
       // O redirecionamento será feito pelo useEffect baseado no role
-      // Não fazer navigate aqui para evitar race condition
     }
+    
+    setIsLoading(false);
   };
 
 
