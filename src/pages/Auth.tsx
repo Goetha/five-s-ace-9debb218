@@ -10,18 +10,25 @@ import { toast } from "@/components/ui/use-toast";
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { signIn, user, isLoading: authLoading } = useAuth();
+  const { signIn, user, userRole, isLoading: authLoading } = useAuth();
   
   const [isLoading, setIsLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated based on role
   useEffect(() => {
-    if (user && !authLoading) {
-      navigate('/');
+    if (user && !authLoading && userRole) {
+      if (userRole === 'ifa_admin') {
+        navigate('/');
+      } else if (userRole === 'company_admin') {
+        navigate('/admin-empresa');
+      } else {
+        // Outros roles (auditor, area_manager, viewer)
+        navigate('/admin-empresa');
+      }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, userRole, authLoading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,16 +44,16 @@ export default function Auth() {
           : error.message,
         variant: "destructive",
       });
+      setIsLoading(false);
     } else {
       toast({
         title: "Login realizado!",
         description: "Bem-vindo de volta.",
         className: "bg-green-50 border-green-200",
       });
-      navigate('/');
+      // O redirecionamento será feito pelo useEffect baseado no role
+      // Não fazer navigate aqui para evitar race condition
     }
-
-    setIsLoading(false);
   };
 
 
