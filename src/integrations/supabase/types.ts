@@ -158,6 +158,42 @@ export type Database = {
           },
         ]
       }
+      environment_criteria: {
+        Row: {
+          created_at: string
+          criterion_id: string
+          environment_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          criterion_id: string
+          environment_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          criterion_id?: string
+          environment_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "environment_criteria_criterion_id_fkey"
+            columns: ["criterion_id"]
+            isOneToOne: false
+            referencedRelation: "company_criteria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "environment_criteria_environment_id_fkey"
+            columns: ["environment_id"]
+            isOneToOne: false
+            referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       environments: {
         Row: {
           company_id: string
