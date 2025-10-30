@@ -137,12 +137,20 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         // Incluir company_admin, area_manager e auditor
         const eligible = usersData.users
           .filter((u: any) => ['company_admin', 'area_manager', 'auditor'].includes(u.role))
-          .map((u: any) => ({
-            id: u.id,
-            name: u.name || 'Usuário',
-            email: u.email || '',
-            role_label: u.role === 'company_admin' ? 'Admin' : u.role === 'area_manager' ? 'Gestor' : 'Avaliador',
-          }));
+          .map((u: any) => {
+            let roleLabel = 'Avaliador';
+            if (u.role === 'company_admin') roleLabel = 'Admin';
+            else if (u.role === 'area_manager') roleLabel = 'Gestor de Área';
+            
+            return {
+              id: u.id,
+              name: u.name || 'Usuário',
+              email: u.email || '',
+              role: u.role,
+              role_label: roleLabel,
+            };
+          });
+        console.log('Eligible users with roles:', eligible);
         setEligibleUsers(eligible);
       }
     } catch (error) {
@@ -398,16 +406,18 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
                   ) : (
                     eligibleUsers.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
+                        <div className="flex items-center gap-3 py-1">
+                          <Avatar className="h-8 w-8">
                             <AvatarFallback className="text-xs bg-primary/10 text-primary">
                               {user.name.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <div className="font-medium">{user.name}</div>
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{user.name}</div>
                             <div className="text-xs text-muted-foreground">{user.email}</div>
-                            <div className="text-xs text-muted-foreground">{user.role_label}</div>
+                          </div>
+                          <div className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
+                            {user.role_label}
                           </div>
                         </div>
                       </SelectItem>
