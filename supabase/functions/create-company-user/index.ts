@@ -42,6 +42,19 @@ serve(async (req) => {
     
     console.log("Creating user:", requestData.email);
 
+    // Check if user already exists
+    const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error("Error checking existing users:", listError);
+    } else {
+      const existingUser = existingUsers?.users?.find(u => u.email === requestData.email);
+      if (existingUser) {
+        console.log("User already exists with email:", requestData.email);
+        throw new Error(`Já existe um usuário cadastrado com o email ${requestData.email}. Por favor, use outro email ou vincule o usuário existente.`);
+      }
+    }
+
     // 1. Create user in Supabase Auth
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: requestData.email,
@@ -55,6 +68,10 @@ serve(async (req) => {
 
     if (authError) {
       console.error("Auth error:", authError);
+      // Provide user-friendly error messages
+      if (authError.message?.includes('already been registered')) {
+        throw new Error(`O email ${requestData.email} já está cadastrado no sistema.`);
+      }
       throw new Error(`Erro ao criar usuário: ${authError.message}`);
     }
 
