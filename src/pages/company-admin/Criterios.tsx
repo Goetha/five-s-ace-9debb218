@@ -117,17 +117,17 @@ export default function Criterios() {
 
   return (
     <CompanyAdminLayout breadcrumbs={breadcrumbs}>
-      <div className="space-y-6">
+      <div className="space-y-6 p-4 md:p-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">Critérios de Avaliação 5S</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl md:text-3xl font-bold">Critérios de Avaliação 5S</h1>
+          <p className="text-muted-foreground mt-2 text-sm md:text-base">
             Gerencie critérios herdados do IFA e crie critérios personalizados
           </p>
         </div>
 
         {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="p-6 bg-emerald-50">
             <div className="flex items-start justify-between">
               <div>
@@ -176,16 +176,22 @@ export default function Criterios() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="all">📊 Todos ({totalCriteria})</TabsTrigger>
-            <TabsTrigger value="inherited">📚 Herdados ({inheritedCount})</TabsTrigger>
-            <TabsTrigger value="custom">✨ Personalizados ({customCount})</TabsTrigger>
+          <TabsList className="w-full grid grid-cols-3">
+            <TabsTrigger value="all" className="text-xs md:text-sm">
+              📊 <span className="hidden sm:inline">Todos</span> ({totalCriteria})
+            </TabsTrigger>
+            <TabsTrigger value="inherited" className="text-xs md:text-sm">
+              📚 <span className="hidden sm:inline">Herdados</span> ({inheritedCount})
+            </TabsTrigger>
+            <TabsTrigger value="custom" className="text-xs md:text-sm">
+              ✨ <span className="hidden sm:inline">Personalizados</span> ({customCount})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="space-y-4 mt-6">
             {/* Barra de Ações */}
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="relative flex-1">
+            <div className="flex flex-col gap-3">
+              <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar critérios..."
@@ -195,50 +201,53 @@ export default function Criterios() {
                 />
               </div>
 
-              <Select value={sensoFilter} onValueChange={setSensoFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Senso" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="1S">1S</SelectItem>
-                  <SelectItem value="2S">2S</SelectItem>
-                  <SelectItem value="3S">3S</SelectItem>
-                  <SelectItem value="4S">4S</SelectItem>
-                  <SelectItem value="5S">5S</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Select value={sensoFilter} onValueChange={setSensoFilter}>
+                  <SelectTrigger className="w-full sm:w-[140px]">
+                    <SelectValue placeholder="Senso" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="1S">1S</SelectItem>
+                    <SelectItem value="2S">2S</SelectItem>
+                    <SelectItem value="3S">3S</SelectItem>
+                    <SelectItem value="4S">4S</SelectItem>
+                    <SelectItem value="5S">5S</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="active">Ativos</SelectItem>
-                  <SelectItem value="inactive">Inativos</SelectItem>
-                </SelectContent>
-              </Select>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full sm:w-[140px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="active">Ativos</SelectItem>
+                    <SelectItem value="inactive">Inativos</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              <Select value={originFilter} onValueChange={setOriginFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Origem" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="ifa">IFA</SelectItem>
-                  <SelectItem value="custom">Personalizados</SelectItem>
-                </SelectContent>
-              </Select>
+                <Select value={originFilter} onValueChange={setOriginFilter}>
+                  <SelectTrigger className="w-full sm:w-[140px]">
+                    <SelectValue placeholder="Origem" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="ifa">IFA</SelectItem>
+                    <SelectItem value="custom">Personalizados</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              <Button className="bg-emerald-600 hover:bg-emerald-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Critério
-              </Button>
+                <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700">
+                  <Plus className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Novo Critério</span>
+                  <span className="sm:hidden">Novo</span>
+                </Button>
+              </div>
             </div>
 
             {/* Tabela */}
-            <div className="border rounded-lg">
+            <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -248,13 +257,13 @@ export default function Criterios() {
                         onCheckedChange={handleSelectAll}
                       />
                     </TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Senso</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Peso</TableHead>
-                    <TableHead>Origem</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Em Uso</TableHead>
+                    <TableHead className="min-w-[200px]">Nome</TableHead>
+                    <TableHead className="min-w-[80px]">Senso</TableHead>
+                    <TableHead className="hidden sm:table-cell min-w-[120px]">Tipo</TableHead>
+                    <TableHead className="min-w-[100px]">Peso</TableHead>
+                    <TableHead className="hidden md:table-cell min-w-[150px]">Origem</TableHead>
+                    <TableHead className="hidden lg:table-cell min-w-[80px]">Status</TableHead>
+                    <TableHead className="hidden lg:table-cell min-w-[100px]">Em Uso</TableHead>
                     <TableHead className="w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -276,11 +285,11 @@ export default function Criterios() {
                         <div className="font-medium">{criterion.name}</div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={`${sensoColors[criterion.senso]} text-white`}>
+                        <Badge className={`${sensoColors[criterion.senso]} text-white text-xs`}>
                           {criterion.senso}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <span className="text-sm">{criterion.scoring_type}</span>
                       </TableCell>
                       <TableCell>
@@ -303,24 +312,24 @@ export default function Criterios() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {criterion.origin === 'ifa' ? (
                           <div>
-                            <Badge className="bg-blue-100 text-blue-700 mb-1">📚 IFA</Badge>
+                            <Badge className="bg-blue-100 text-blue-700 mb-1 text-xs">📚 IFA</Badge>
                             <p className="text-xs text-muted-foreground">{criterion.origin_model_name}</p>
                           </div>
                         ) : (
-                          <Badge className="bg-purple-100 text-purple-700">✨ Personalizado</Badge>
+                          <Badge className="bg-purple-100 text-purple-700 text-xs">✨ Personalizado</Badge>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden lg:table-cell">
                         {criterion.status === 'active' ? (
-                          <Badge className="bg-emerald-500">Ativo</Badge>
+                          <Badge className="bg-emerald-500 text-xs">Ativo</Badge>
                         ) : (
-                          <Badge variant="secondary">Inativo</Badge>
+                          <Badge variant="secondary" className="text-xs">Inativo</Badge>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden lg:table-cell">
                         <span className="text-sm">{criterion.audits_using} auditorias</span>
                       </TableCell>
                       <TableCell>
