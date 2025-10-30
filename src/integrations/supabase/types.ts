@@ -56,6 +56,66 @@ export type Database = {
         }
         Relationships: []
       }
+      company_criteria: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          custom_weight: number
+          default_weight: number
+          description: string | null
+          id: string
+          master_criterion_id: string | null
+          name: string
+          origin: string
+          origin_model_id: string | null
+          origin_model_name: string | null
+          scoring_type: string
+          senso: string
+          status: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          custom_weight: number
+          default_weight: number
+          description?: string | null
+          id?: string
+          master_criterion_id?: string | null
+          name: string
+          origin: string
+          origin_model_id?: string | null
+          origin_model_name?: string | null
+          scoring_type: string
+          senso: string
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          custom_weight?: number
+          default_weight?: number
+          description?: string | null
+          id?: string
+          master_criterion_id?: string | null
+          name?: string
+          origin?: string
+          origin_model_id?: string | null
+          origin_model_name?: string | null
+          scoring_type?: string
+          senso?: string
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       environments: {
         Row: {
           company_id: string

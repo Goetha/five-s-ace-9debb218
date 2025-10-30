@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CompanyAdminLayout } from "@/components/company-admin/CompanyAdminLayout";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,19 +29,16 @@ import {
   Search,
   Plus,
   Eye,
-  Pencil,
-  MoreVertical,
+  Loader2,
 } from "lucide-react";
-import { allCriteria, mockInheritedCriteria, mockCustomCriteria } from "@/data/mockCriterions";
 import { InlineWeightEditor } from "@/components/company-admin/criterios/InlineWeightEditor";
-import { Criterion } from "@/types/criterion";
+import { NewCriterionModal } from "@/components/company-admin/criterios/NewCriterionModal";
+import { ViewCriterionModal } from "@/components/company-admin/criterios/ViewCriterionModal";
+import { BulkActionsBar } from "@/components/company-admin/criterios/BulkActionsBar";
+import { Criterion, CriterionSenso, CriterionScoringType, CriterionOrigin, CriterionStatus } from "@/types/criterion";
 import { useToast } from "@/hooks/use-toast";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const sensoColors = {
   '1S': 'bg-red-500',
@@ -52,21 +49,101 @@ const sensoColors = {
 };
 
 export default function Criterios() {
-  const [criteria, setCriteria] = useState(allCriteria);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [criteria, setCriteria] = useState<Criterion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sensoFilter, setSensoFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("active");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [originFilter, setOriginFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("all");
   const [selectedCriteria, setSelectedCriteria] = useState<string[]>([]);
-  const { toast } = useToast();
+  const [newModalOpen, setNewModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedCriterion, setSelectedCriterion] = useState<Criterion | null>(null);
+
+  // Buscar company_id do usuário
+  useEffect(() => {
+    const fetchCompanyId = async () => {
+      if (!user?.id) return;
+
+      const { data, error } = await supabase
+        .from('user_companies')
+        .select('company_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!error && data) {
+        setCompanyId(data.company_id);
+      }
+    };
+
+    fetchCompanyId();
+  }, [user]);
+
+  const fetchCriteria = async () => {
+    if (!companyId) return;
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('company_criteria')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('name');
+
+      if (error) throw error;
+
+      // Mapear dados do Supabase para o tipo Criterion
+      const mappedCriteria: Criterion[] = (data || []).map(item => ({
+        id: item.id,
+        company_id: item.company_id,
+        master_criterion_id: item.master_criterion_id,
+        name: item.name,
+        description: item.description || '',
+        senso: item.senso as CriterionSenso,
+        scoring_type: item.scoring_type as CriterionScoringType,
+        default_weight: item.default_weight,
+        custom_weight: item.custom_weight,
+        origin: item.origin as CriterionOrigin,
+        origin_model_id: item.origin_model_id,
+        origin_model_name: item.origin_model_name,
+        status: item.status as CriterionStatus,
+        tags: item.tags || [],
+        created_by: item.created_by,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        audits_using: 0, // TODO: buscar de tabela de auditorias quando implementada
+        can_edit_content: item.origin === 'custom',
+        can_edit_weight: true,
+        can_delete: item.origin === 'custom',
+        is_weight_customized: item.custom_weight !== item.default_weight
+      }));
+
+      setCriteria(mappedCriteria);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao carregar critérios",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCriteria();
+  }, [companyId]);
 
   // Filtrar por tab
   let tabFilteredCriteria = criteria;
   if (activeTab === "inherited") {
-    tabFilteredCriteria = mockInheritedCriteria;
+    tabFilteredCriteria = criteria.filter(c => c.origin === 'ifa');
   } else if (activeTab === "custom") {
-    tabFilteredCriteria = mockCustomCriteria;
+    tabFilteredCriteria = criteria.filter(c => c.origin === 'custom');
   }
 
   // Aplicar filtros
@@ -79,21 +156,33 @@ export default function Criterios() {
   });
 
   // Stats
-  const totalCriteria = allCriteria.length;
-  const inheritedCount = mockInheritedCriteria.length;
-  const customCount = mockCustomCriteria.length;
-  const activeCount = allCriteria.filter(c => c.status === 'active').length;
+  const totalCriteria = criteria.length;
+  const inheritedCount = criteria.filter(c => c.origin === 'ifa').length;
+  const customCount = criteria.filter(c => c.origin === 'custom').length;
+  const activeCount = criteria.filter(c => c.status === 'active').length;
 
   const handleWeightSave = async (criterionId: string, newWeight: number) => {
-    // Simular salvamento
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setCriteria(prev =>
-      prev.map(c =>
-        c.id === criterionId
-          ? { ...c, custom_weight: newWeight, is_weight_customized: newWeight !== c.default_weight }
-          : c
-      )
-    );
+    try {
+      const { error } = await supabase
+        .from('company_criteria')
+        .update({ custom_weight: newWeight })
+        .eq('id', criterionId);
+
+      if (error) throw error;
+
+      await fetchCriteria();
+
+      toast({
+        title: "✓ Peso atualizado",
+        description: "O peso do critério foi atualizado com sucesso"
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao atualizar peso",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   const handleSelectAll = () => {
@@ -246,11 +335,14 @@ export default function Criterios() {
                   </SelectContent>
                 </Select>
 
-                <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700">
-                  <Plus className="h-4 w-4 mr-2" />
-                  <span className="hidden sm:inline">Novo Critério</span>
-                  <span className="sm:hidden">Novo</span>
-                </Button>
+              <Button 
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => setNewModalOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Novo Critério</span>
+                <span className="sm:hidden">Novo</span>
+              </Button>
               </div>
             </div>
 
@@ -276,7 +368,15 @@ export default function Criterios() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCriteria.map((criterion) => (
+                  {loading && (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground mt-2">Carregando critérios...</p>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {!loading && filteredCriteria.map((criterion) => (
                     <TableRow
                       key={criterion.id}
                       className={`${
@@ -342,36 +442,17 @@ export default function Criterios() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8"
+                            onClick={() => {
+                              setSelectedCriterion(criterion);
+                              setViewModalOpen(true);
+                            }}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {criterion.can_edit_content && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {criterion.origin === 'ifa' ? (
-                                <>
-                                  <DropdownMenuItem>📊 Ver Origem</DropdownMenuItem>
-                                  <DropdownMenuItem>⟲ Restaurar Peso</DropdownMenuItem>
-                                </>
-                              ) : (
-                                <>
-                                  <DropdownMenuItem>📋 Duplicar</DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive">
-                                    🗑️ Excluir
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -380,14 +461,43 @@ export default function Criterios() {
               </Table>
             </div>
 
-            {filteredCriteria.length === 0 && (
-              <div className="text-center py-12">
+            {!loading && filteredCriteria.length === 0 && (
+              <div className="text-center py-12 border rounded-lg">
                 <p className="text-muted-foreground">Nenhum critério encontrado</p>
+                {activeTab === "custom" && (
+                  <Button 
+                    className="mt-4 bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => setNewModalOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar Primeiro Critério Personalizado
+                  </Button>
+                )}
               </div>
             )}
           </TabsContent>
         </Tabs>
       </div>
+
+      <NewCriterionModal
+        open={newModalOpen}
+        onOpenChange={setNewModalOpen}
+        onSuccess={fetchCriteria}
+        companyId={companyId || ''}
+      />
+
+      <ViewCriterionModal
+        criterion={selectedCriterion}
+        open={viewModalOpen}
+        onOpenChange={setViewModalOpen}
+      />
+
+      <BulkActionsBar
+        selectedIds={selectedCriteria}
+        criteria={criteria}
+        onSuccess={fetchCriteria}
+        onClearSelection={() => setSelectedCriteria([])}
+      />
     </CompanyAdminLayout>
   );
 }

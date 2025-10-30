@@ -33,10 +33,10 @@ export interface Criterion {
 
 export interface CriterionFormData {
   name: string;
-  description: string;
+  description?: string;
   senso: CriterionSenso;
   scoring_type: CriterionScoringType;
-  default_weight: number;
+  weight: number;
   tags: string[];
   status: CriterionStatus;
 }
