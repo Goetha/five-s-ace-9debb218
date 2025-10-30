@@ -1,16 +1,20 @@
 import { Building2, Users, CheckCircle2, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CompanyAdminLayout } from "@/components/company-admin/CompanyAdminLayout";
-import { mockCompanyStats, currentCompanyAdmin } from "@/data/mockCompanyData";
+import { mockCompanyStats } from "@/data/mockCompanyData";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
+  const { userProfile } = useAuth();
+  const userName = userProfile?.full_name || 'Usuário';
+  
   return (
     <CompanyAdminLayout breadcrumbs={[{ label: "Dashboard" }]}>
       <div className="p-6 max-w-7xl mx-auto space-y-8">
         {/* Welcome Header */}
         <div>
           <h1 className="text-3xl font-bold text-foreground">
-            Bem-vindo, {currentCompanyAdmin.name}!
+            Bem-vindo, {userName}!
           </h1>
           <p className="text-muted-foreground mt-2">
             Gerencie sua empresa no sistema 5S

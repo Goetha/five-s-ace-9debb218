@@ -20,15 +20,18 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
-import { mockNotifications, currentCompanyAdmin } from "@/data/mockCompanyData";
+import { mockNotifications } from "@/data/mockCompanyData";
 
 interface CompanyAdminHeaderProps {
   breadcrumbs: { label: string; href?: string }[];
 }
 
 export function CompanyAdminHeader({ breadcrumbs }: CompanyAdminHeaderProps) {
-  const { signOut } = useAuth();
+  const { signOut, userProfile } = useAuth();
   const unreadCount = mockNotifications.filter(n => !n.read).length;
+  
+  const userName = userProfile?.full_name || 'Usuário';
+  const userInitials = userName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <header className="h-16 border-b bg-background flex items-center px-4 gap-4 sticky top-0 z-10">
@@ -101,10 +104,10 @@ export function CompanyAdminHeader({ breadcrumbs }: CompanyAdminHeaderProps) {
           <Button variant="ghost" className="gap-2">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                {currentCompanyAdmin.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                {userInitials}
               </AvatarFallback>
             </Avatar>
-            <span className="hidden md:inline">{currentCompanyAdmin.name}</span>
+            <span className="hidden md:inline">{userName}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56 bg-background">
