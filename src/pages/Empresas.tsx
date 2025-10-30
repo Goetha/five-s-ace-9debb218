@@ -44,7 +44,7 @@ export default function Empresas() {
   // Load models from localStorage on mount
   const [models, setModels] = useState<MasterModel[]>(() => {
     try {
-      const saved = localStorage.getItem('models');
+      const saved = localStorage.getItem('masterModels');
       return saved ? JSON.parse(saved) : mockModels;
     } catch {
       return mockModels;
@@ -58,7 +58,7 @@ export default function Empresas() {
 
   // Save models to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('models', JSON.stringify(models));
+    localStorage.setItem('masterModels', JSON.stringify(models));
   }, [models]);
   const [activeTab, setActiveTab] = useState<"list" | "overview">("list");
   const [searchTerm, setSearchTerm] = useState("");
