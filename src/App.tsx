@@ -14,6 +14,7 @@ import NotFound from "./pages/NotFound";
 import CompanyAdminDashboard from "./pages/company-admin/Dashboard";
 import Ambientes from "./pages/company-admin/Ambientes";
 import Usuarios from "./pages/company-admin/Usuarios";
+import Criterios from "./pages/company-admin/Criterios";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/admin-empresa" element={<ProtectedRoute><CompanyAdminDashboard /></ProtectedRoute>} />
             <Route path="/admin-empresa/ambientes" element={<ProtectedRoute><Ambientes /></ProtectedRoute>} />
             <Route path="/admin-empresa/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
+            <Route path="/admin-empresa/criterios" element={<ProtectedRoute><Criterios /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

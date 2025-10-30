@@ -1,4 +1,4 @@
-import { BarChart3, Building2, FileText, LayoutDashboard, Settings, User, Users } from "lucide-react";
+import { BarChart3, Building2, ClipboardList, LayoutDashboard, Settings, User, Users } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -19,7 +19,7 @@ const menuItems = [
   { title: "Dashboard", url: "/admin-empresa", icon: LayoutDashboard },
   { title: "Ambientes", url: "/admin-empresa/ambientes", icon: Building2 },
   { title: "Usuários", url: "/admin-empresa/usuarios", icon: Users },
-  { title: "Critérios", url: "/admin-empresa/criterios", icon: FileText },
+  { title: "Critérios", url: "/admin-empresa/criterios", icon: ClipboardList },
   { title: "Ciclos de Auditoria", url: "/admin-empresa/ciclos", icon: User },
   { title: "Relatórios", url: "/admin-empresa/relatorios", icon: BarChart3 },
   { title: "Configurações", url: "/admin-empresa/configuracoes", icon: Settings },
