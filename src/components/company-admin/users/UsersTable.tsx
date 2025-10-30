@@ -34,6 +34,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { EditUserModal } from "./EditUserModal";
 
 interface UsersTableProps {
   users: CompanyUser[];
@@ -51,6 +52,8 @@ export function UsersTable({ users, onRefresh }: UsersTableProps) {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<CompanyUser | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<CompanyUser | null>(null);
   const { toast } = useToast();
 
   const allSelected = users.length > 0 && selectedUsers.length === users.length;
@@ -275,10 +278,8 @@ export function UsersTable({ users, onRefresh }: UsersTableProps) {
                       className="h-8 w-8"
                       title="Editar usuário"
                       onClick={() => {
-                        toast({
-                          title: "Em desenvolvimento",
-                          description: "Funcionalidade de edição em breve.",
-                        });
+                        setUserToEdit(user);
+                        setEditModalOpen(true);
                       }}
                     >
                       <Pencil className="h-4 w-4" />
@@ -332,6 +333,15 @@ export function UsersTable({ users, onRefresh }: UsersTableProps) {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    <EditUserModal
+      open={editModalOpen}
+      onOpenChange={setEditModalOpen}
+      user={userToEdit}
+      onSuccess={() => {
+        if (onRefresh) onRefresh();
+      }}
+    />
     </>
   );
 }
