@@ -128,48 +128,56 @@ export default function Criterios() {
 
         {/* Cards de Estatísticas */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-6 bg-emerald-50">
+          <Card className="p-6 bg-card border-emerald-200 dark:border-emerald-800">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total de Critérios</p>
-                <p className="text-3xl font-bold mt-2">{totalCriteria}</p>
+                <p className="text-3xl font-bold mt-2 text-foreground">{totalCriteria}</p>
               </div>
-              <ClipboardList className="h-8 w-8 text-emerald-600" />
+              <div className="h-12 w-12 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                <ClipboardList className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
             </div>
           </Card>
 
-          <Card className="p-6 bg-blue-50">
+          <Card className="p-6 bg-card border-blue-200 dark:border-blue-800">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Herdados do IFA</p>
-                <p className="text-3xl font-bold mt-2">{inheritedCount}</p>
-                <Badge className="mt-2 bg-blue-100 text-blue-700">📚 IFA</Badge>
+                <p className="text-3xl font-bold mt-2 text-foreground">{inheritedCount}</p>
+                <Badge className="mt-2 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border-0">📚 IFA</Badge>
                 <p className="text-xs text-muted-foreground mt-1">Dos modelos vinculados</p>
               </div>
-              <BookOpen className="h-8 w-8 text-blue-600" />
+              <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
             </div>
           </Card>
 
-          <Card className="p-6 bg-purple-50">
+          <Card className="p-6 bg-card border-purple-200 dark:border-purple-800">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Personalizados</p>
-                <p className="text-3xl font-bold mt-2">{customCount}</p>
-                <Badge className="mt-2 bg-purple-100 text-purple-700">✨ Seu</Badge>
+                <p className="text-3xl font-bold mt-2 text-foreground">{customCount}</p>
+                <Badge className="mt-2 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 border-0">✨ Seu</Badge>
                 <p className="text-xs text-muted-foreground mt-1">Criados por você</p>
               </div>
-              <Sparkles className="h-8 w-8 text-purple-600" />
+              <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                <Sparkles className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              </div>
             </div>
           </Card>
 
-          <Card className="p-6 bg-green-50">
+          <Card className="p-6 bg-card border-green-200 dark:border-green-800">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Critérios Ativos</p>
-                <p className="text-3xl font-bold mt-2">{activeCount}</p>
+                <p className="text-3xl font-bold mt-2 text-foreground">{activeCount}</p>
                 <p className="text-xs text-muted-foreground mt-1">Disponíveis para auditoria</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-green-600" />
+              <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
             </div>
           </Card>
         </div>
