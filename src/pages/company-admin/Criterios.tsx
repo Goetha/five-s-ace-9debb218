@@ -35,6 +35,7 @@ import { InlineWeightEditor } from "@/components/company-admin/criterios/InlineW
 import { NewCriterionModal } from "@/components/company-admin/criterios/NewCriterionModal";
 import { ViewCriterionModal } from "@/components/company-admin/criterios/ViewCriterionModal";
 import { BulkActionsBar } from "@/components/company-admin/criterios/BulkActionsBar";
+import { InheritedModelCard } from "@/components/company-admin/criterios/InheritedModelCard";
 import { Criterion, CriterionSenso, CriterionScoringType, CriterionOrigin, CriterionStatus } from "@/types/criterion";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -145,6 +146,24 @@ export default function Criterios() {
   } else if (activeTab === "custom") {
     tabFilteredCriteria = criteria.filter(c => c.origin === 'custom');
   }
+
+  // Agrupar critérios herdados por modelo
+  const groupedByModel = tabFilteredCriteria.reduce((acc, criterion) => {
+    if (criterion.origin === 'ifa' && criterion.origin_model_id) {
+      const modelKey = criterion.origin_model_id;
+      if (!acc[modelKey]) {
+        acc[modelKey] = {
+          modelId: criterion.origin_model_id,
+          modelName: criterion.origin_model_name || 'Modelo sem nome',
+          criteria: []
+        };
+      }
+      acc[modelKey].criteria.push(criterion);
+    }
+    return acc;
+  }, {} as Record<string, { modelId: string; modelName: string; criteria: Criterion[] }>);
+
+  const modelGroups = Object.values(groupedByModel);
 
   // Aplicar filtros
   const filteredCriteria = tabFilteredCriteria.filter((criterion) => {
@@ -287,66 +306,102 @@ export default function Criterios() {
 
           <TabsContent value={activeTab} className="space-y-4 mt-6">
             {/* Barra de Ações */}
-            <div className="flex flex-col gap-3">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar critérios..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
+            {activeTab !== "inherited" && (
+              <div className="flex flex-col gap-3">
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar critérios..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Select value={sensoFilter} onValueChange={setSensoFilter}>
+                    <SelectTrigger className="w-full sm:w-[140px]">
+                      <SelectValue placeholder="Senso" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="1S">1S</SelectItem>
+                      <SelectItem value="2S">2S</SelectItem>
+                      <SelectItem value="3S">3S</SelectItem>
+                      <SelectItem value="4S">4S</SelectItem>
+                      <SelectItem value="5S">5S</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full sm:w-[140px]">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="active">Ativos</SelectItem>
+                      <SelectItem value="inactive">Inativos</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={originFilter} onValueChange={setOriginFilter}>
+                    <SelectTrigger className="w-full sm:w-[140px]">
+                      <SelectValue placeholder="Origem" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="ifa">IFA</SelectItem>
+                      <SelectItem value="custom">Personalizados</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button 
+                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => setNewModalOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    <span className="hidden sm:inline">Novo Critério</span>
+                    <span className="sm:hidden">Novo</span>
+                  </Button>
+                </div>
               </div>
+            )}
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Select value={sensoFilter} onValueChange={setSensoFilter}>
-                  <SelectTrigger className="w-full sm:w-[140px]">
-                    <SelectValue placeholder="Senso" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="1S">1S</SelectItem>
-                    <SelectItem value="2S">2S</SelectItem>
-                    <SelectItem value="3S">3S</SelectItem>
-                    <SelectItem value="4S">4S</SelectItem>
-                    <SelectItem value="5S">5S</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-[140px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="active">Ativos</SelectItem>
-                    <SelectItem value="inactive">Inativos</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={originFilter} onValueChange={setOriginFilter}>
-                  <SelectTrigger className="w-full sm:w-[140px]">
-                    <SelectValue placeholder="Origem" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="ifa">IFA</SelectItem>
-                    <SelectItem value="custom">Personalizados</SelectItem>
-                  </SelectContent>
-                </Select>
-
-              <Button 
-                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
-                onClick={() => setNewModalOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Novo Critério</span>
-                <span className="sm:hidden">Novo</span>
-              </Button>
+            {/* Cards de Modelos Herdados */}
+            {activeTab === "inherited" && (
+              <div>
+                {loading && (
+                  <div className="text-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground mt-2">Carregando modelos...</p>
+                  </div>
+                )}
+                {!loading && modelGroups.length === 0 && (
+                  <div className="text-center py-12 border rounded-lg">
+                    <p className="text-muted-foreground">Nenhum modelo herdado encontrado</p>
+                  </div>
+                )}
+                {!loading && modelGroups.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {modelGroups.map((group) => (
+                      <InheritedModelCard
+                        key={group.modelId}
+                        modelId={group.modelId}
+                        modelName={group.modelName}
+                        criteria={group.criteria}
+                        onViewCriterion={(criterion) => {
+                          setSelectedCriterion(criterion);
+                          setViewModalOpen(true);
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
-            {/* Tabela */}
+            {/* Tabela - apenas para abas 'all' e 'custom' */}
+            {activeTab !== "inherited" && (
             <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -460,8 +515,9 @@ export default function Criterios() {
                 </TableBody>
               </Table>
             </div>
+            )}
 
-            {!loading && filteredCriteria.length === 0 && (
+            {!loading && filteredCriteria.length === 0 && activeTab !== "inherited" && (
               <div className="text-center py-12 border rounded-lg">
                 <p className="text-muted-foreground">Nenhum critério encontrado</p>
                 {activeTab === "custom" && (
