@@ -1,15 +1,18 @@
-import { MoreVertical, Eye, Calendar, RefreshCw, List, Tag } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronUp, Calendar, List, Tag, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Criterion } from "@/types/criterion";
-import { formatDate, getTimeAgo } from "@/lib/formatters";
+import { formatDate } from "@/lib/formatters";
 
 interface InheritedModelCardProps {
   modelName: string;
@@ -32,6 +35,8 @@ export const InheritedModelCard = ({
   criteria,
   onViewCriterion,
 }: InheritedModelCardProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   const criteriaBysenso = {
     "1S": criteria.filter((c) => c.senso === "1S").length,
     "2S": criteria.filter((c) => c.senso === "2S").length,
@@ -52,19 +57,6 @@ export const InheritedModelCard = ({
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <Badge className="bg-blue-100 text-blue-700 border-0">IFA</Badge>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>
-                  <Eye className="h-4 w-4 mr-2" />
-                  Ver Todos os Critérios
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
       </CardHeader>
@@ -105,41 +97,71 @@ export const InheritedModelCard = ({
           </div>
         </div>
 
-        <div className="border-t pt-3 mt-3">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Critérios:</p>
-          <div className="space-y-1.5 max-h-40 overflow-y-auto">
-            {criteria.slice(0, 5).map((criterion) => (
-              <div
-                key={criterion.id}
-                className="flex items-center justify-between gap-2 text-sm p-2 rounded hover:bg-muted cursor-pointer"
-                onClick={() => onViewCriterion(criterion)}
-              >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <Badge className={`${sensoColors[criterion.senso].split(' ')[0]} text-white text-xs flex-shrink-0`}>
-                    {criterion.senso}
-                  </Badge>
-                  <span className="truncate">{criterion.name}</span>
-                </div>
-                <Badge variant="outline" className="text-xs flex-shrink-0">
-                  Peso: {criterion.custom_weight}
-                </Badge>
-              </div>
-            ))}
-            {criteria.length > 5 && (
-              <p className="text-xs text-muted-foreground text-center py-1">
-                +{criteria.length - 5} critérios
-              </p>
-            )}
+        {isExpanded && (
+          <div className="border-t pt-3 mt-3">
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-20">Senso</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead className="w-32">Tipo</TableHead>
+                    <TableHead className="w-24">Peso</TableHead>
+                    <TableHead className="w-24">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {criteria.map((criterion) => (
+                    <TableRow key={criterion.id}>
+                      <TableCell>
+                        <Badge className={`${sensoColors[criterion.senso].split(' ')[0]} text-white text-xs`}>
+                          {criterion.senso}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">{criterion.name}</TableCell>
+                      <TableCell className="text-sm">{criterion.scoring_type}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {criterion.custom_weight}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => onViewCriterion(criterion)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
-        </div>
+        )}
       </CardContent>
 
       <CardFooter className="pt-0 gap-2 flex-wrap">
-        <Button variant="outline" size="sm" className="flex-1" onClick={() => {
-          if (criteria.length > 0) onViewCriterion(criteria[0]);
-        }}>
-          <Eye className="h-4 w-4 mr-1" />
-          Ver Detalhes
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex-1"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          {isExpanded ? (
+            <>
+              <ChevronUp className="h-4 w-4 mr-1" />
+              Ocultar Critérios
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-4 w-4 mr-1" />
+              Ver Critérios
+            </>
+          )}
         </Button>
       </CardFooter>
     </Card>

@@ -29,9 +29,9 @@ export function ViewCriterionModal({ criterion, open, onOpenChange }: ViewCriter
         <DialogHeader>
           <div className="space-y-2">
             {criterion.origin === 'ifa' ? (
-              <Badge className="bg-blue-100 text-blue-700 border-0">📚 CRITÉRIO HERDADO DO IFA</Badge>
+              <Badge className="bg-blue-100 text-blue-700 border-0">CRITÉRIO HERDADO DO IFA</Badge>
             ) : (
-              <Badge className="bg-purple-100 text-purple-700 border-0">✨ CRITÉRIO PERSONALIZADO</Badge>
+              <Badge className="bg-purple-100 text-purple-700 border-0">CRITÉRIO PERSONALIZADO</Badge>
             )}
             <DialogTitle className="flex items-center gap-2">
               <Badge className={`${sensoColors[criterion.senso]} text-white`}>
@@ -44,7 +44,7 @@ export function ViewCriterionModal({ criterion, open, onOpenChange }: ViewCriter
 
         <div className="space-y-4">
           <div>
-            <h4 className="font-semibold text-sm mb-2">📝 Descrição:</h4>
+            <h4 className="font-semibold text-sm mb-2">Descrição:</h4>
             <p className="text-sm text-muted-foreground">
               {criterion.description || 'Sem descrição'}
             </p>
@@ -53,27 +53,27 @@ export function ViewCriterionModal({ criterion, open, onOpenChange }: ViewCriter
           <Separator />
 
           <div>
-            <h4 className="font-semibold text-sm mb-2">📊 Tipo de Pontuação:</h4>
+            <h4 className="font-semibold text-sm mb-2">Tipo de Pontuação:</h4>
             <p className="text-sm">{criterion.scoring_type}</p>
           </div>
 
           <Separator />
 
           <div>
-            <h4 className="font-semibold text-sm mb-2">⚖️ Peso:</h4>
+            <h4 className="font-semibold text-sm mb-2">Peso:</h4>
             {criterion.origin === 'ifa' ? (
               <div className="space-y-2 bg-muted p-4 rounded-lg">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">• Peso Padrão (IFA):</span>
+                  <span className="text-sm">Peso Padrão (IFA):</span>
                   <Badge variant="outline">{criterion.default_weight}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">• Seu Peso Customizado:</span>
+                  <span className="text-sm">Seu Peso Customizado:</span>
                   <div className="flex items-center gap-2">
                     <Badge>{criterion.custom_weight}</Badge>
-                    {criterion.custom_weight >= 8 && <span>🔥</span>}
-                    {criterion.custom_weight >= 4 && criterion.custom_weight <= 7 && <span>🟡</span>}
-                    {criterion.custom_weight <= 3 && <span>🟢</span>}
+                    {criterion.custom_weight >= 8 && <span className="text-xs">Alto/Crítico</span>}
+                    {criterion.custom_weight >= 4 && criterion.custom_weight <= 7 && <span className="text-xs">Médio</span>}
+                    {criterion.custom_weight <= 3 && <span className="text-xs">Baixo</span>}
                   </div>
                 </div>
                 {isCustomized && (
@@ -85,9 +85,9 @@ export function ViewCriterionModal({ criterion, open, onOpenChange }: ViewCriter
             ) : (
               <div className="flex items-center gap-2">
                 <Badge>{criterion.custom_weight}</Badge>
-                {criterion.custom_weight >= 8 && <span>🔥 Alto/Crítico</span>}
-                {criterion.custom_weight >= 4 && criterion.custom_weight <= 7 && <span>🟡 Médio</span>}
-                {criterion.custom_weight <= 3 && <span>🟢 Baixo</span>}
+                {criterion.custom_weight >= 8 && <span className="text-xs">Alto/Crítico</span>}
+                {criterion.custom_weight >= 4 && criterion.custom_weight <= 7 && <span className="text-xs">Médio</span>}
+                {criterion.custom_weight <= 3 && <span className="text-xs">Baixo</span>}
               </div>
             )}
           </div>
@@ -96,7 +96,7 @@ export function ViewCriterionModal({ criterion, open, onOpenChange }: ViewCriter
             <>
               <Separator />
               <div>
-                <h4 className="font-semibold text-sm mb-2">🏷️ Tags:</h4>
+                <h4 className="font-semibold text-sm mb-2">Tags:</h4>
                 <div className="flex flex-wrap gap-2">
                   {criterion.tags.map((tag) => (
                     <Badge key={tag} variant="secondary">{tag}</Badge>
@@ -110,9 +110,9 @@ export function ViewCriterionModal({ criterion, open, onOpenChange }: ViewCriter
             <>
               <Separator />
               <div>
-                <h4 className="font-semibold text-sm mb-2">📚 Origem:</h4>
+                <h4 className="font-semibold text-sm mb-2">Origem:</h4>
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg space-y-2">
-                  <p className="text-sm">• Modelo IFA: <strong>{criterion.origin_model_name}</strong></p>
+                  <p className="text-sm">Modelo IFA: <strong>{criterion.origin_model_name}</strong></p>
                   <p className="text-xs text-muted-foreground">
                     Este critério foi criado pelo IFA Admin e herdado através do modelo vinculado.
                   </p>
@@ -125,7 +125,7 @@ export function ViewCriterionModal({ criterion, open, onOpenChange }: ViewCriter
             <>
               <Separator />
               <div>
-                <h4 className="font-semibold text-sm mb-2">✅ Controle Total:</h4>
+                <h4 className="font-semibold text-sm mb-2">Controle Total:</h4>
                 <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
                   <p className="text-xs text-muted-foreground">
                     Este critério foi criado por você. Você tem controle total: pode editar tudo, duplicar ou excluir.
@@ -140,9 +140,9 @@ export function ViewCriterionModal({ criterion, open, onOpenChange }: ViewCriter
           <div>
             <h4 className="font-semibold text-sm mb-2">Status:</h4>
             {criterion.status === 'active' ? (
-              <Badge className="bg-emerald-500">🟢 Ativo</Badge>
+              <Badge className="bg-emerald-500">Ativo</Badge>
             ) : (
-              <Badge variant="secondary">🔴 Inativo</Badge>
+              <Badge variant="secondary">Inativo</Badge>
             )}
           </div>
         </div>
