@@ -173,7 +173,7 @@ export default function Criterios() {
       await fetchCriteria();
 
       toast({
-        title: "✓ Peso atualizado",
+        title: "Peso atualizado",
         description: "O peso do critério foi atualizado com sucesso"
       });
     } catch (error: any) {
@@ -234,7 +234,7 @@ export default function Criterios() {
               <div>
                 <p className="text-sm text-muted-foreground">Herdados do IFA</p>
                 <p className="text-3xl font-bold mt-2 text-foreground">{inheritedCount}</p>
-                <Badge className="mt-2 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border-0">📚 IFA</Badge>
+                <Badge className="mt-2 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 border-0">IFA</Badge>
                 <p className="text-xs text-muted-foreground mt-1">Dos modelos vinculados</p>
               </div>
               <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -248,7 +248,7 @@ export default function Criterios() {
               <div>
                 <p className="text-sm text-muted-foreground">Personalizados</p>
                 <p className="text-3xl font-bold mt-2 text-foreground">{customCount}</p>
-                <Badge className="mt-2 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 border-0">✨ Seu</Badge>
+                <Badge className="mt-2 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 border-0">Seu</Badge>
                 <p className="text-xs text-muted-foreground mt-1">Criados por você</p>
               </div>
               <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
@@ -275,13 +275,13 @@ export default function Criterios() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="w-full grid grid-cols-3">
             <TabsTrigger value="all" className="text-xs md:text-sm">
-              📊 <span className="hidden sm:inline">Todos</span> ({totalCriteria})
+              <span className="hidden sm:inline">Todos</span><span className="sm:hidden">Todos</span> ({totalCriteria})
             </TabsTrigger>
             <TabsTrigger value="inherited" className="text-xs md:text-sm">
-              📚 <span className="hidden sm:inline">Herdados</span> ({inheritedCount})
+              <span className="hidden sm:inline">Herdados</span><span className="sm:hidden">Herdados</span> ({inheritedCount})
             </TabsTrigger>
             <TabsTrigger value="custom" className="text-xs md:text-sm">
-              ✨ <span className="hidden sm:inline">Personalizados</span> ({customCount})
+              <span className="hidden sm:inline">Personalizados</span><span className="sm:hidden">Personalizados</span> ({customCount})
             </TabsTrigger>
           </TabsList>
 
@@ -423,11 +423,11 @@ export default function Criterios() {
                       <TableCell className="hidden md:table-cell">
                         {criterion.origin === 'ifa' ? (
                           <div>
-                            <Badge className="bg-blue-100 text-blue-700 mb-1 text-xs">📚 IFA</Badge>
+                            <Badge className="bg-blue-100 text-blue-700 mb-1 text-xs">IFA</Badge>
                             <p className="text-xs text-muted-foreground">{criterion.origin_model_name}</p>
                           </div>
                         ) : (
-                          <Badge className="bg-purple-100 text-purple-700 text-xs">✨ Personalizado</Badge>
+                          <Badge className="bg-purple-100 text-purple-700 text-xs">Personalizado</Badge>
                         )}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
