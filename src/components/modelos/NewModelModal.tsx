@@ -48,52 +48,8 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
 
   // Load criteria from Supabase
   useEffect(() => {
-    const loadCriteria = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("master_criteria")
-          .select("*")
-          .eq("status", "active")
-          .order("name");
-
-        if (error) throw error;
-
-        // Normalize senso to always be an array
-        const normalizedCriteria = (data || []).map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          description: c.description || "",
-          senso: Array.isArray(c.senso) ? c.senso : [c.senso],
-          scoreType: c.scoring_type,
-          tags: c.tags || [],
-          status: c.status,
-          companiesUsing: 0,
-          modelsUsing: 0,
-        }));
-        
-        setAvailableCriteria(normalizedCriteria);
-        
-        // If editing, load the selected criteria
-        if (editModel?.selectedCriteria && editModel.selectedCriteria.length > 0) {
-          const selected = normalizedCriteria.filter((c: Criteria) => 
-            editModel.selectedCriteria.includes(c.id)
-          );
-          setSelectedCriteria(selected);
-        }
-      } catch (error: any) {
-        console.error("Error loading criteria:", error);
-        toast({
-          title: "Erro ao carregar critérios",
-          description: error.message || "Não foi possível carregar os critérios",
-          variant: "destructive",
-        });
-        setAvailableCriteria([]);
-      }
-    };
-
     if (open) {
-      loadCriteria();
-      // Reset form if not editing
+      // Reset form first if not editing
       if (!editModel) {
         setName("");
         setDescription("");
@@ -104,6 +60,52 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
         setDescription(editModel.description || "");
         setStatus(editModel.status || "active");
       }
+
+      // Then load criteria
+      const loadCriteria = async () => {
+        try {
+          const { data, error } = await supabase
+            .from("master_criteria")
+            .select("*")
+            .eq("status", "active")
+            .order("name");
+
+          if (error) throw error;
+
+          // Normalize senso to always be an array
+          const normalizedCriteria = (data || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            description: c.description || "",
+            senso: Array.isArray(c.senso) ? c.senso : [c.senso],
+            scoreType: c.scoring_type,
+            tags: c.tags || [],
+            status: c.status,
+            companiesUsing: 0,
+            modelsUsing: 0,
+          }));
+          
+          setAvailableCriteria(normalizedCriteria);
+          
+          // If editing, load the selected criteria
+          if (editModel?.selectedCriteria && editModel.selectedCriteria.length > 0) {
+            const selected = normalizedCriteria.filter((c: Criteria) => 
+              editModel.selectedCriteria.includes(c.id)
+            );
+            setSelectedCriteria(selected);
+          }
+        } catch (error: any) {
+          console.error("Error loading criteria:", error);
+          toast({
+            title: "Erro ao carregar critérios",
+            description: error.message || "Não foi possível carregar os critérios",
+            variant: "destructive",
+          });
+          setAvailableCriteria([]);
+        }
+      };
+
+      loadCriteria();
     }
   }, [open, editModel]);
 
@@ -137,24 +139,60 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
     setSelectedCriteria(newList);
   };
 
-  const handleSaveCriterion = (criterionData: any) => {
-    // Save to localStorage
-    const stored = localStorage.getItem("criteria");
-    const criteria = stored ? JSON.parse(stored) : [];
-    const newCriterion = {
-      ...criterionData,
-      id: criterionData.id || `C${String(criteria.length + 1).padStart(3, "0")}`,
-    };
-    criteria.push(newCriterion);
-    localStorage.setItem("criteria", JSON.stringify(criteria));
-    setAvailableCriteria(criteria);
-    
-    toast({
-      title: "Critério criado!",
-      description: "O critério foi adicionado à biblioteca",
-    });
-    
-    setIsCreateCriterionOpen(false);
+  const handleSaveCriterion = async (criterionData: any) => {
+    try {
+      const { data, error } = await supabase
+        .from("master_criteria")
+        .insert({
+          name: criterionData.name,
+          description: criterionData.description,
+          senso: criterionData.senso,
+          scoring_type: criterionData.scoreType,
+          tags: criterionData.tags || [],
+          status: criterionData.status || "active",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Reload criteria to include the new one
+      const { data: allCriteria, error: fetchError } = await supabase
+        .from("master_criteria")
+        .select("*")
+        .eq("status", "active")
+        .order("name");
+
+      if (fetchError) throw fetchError;
+
+      const normalizedCriteria = (allCriteria || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description || "",
+        senso: Array.isArray(c.senso) ? c.senso : [c.senso],
+        scoreType: c.scoring_type,
+        tags: c.tags || [],
+        status: c.status,
+        companiesUsing: 0,
+        modelsUsing: 0,
+      }));
+
+      setAvailableCriteria(normalizedCriteria);
+      
+      toast({
+        title: "Critério criado!",
+        description: "O critério foi adicionado à biblioteca",
+      });
+      
+      setIsCreateCriterionOpen(false);
+    } catch (error: any) {
+      console.error("Error creating criterion:", error);
+      toast({
+        title: "Erro ao criar critério",
+        description: error.message || "Não foi possível criar o critério",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSave = () => {
