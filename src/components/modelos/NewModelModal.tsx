@@ -27,6 +27,13 @@ const sensoColors: Record<string, string> = {
   "5S": "bg-blue-100 text-blue-700",
 };
 
+// Helper to ensure senso is always an array
+const ensureSensoArray = (senso: any): string[] => {
+  if (!senso) return [];
+  if (Array.isArray(senso)) return senso;
+  return [senso];
+};
+
 const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalProps) => {
   const { toast } = useToast();
   const [name, setName] = useState("");
@@ -81,7 +88,8 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
 
   const filteredCriteria = availableCriteria.filter((c) => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSenso = sensoFilter === "Todos" || c.senso.includes(sensoFilter as any);
+    const sensoArray = ensureSensoArray(c.senso);
+    const matchesSenso = sensoFilter === "Todos" || sensoArray.includes(sensoFilter as any);
     const notSelected = !selectedCriteria.find((sc) => sc.id === c.id);
     return matchesSearch && matchesSenso && notSelected;
   });
@@ -157,7 +165,7 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
     }
 
     const criteriaBySenso = selectedCriteria.reduce((acc, c) => {
-      c.senso.forEach((s) => {
+      ensureSensoArray(c.senso).forEach((s) => {
         acc[s] = (acc[s] || 0) + 1;
       });
       return acc;
@@ -187,7 +195,7 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
   };
 
   const criteriaDistribution = selectedCriteria.reduce((acc, c) => {
-    c.senso.forEach((s) => {
+    ensureSensoArray(c.senso).forEach((s) => {
       acc[s] = (acc[s] || 0) + 1;
     });
     return acc;
@@ -315,7 +323,7 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
                             {criterion.id} - {criterion.name}
                           </p>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
-                            {criterion.senso.map((s) => (
+                            {ensureSensoArray(criterion.senso).map((s) => (
                               <Badge key={s} className={sensoColors[s]} variant="secondary">
                                 {s}
                               </Badge>
@@ -404,7 +412,7 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
                             {criterion.id} - {criterion.name}
                           </p>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
-                            {criterion.senso.map((s) => (
+                            {ensureSensoArray(criterion.senso).map((s) => (
                               <Badge key={s} className={sensoColors[s]} variant="secondary">
                                 {s}
                               </Badge>
