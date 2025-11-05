@@ -17,7 +17,7 @@ interface CreateUserData {
   passwordType: 'auto' | 'manual';
   password?: string;
   sendEmail: boolean;
-  companyId: string;
+  companyId: string; // Must be a valid UUID
 }
 
 export function useCreateUser() {
@@ -28,12 +28,19 @@ export function useCreateUser() {
     setIsLoading(true);
     
     try {
+      // Validate companyId before proceeding
+      if (!data.companyId || data.companyId.trim() === '') {
+        throw new Error("company_id não pode ser vazio");
+      }
+
       // Generate or use provided password
       const password = data.passwordType === 'auto' 
         ? generateTemporaryPassword() 
         : data.password!;
 
       // Call Edge Function to create user (requires admin privileges)
+      console.log('Calling create-company-user with companyId:', data.companyId);
+      
       const { data: result, error: functionError } = await supabase.functions.invoke('create-company-user', {
         body: {
           name: data.name,

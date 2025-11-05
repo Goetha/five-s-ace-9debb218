@@ -113,6 +113,11 @@ export function NewUserModal({ open, onOpenChange, onSuccess }: NewUserModalProp
       return;
     }
 
+    if (!companyId) {
+      toast({ title: "Erro de configuração", description: "Empresa não identificada. Recarregue a página.", variant: "destructive" });
+      return;
+    }
+
     // Garante companyId (tenta via RPC se ainda não carregou)
     let cid = companyId;
     if (!cid && user) {

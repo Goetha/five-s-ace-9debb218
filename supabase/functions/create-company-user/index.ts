@@ -42,6 +42,15 @@ serve(async (req) => {
     
     console.log("Creating user:", requestData.email);
 
+    // Validate required fields
+    if (!requestData.companyId) {
+      throw new Error("company_id é obrigatório");
+    }
+    
+    if (!requestData.email || !requestData.name || !requestData.password) {
+      throw new Error("email, name e password são obrigatórios");
+    }
+
     // Check if user already exists (fallback using listUsers)
     const { data: usersPage, error: listErr } = await supabaseAdmin.auth.admin.listUsers();
 
