@@ -69,7 +69,7 @@ export function CompanySearchBar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Button onClick={onNewCompany} className="h-11 bg-primary hover:bg-primary/90">
+      <Button onClick={onNewCompany} className="h-11 bg-[#F59E0B] hover:bg-[#D97706] text-black font-semibold">
         <Plus className="h-4 w-4 mr-2" />
         Nova Empresa
       </Button>
