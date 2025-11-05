@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Criteria, SensoType } from "@/types/criteria";
 import { useToast } from "@/hooks/use-toast";
 import CriterionFormModal from "@/components/biblioteca/CriterionFormModal";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NewModelModalProps {
   open: boolean;
@@ -45,17 +46,31 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
   const [availableCriteria, setAvailableCriteria] = useState<Criteria[]>([]);
   const [isCreateCriterionOpen, setIsCreateCriterionOpen] = useState(false);
 
-  // Load criteria from localStorage
+  // Load criteria from Supabase
   useEffect(() => {
-    const loadCriteria = () => {
-      const stored = localStorage.getItem("criteria");
-      if (stored) {
-        const allCriteria = JSON.parse(stored);
+    const loadCriteria = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("master_criteria")
+          .select("*")
+          .eq("status", "active")
+          .order("name");
+
+        if (error) throw error;
+
         // Normalize senso to always be an array
-        const normalizedCriteria = allCriteria.map((c: any) => ({
-          ...c,
-          senso: Array.isArray(c.senso) ? c.senso : [c.senso]
+        const normalizedCriteria = (data || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          description: c.description || "",
+          senso: Array.isArray(c.senso) ? c.senso : [c.senso],
+          scoreType: c.scoring_type,
+          tags: c.tags || [],
+          status: c.status,
+          companiesUsing: 0,
+          modelsUsing: 0,
         }));
+        
         setAvailableCriteria(normalizedCriteria);
         
         // If editing, load the selected criteria
@@ -65,7 +80,13 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
           );
           setSelectedCriteria(selected);
         }
-      } else {
+      } catch (error: any) {
+        console.error("Error loading criteria:", error);
+        toast({
+          title: "Erro ao carregar critérios",
+          description: error.message || "Não foi possível carregar os critérios",
+          variant: "destructive",
+        });
         setAvailableCriteria([]);
       }
     };
