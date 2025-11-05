@@ -41,9 +41,6 @@ export function NewUserModal({ open, onOpenChange, onSuccess }: NewUserModalProp
   const [role, setRole] = useState<CompanyUserRole>("auditor");
   const [linkedEnvironments, setLinkedEnvironments] = useState<string[]>([]);
   const [status, setStatus] = useState<"active" | "inactive">("active");
-  const [passwordType, setPasswordType] = useState<"auto" | "manual">("auto");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [sendEmail, setSendEmail] = useState(true);
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [companyId, setCompanyId] = useState<string>("");
@@ -116,11 +113,6 @@ export function NewUserModal({ open, onOpenChange, onSuccess }: NewUserModalProp
       return;
     }
 
-    if (passwordType === "manual" && (!password || password !== confirmPassword)) {
-      toast({ title: "Senha inválida", description: "As senhas não conferem.", variant: "destructive" });
-      return;
-    }
-
     // Garante companyId (tenta via RPC se ainda não carregou)
     let cid = companyId;
     if (!cid && user) {
@@ -144,8 +136,7 @@ export function NewUserModal({ open, onOpenChange, onSuccess }: NewUserModalProp
       role,
       linkedEnvironments,
       status,
-      passwordType,
-      password,
+      passwordType: 'auto',
       sendEmail,
       companyId,
     });
@@ -159,9 +150,6 @@ export function NewUserModal({ open, onOpenChange, onSuccess }: NewUserModalProp
       setRole("auditor");
       setLinkedEnvironments([]);
       setStatus("active");
-      setPasswordType("auto");
-      setPassword("");
-      setConfirmPassword("");
       setSendEmail(true);
       onOpenChange(false);
       
@@ -349,54 +337,22 @@ export function NewUserModal({ open, onOpenChange, onSuccess }: NewUserModalProp
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Senha</Label>
-                  <RadioGroup value={passwordType} onValueChange={(v) => setPasswordType(v as "auto" | "manual")}>
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="auto" id="auto" />
-                        <Label htmlFor="auto" className="cursor-pointer">
-                          Gerar senha automática
-                        </Label>
-                      </div>
-                      {passwordType === "auto" && (
-                        <div className="ml-6 flex items-center space-x-2">
-                          <Checkbox
-                            id="sendEmail"
-                            checked={sendEmail}
-                            onCheckedChange={(checked) => setSendEmail(checked as boolean)}
-                          />
-                          <Label htmlFor="sendEmail" className="cursor-pointer text-sm">
-                            Enviar credenciais por email
-                          </Label>
-                        </div>
-                      )}
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="manual" id="manual" />
-                        <Label htmlFor="manual" className="cursor-pointer">
-                          Definir senha manualmente
-                        </Label>
-                      </div>
-                    </div>
-                  </RadioGroup>
-                  {passwordType === "manual" && (
-                    <div className="ml-6 space-y-2">
-                      <Input
-                        type="password"
-                        placeholder="Senha"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                  <Label>Notificações</Label>
+                  <div className="border rounded-lg p-3 space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="sendEmail"
+                        checked={sendEmail}
+                        onCheckedChange={(checked) => setSendEmail(checked as boolean)}
                       />
-                      <Input
-                        type="password"
-                        placeholder="Confirmar senha"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                      />
+                      <Label htmlFor="sendEmail" className="cursor-pointer">
+                        Enviar credenciais por email
+                      </Label>
                     </div>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Se gerar automática, senha temporária será enviada por email
-                  </p>
+                    <p className="text-xs text-muted-foreground">
+                      Uma senha temporária será gerada automaticamente e enviada ao usuário
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

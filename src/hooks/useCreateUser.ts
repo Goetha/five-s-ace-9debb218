@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CompanyUserRole } from "@/types/companyUser";
 import { generateTemporaryPassword } from "@/lib/passwordGenerator";
 import { useToast } from "@/hooks/use-toast";
+import { sendUserCreationWebhook } from "@/lib/userWebhookService";
 import type { Database } from "@/integrations/supabase/types";
 
 interface CreateUserData {
@@ -56,28 +57,37 @@ export function useCreateUser() {
         throw new Error(result?.error || "Erro ao criar usuário");
       }
 
-      // Send credentials email (if requested)
+      // Get company name
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('name')
+        .eq('id', data.companyId)
+        .single();
+
+      // Send webhook with user data (including password)
       if (data.sendEmail && data.passwordType === 'auto') {
         try {
-          const { error: emailError } = await supabase.functions.invoke('send-user-credentials', {
-            body: {
-              email: data.email,
-              name: data.name,
-              temporaryPassword: password,
-              companyName: 'Sua Empresa', // TODO: Get from context
-            },
+          const webhookResult = await sendUserCreationWebhook({
+            userName: data.name,
+            userEmail: data.email,
+            userPhone: data.phone || '',
+            userPosition: data.position || '',
+            userRole: data.role,
+            temporaryPassword: password,
+            companyName: companyData?.name || 'Empresa',
+            timestamp: new Date().toISOString(),
           });
 
-          if (emailError) {
-            console.error("Error sending email:", emailError);
+          if (!webhookResult.success) {
+            console.error("Error sending webhook:", webhookResult.error);
             toast({
               title: "⚠️ Aviso",
-              description: "Usuário criado, mas email não foi enviado.",
+              description: "Usuário criado, mas webhook não foi enviado.",
               variant: "default",
             });
           }
-        } catch (emailErr) {
-          console.error("Email error:", emailErr);
+        } catch (webhookErr) {
+          console.error("Webhook error:", webhookErr);
         }
       }
 
