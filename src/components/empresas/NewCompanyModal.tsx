@@ -61,6 +61,31 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
     setIsSubmitting(true);
     
     try {
+      // Send webhook notification
+      const webhookPayload = {
+        companyName: data.name,
+        phone: data.phone,
+        email: data.email,
+        timestamp: new Date().toISOString(),
+      };
+
+      console.log('📤 Enviando webhook com dados da empresa:', webhookPayload);
+
+      const webhookResponse = await fetch('https://webhook.dev.copertino.shop/webhook/email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookPayload),
+      });
+
+      if (!webhookResponse.ok) {
+        console.warn('⚠️ Webhook retornou status:', webhookResponse.status);
+      } else {
+        console.log('✅ Webhook enviado com sucesso');
+      }
+
+      // Save company data
       onSave(data);
       
       toast({
