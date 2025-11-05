@@ -91,17 +91,23 @@ const handler = async (req: Request): Promise<Response> => {
         }
       );
     } else {
-      // Webhook de dados da empresa (POST com JSON)
+      // Webhook de dados da empresa (GET com query params)
       const companyPayload = payload as CompanyWebhookPayload;
       console.log('📤 Enviando webhook de dados da empresa');
       console.log('Payload:', companyPayload);
 
-      const webhookResponse = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(companyPayload),
+      const params = new URLSearchParams({
+        companyName: companyPayload.companyName,
+        phone: companyPayload.phone,
+        email: companyPayload.email,
+        timestamp: companyPayload.timestamp,
+      });
+
+      const url = `${WEBHOOK_URL}?${params.toString()}`;
+      console.log('➡️  Chamando webhook via GET:', `${WEBHOOK_URL}?companyName=${encodeURIComponent(companyPayload.companyName)}&phone=${encodeURIComponent(companyPayload.phone)}&email=${encodeURIComponent(companyPayload.email)}&timestamp=${encodeURIComponent(companyPayload.timestamp)}`);
+
+      const webhookResponse = await fetch(url, {
+        method: 'GET',
       });
 
       if (!webhookResponse.ok) {
