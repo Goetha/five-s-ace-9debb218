@@ -48,7 +48,6 @@ const BibliotecaCriterios = () => {
     search: "",
     senso: "Todos",
     scoreType: "Todos",
-    weightRange: "Todos",
     tags: [],
     status: "Todos",
   });
@@ -76,15 +75,6 @@ const BibliotecaCriterios = () => {
 
     if (filters.scoreType !== "Todos") {
       result = result.filter((c) => c.scoreType === filters.scoreType);
-    }
-
-    if (filters.weightRange !== "Todos") {
-      result = result.filter((c) => {
-        if (filters.weightRange === "Alto") return c.weight >= 8;
-        if (filters.weightRange === "Médio") return c.weight >= 4 && c.weight < 8;
-        if (filters.weightRange === "Baixo") return c.weight < 4;
-        return true;
-      });
     }
 
     if (filters.tags.length > 0) {

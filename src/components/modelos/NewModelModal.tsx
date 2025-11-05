@@ -312,9 +312,6 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
                             <span className="text-xs text-muted-foreground">
                               {criterion.scoreType}
                             </span>
-                            <span className="text-xs text-muted-foreground">
-                              Peso: {criterion.weight}
-                            </span>
                           </div>
                         </div>
                         <Button variant="ghost" size="sm">
@@ -399,9 +396,6 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
                             <Badge className={sensoColors[criterion.senso]} variant="secondary">
                               {criterion.senso}
                             </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              Peso: {criterion.weight}
-                            </span>
                           </div>
                         </div>
                         <Button

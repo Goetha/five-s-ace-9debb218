@@ -446,17 +446,6 @@ const CriterionFormModal = ({
                   <span className="font-medium">{form.watch("scoreType")}</span>
                 </div>
 
-                {/* Weight */}
-                <div>
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">Peso:</span>
-                    <span className={`font-medium ${weightCategory.color}`}>
-                      {weight} {weightCategory.icon}
-                    </span>
-                  </div>
-                  <Progress value={weight * 10} className="h-2" />
-                </div>
-
                 {/* Tags */}
                 {selectedTags.length > 0 && <div>
                     <p className="text-sm text-muted-foreground mb-2">Tags:</p>
