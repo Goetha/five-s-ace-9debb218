@@ -190,7 +190,11 @@ export default function ModelDetailsModal({ open, onOpenChange, model }: ModelDe
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground p-4 text-center">Nenhuma empresa vinculada.</p>
+                <div className="p-4 text-center">
+                  <p className="text-sm text-[hsl(var(--muted-foreground))] [&:not(:where(a))]:text-[hsl(var(--muted-foreground))]">
+                    Nenhuma empresa vinculada.
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -225,7 +229,11 @@ export default function ModelDetailsModal({ open, onOpenChange, model }: ModelDe
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground p-4 text-center">Nenhum critério vinculado.</p>
+                <div className="p-4 text-center">
+                  <p className="text-sm text-[hsl(var(--muted-foreground))] [&:not(:where(a))]:text-[hsl(var(--muted-foreground))]">
+                    Nenhum critério vinculado.
+                  </p>
+                </div>
               )}
             </div>
           </div>
