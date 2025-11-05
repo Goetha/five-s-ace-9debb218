@@ -341,7 +341,7 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm">
-                            {criterion.id} - {criterion.name}
+                            {criterion.name}
                           </p>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             {ensureSensoArray(criterion.senso).map((s) => (
@@ -430,7 +430,7 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm">
-                            {criterion.id} - {criterion.name}
+                            {criterion.name}
                           </p>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             {ensureSensoArray(criterion.senso).map((s) => (
