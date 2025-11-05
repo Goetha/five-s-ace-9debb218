@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Search, ArrowUp, ArrowDown, X, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Criteria, SensoType } from "@/types/criteria";
+import { Criteria, SensoType, CriteriaStatus } from "@/types/criteria";
 import { useToast } from "@/hooks/use-toast";
 import CriterionFormModal from "@/components/biblioteca/CriterionFormModal";
 import { supabase } from "@/integrations/supabase/client";
@@ -73,14 +73,13 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
           if (error) throw error;
 
           // Normalize senso to always be an array
-          const normalizedCriteria = (data || []).map((c: any) => ({
+          const normalizedCriteria: Criteria[] = (data || []).map((c: any): Criteria => ({
             id: c.id,
             name: c.name,
-            description: c.description || "",
             senso: Array.isArray(c.senso) ? c.senso : [c.senso],
             scoreType: c.scoring_type,
             tags: c.tags || [],
-            status: c.status,
+            status: (c.status === "active" ? "Ativo" : "Inativo") as CriteriaStatus,
             companiesUsing: 0,
             modelsUsing: 0,
           }));
@@ -149,7 +148,7 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
           senso: criterionData.senso,
           scoring_type: criterionData.scoreType,
           tags: criterionData.tags || [],
-          status: criterionData.status || "active",
+          status: (criterionData.status === "Ativo" || criterionData.status === "active") ? "active" : "inactive",
         })
         .select()
         .single();
@@ -165,14 +164,13 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
 
       if (fetchError) throw fetchError;
 
-      const normalizedCriteria = (allCriteria || []).map((c: any) => ({
+      const normalizedCriteria: Criteria[] = (allCriteria || []).map((c: any): Criteria => ({
         id: c.id,
         name: c.name,
-        description: c.description || "",
         senso: Array.isArray(c.senso) ? c.senso : [c.senso],
         scoreType: c.scoring_type,
         tags: c.tags || [],
-        status: c.status,
+        status: (c.status === "active" ? "Ativo" : "Inativo") as CriteriaStatus,
         companiesUsing: 0,
         modelsUsing: 0,
       }));
