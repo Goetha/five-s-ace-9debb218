@@ -13,7 +13,7 @@ import { EmpresasTabs } from "@/components/empresas/EmpresasTabs";
 import { CompanyStatsCards } from "@/components/empresas/CompanyStatsCards";
 import { CompanySearchBar } from "@/components/empresas/CompanySearchBar";
 import { CompanyBulkActions } from "@/components/empresas/CompanyBulkActions";
-import { CompaniesTable } from "@/components/empresas/CompaniesTable";
+import { CompanyCards } from "@/components/empresas/CompanyCards";
 import { CompanyOverviewDashboard } from "@/components/empresas/overview/CompanyOverviewDashboard";
 import { NewCompanyModal } from "@/components/empresas/NewCompanyModal";
 import { ViewCompanyModal } from "@/components/empresas/ViewCompanyModal";
@@ -346,9 +346,9 @@ export default function Empresas() {
               />
             </div>
 
-            {/* Companies Table */}
+            {/* Companies Cards */}
             <div className="mt-6">
-              <CompaniesTable
+              <CompanyCards
                 companies={filteredCompanies}
                 selectedCompanies={selectedCompanies}
                 onSelectionChange={handleSelectionChange}
