@@ -5,26 +5,7 @@ import { SignInPage, Testimonial } from "@/components/ui/sign-in";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
-const testimonials: Testimonial[] = [
-  {
-    avatarSrc: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop",
-    name: "Carlos Silva",
-    handle: "@carlossilva",
-    text: "Sistema excelente! A gestão de auditorias 5S nunca foi tão simples e eficiente."
-  },
-  {
-    avatarSrc: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop",
-    name: "Ana Paula",
-    handle: "@anapaula",
-    text: "Interface intuitiva e recursos poderosos. Melhorou muito nosso processo de qualidade."
-  },
-  {
-    avatarSrc: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop",
-    name: "Roberto Costa",
-    handle: "@robertocosta",
-    text: "Plataforma completa para gestão 5S. Recomendo para todas as empresas que buscam excelência."
-  },
-];
+const testimonials: Testimonial[] = [];
 
 export default function Auth() {
   const navigate = useNavigate();
