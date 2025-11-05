@@ -104,10 +104,8 @@ export default function Criterios() {
         master_criterion_id: item.master_criterion_id,
         name: item.name,
         description: item.description || '',
-        senso: item.senso as CriterionSenso,
+        senso: (Array.isArray(item.senso) ? item.senso : [item.senso]) as CriterionSenso[],
         scoring_type: item.scoring_type as CriterionScoringType,
-        default_weight: item.default_weight,
-        custom_weight: item.custom_weight,
         origin: item.origin as CriterionOrigin,
         origin_model_id: item.origin_model_id,
         origin_model_name: item.origin_model_name,
@@ -118,9 +116,7 @@ export default function Criterios() {
         updated_at: item.updated_at,
         audits_using: 0, // TODO: buscar de tabela de auditorias quando implementada
         can_edit_content: item.origin === 'custom',
-        can_edit_weight: true,
-        can_delete: item.origin === 'custom',
-        is_weight_customized: item.custom_weight !== item.default_weight
+        can_delete: item.origin === 'custom'
       }));
 
       setCriteria(mappedCriteria);
@@ -168,7 +164,7 @@ export default function Criterios() {
   // Aplicar filtros
   const filteredCriteria = tabFilteredCriteria.filter((criterion) => {
     const matchesSearch = criterion.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSenso = sensoFilter === "all" || criterion.senso === sensoFilter;
+    const matchesSenso = sensoFilter === "all" || criterion.senso.includes(sensoFilter as any);
     const matchesStatus = statusFilter === "all" || criterion.status === statusFilter;
     const matchesOrigin = originFilter === "all" || criterion.origin === originFilter;
     return matchesSearch && matchesSenso && matchesStatus && matchesOrigin;
@@ -424,9 +420,13 @@ export default function Criterios() {
                         <div className="font-medium">{criterion.name}</div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={`${sensoColors[criterion.senso]} text-white text-xs`}>
-                          {criterion.senso}
-                        </Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {criterion.senso.map((s) => (
+                            <Badge key={s} className={`${sensoColors[s]} text-white text-xs`}>
+                              {s}
+                            </Badge>
+                          ))}
+                        </div>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <span className="text-sm">{criterion.scoring_type}</span>

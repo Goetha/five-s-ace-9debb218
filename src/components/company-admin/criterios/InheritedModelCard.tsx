@@ -38,11 +38,11 @@ export const InheritedModelCard = ({
   const [isExpanded, setIsExpanded] = useState(false);
   
   const criteriaBysenso = {
-    "1S": criteria.filter((c) => c.senso === "1S").length,
-    "2S": criteria.filter((c) => c.senso === "2S").length,
-    "3S": criteria.filter((c) => c.senso === "3S").length,
-    "4S": criteria.filter((c) => c.senso === "4S").length,
-    "5S": criteria.filter((c) => c.senso === "5S").length,
+    "1S": criteria.filter((c) => c.senso.includes("1S")).length,
+    "2S": criteria.filter((c) => c.senso.includes("2S")).length,
+    "3S": criteria.filter((c) => c.senso.includes("3S")).length,
+    "4S": criteria.filter((c) => c.senso.includes("4S")).length,
+    "5S": criteria.filter((c) => c.senso.includes("5S")).length,
   };
 
   const firstCriterion = criteria[0];
@@ -113,9 +113,13 @@ export const InheritedModelCard = ({
                   {criteria.map((criterion) => (
                     <TableRow key={criterion.id}>
                       <TableCell>
-                        <Badge className={`${sensoColors[criterion.senso].split(' ')[0]} text-white text-xs`}>
-                          {criterion.senso}
-                        </Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {criterion.senso.map((s) => (
+                            <Badge key={s} className={`${sensoColors[s].split(' ')[0]} text-white text-xs`}>
+                              {s}
+                            </Badge>
+                          ))}
+                        </div>
                       </TableCell>
                       <TableCell className="font-medium">{criterion.name}</TableCell>
                       <TableCell className="text-sm">{criterion.scoring_type}</TableCell>

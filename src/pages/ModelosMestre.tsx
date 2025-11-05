@@ -114,11 +114,11 @@ const ModelosMestre = () => {
               );
 
               model.criteria_by_senso = {
-                "1S": modelCriteria.filter((c) => c.senso === "1S").length,
-                "2S": modelCriteria.filter((c) => c.senso === "2S").length,
-                "3S": modelCriteria.filter((c) => c.senso === "3S").length,
-                "4S": modelCriteria.filter((c) => c.senso === "4S").length,
-                "5S": modelCriteria.filter((c) => c.senso === "5S").length,
+                "1S": modelCriteria.filter((c) => c.senso.includes("1S")).length,
+                "2S": modelCriteria.filter((c) => c.senso.includes("2S")).length,
+                "3S": modelCriteria.filter((c) => c.senso.includes("3S")).length,
+                "4S": modelCriteria.filter((c) => c.senso.includes("4S")).length,
+                "5S": modelCriteria.filter((c) => c.senso.includes("5S")).length,
               };
             });
           }

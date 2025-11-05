@@ -8,10 +8,8 @@ export const mockInheritedCriteria: Criterion[] = [
     master_criterion_id: 'master-crit-001',
     name: 'Ausência de materiais desnecessários',
     description: 'Verificar se há materiais, ferramentas ou equipamentos que não são utilizados no local',
-    senso: '1S',
+    senso: ['1S'],
     scoring_type: '0-10',
-    default_weight: 8,
-    custom_weight: 9,
     origin: 'ifa',
     origin_model_id: 'model-001',
     origin_model_name: '5S Industrial Completo',
@@ -23,9 +21,7 @@ export const mockInheritedCriteria: Criterion[] = [
     audits_using: 12,
     average_score: 8.2,
     can_edit_content: false,
-    can_edit_weight: true,
-    can_delete: false,
-    is_weight_customized: true
+    can_delete: false
   },
   {
     id: 'crit-ifa-002',
@@ -33,10 +29,8 @@ export const mockInheritedCriteria: Criterion[] = [
     master_criterion_id: 'master-crit-002',
     name: 'Ferramentas organizadas e identificadas',
     description: 'Verificar se as ferramentas estão organizadas e devidamente identificadas',
-    senso: '2S',
+    senso: ['2S'],
     scoring_type: 'conform-non-conform',
-    default_weight: 5,
-    custom_weight: 5,
     origin: 'ifa',
     origin_model_id: 'model-001',
     origin_model_name: '5S Industrial Completo',
@@ -48,9 +42,7 @@ export const mockInheritedCriteria: Criterion[] = [
     audits_using: 10,
     average_score: 9.1,
     can_edit_content: false,
-    can_edit_weight: true,
-    can_delete: false,
-    is_weight_customized: false
+    can_delete: false
   },
   {
     id: 'crit-ifa-003',
@@ -58,10 +50,8 @@ export const mockInheritedCriteria: Criterion[] = [
     master_criterion_id: 'master-crit-003',
     name: 'Piso limpo sem resíduos',
     description: 'Verificar se o piso está limpo, sem resíduos de materiais ou líquidos',
-    senso: '3S',
+    senso: ['3S'],
     scoring_type: '0-10',
-    default_weight: 7,
-    custom_weight: 8,
     origin: 'ifa',
     origin_model_id: 'model-001',
     origin_model_name: '5S Industrial Completo',
@@ -73,9 +63,7 @@ export const mockInheritedCriteria: Criterion[] = [
     audits_using: 15,
     average_score: 7.8,
     can_edit_content: false,
-    can_edit_weight: true,
-    can_delete: false,
-    is_weight_customized: true
+    can_delete: false
   },
   {
     id: 'crit-ifa-004',
@@ -83,10 +71,8 @@ export const mockInheritedCriteria: Criterion[] = [
     master_criterion_id: 'master-crit-004',
     name: 'Sinalização de segurança visível',
     description: 'Verificar se a sinalização de segurança está visível e em boas condições',
-    senso: '4S',
+    senso: ['4S'],
     scoring_type: 'conform-non-conform',
-    default_weight: 9,
-    custom_weight: 10,
     origin: 'ifa',
     origin_model_id: 'model-001',
     origin_model_name: '5S Industrial Completo',
@@ -98,9 +84,7 @@ export const mockInheritedCriteria: Criterion[] = [
     audits_using: 12,
     average_score: 9.5,
     can_edit_content: false,
-    can_edit_weight: true,
-    can_delete: false,
-    is_weight_customized: true
+    can_delete: false
   },
   {
     id: 'crit-ifa-005',
@@ -108,10 +92,8 @@ export const mockInheritedCriteria: Criterion[] = [
     master_criterion_id: 'master-crit-005',
     name: 'Cumprimento de procedimentos operacionais',
     description: 'Verificar se os procedimentos operacionais estão sendo seguidos',
-    senso: '5S',
+    senso: ['5S'],
     scoring_type: '0-10',
-    default_weight: 6,
-    custom_weight: 6,
     origin: 'ifa',
     origin_model_id: 'model-001',
     origin_model_name: '5S Industrial Completo',
@@ -123,9 +105,7 @@ export const mockInheritedCriteria: Criterion[] = [
     audits_using: 8,
     average_score: 7.5,
     can_edit_content: false,
-    can_edit_weight: true,
-    can_delete: false,
-    is_weight_customized: false
+    can_delete: false
   },
   // Adicionar mais 20 critérios para chegar em 25
   ...Array.from({ length: 20 }, (_, i) => ({
@@ -134,10 +114,8 @@ export const mockInheritedCriteria: Criterion[] = [
     master_criterion_id: `master-crit-${String(i + 6).padStart(3, '0')}`,
     name: `Critério IFA ${i + 6}`,
     description: `Descrição do critério herdado número ${i + 6}`,
-    senso: (['1S', '2S', '3S', '4S', '5S'] as const)[i % 5],
+    senso: [(['1S', '2S', '3S', '4S', '5S'] as const)[i % 5]] as any,
     scoring_type: (i % 2 === 0 ? '0-10' : 'conform-non-conform') as any,
-    default_weight: Math.floor(Math.random() * 5) + 5,
-    custom_weight: Math.floor(Math.random() * 5) + 5,
     origin: 'ifa' as const,
     origin_model_id: 'model-001',
     origin_model_name: '5S Industrial Completo',
@@ -149,9 +127,7 @@ export const mockInheritedCriteria: Criterion[] = [
     audits_using: Math.floor(Math.random() * 10),
     average_score: Math.random() * 3 + 7,
     can_edit_content: false,
-    can_edit_weight: true,
-    can_delete: false,
-    is_weight_customized: Math.random() > 0.5
+    can_delete: false
   }))
 ];
 
@@ -163,7 +139,7 @@ export const mockCustomCriteria: Criterion[] = [
     master_criterion_id: null,
     name: 'Organização de ferramentas manuais específicas',
     description: 'Verificar se as ferramentas manuais específicas da linha 1 estão organizadas no painel designado',
-    senso: '2S',
+    senso: ['2S'],
     scoring_type: 'conform-non-conform',
     origin: 'custom',
     origin_model_id: null,
@@ -185,7 +161,7 @@ export const mockCustomCriteria: Criterion[] = [
     master_criterion_id: null,
     name: 'Identificação de lotes de materiais',
     description: 'Verificar se todos os lotes de materiais no almoxarifado estão corretamente identificados com etiquetas',
-    senso: '2S',
+    senso: ['2S'],
     scoring_type: '0-10',
     origin: 'custom',
     origin_model_id: null,
@@ -207,7 +183,7 @@ export const mockCustomCriteria: Criterion[] = [
     master_criterion_id: null,
     name: 'Limpeza de equipamentos de proteção',
     description: 'Verificar se os EPIs (capacetes, óculos, luvas) estão limpos e em boas condições',
-    senso: '3S',
+    senso: ['3S'],
     scoring_type: 'conform-non-conform',
     origin: 'custom',
     origin_model_id: null,
@@ -229,7 +205,7 @@ export const mockCustomCriteria: Criterion[] = [
     master_criterion_id: null,
     name: 'Temperatura do refeitório',
     description: 'Verificar se a temperatura do refeitório está adequada (entre 18-24°C)',
-    senso: '4S',
+    senso: ['4S'],
     scoring_type: '0-10',
     origin: 'custom',
     origin_model_id: null,
@@ -251,7 +227,7 @@ export const mockCustomCriteria: Criterion[] = [
     master_criterion_id: null,
     name: 'Documentação de manutenção atualizada',
     description: 'Verificar se os registros de manutenção preventiva estão atualizados nos últimos 30 dias',
-    senso: '5S',
+    senso: ['5S'],
     scoring_type: 'conform-non-conform',
     origin: 'custom',
     origin_model_id: null,

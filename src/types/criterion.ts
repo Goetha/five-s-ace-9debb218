@@ -9,7 +9,7 @@ export interface Criterion {
   master_criterion_id: string | null; // null se personalizado
   name: string;
   description: string;
-  senso: CriterionSenso;
+  senso: CriterionSenso[]; // Array de sensos
   scoring_type: CriterionScoringType;
   origin: CriterionOrigin;
   origin_model_id: string | null;
@@ -30,7 +30,7 @@ export interface Criterion {
 export interface CriterionFormData {
   name: string;
   description?: string;
-  senso: CriterionSenso;
+  senso: CriterionSenso[]; // Array de sensos
   scoring_type: CriterionScoringType;
   tags: string[];
   status: CriterionStatus;

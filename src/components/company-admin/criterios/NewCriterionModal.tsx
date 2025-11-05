@@ -48,7 +48,7 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
   const [formData, setFormData] = useState<CriterionFormData>({
     name: '',
     description: '',
-    senso: '1S',
+    senso: [],
     scoring_type: '0-10',
     tags: [],
     status: 'active'
@@ -61,6 +61,15 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
       toast({
         title: "Nome muito curto",
         description: "O nome deve ter no mínimo 10 caracteres",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (formData.senso.length === 0) {
+      toast({
+        title: "Selecione pelo menos um senso",
+        description: "É necessário selecionar ao menos um senso 5S",
         variant: "destructive"
       });
       return;
@@ -105,7 +114,7 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
       setFormData({
         name: '',
         description: '',
-        senso: '1S',
+        senso: [],
         scoring_type: '0-10',
         tags: [],
         status: 'active'
@@ -130,6 +139,15 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
       tags: prev.tags.includes(tag)
         ? prev.tags.filter(t => t !== tag)
         : [...prev.tags, tag]
+    }));
+  };
+
+  const toggleSenso = (senso: string) => {
+    setFormData(prev => ({
+      ...prev,
+      senso: prev.senso.includes(senso as any)
+        ? prev.senso.filter(s => s !== senso)
+        : [...prev.senso, senso as any]
     }));
   };
 
@@ -191,50 +209,44 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
             <h3 className="font-semibold">Classificação 5S</h3>
             
             <div>
-              <Label htmlFor="senso">Senso 5S *</Label>
-              <Select value={formData.senso} onValueChange={(value: any) => setFormData({ ...formData, senso: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1S">
-                    <div className="flex items-center gap-2">
-                      <Badge className={`${sensoColors['1S']} text-white`}>1S</Badge>
-                      <span>Seiri (Utilização)</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="2S">
-                    <div className="flex items-center gap-2">
-                      <Badge className={`${sensoColors['2S']} text-white`}>2S</Badge>
-                      <span>Seiton (Organização)</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="3S">
-                    <div className="flex items-center gap-2">
-                      <Badge className={`${sensoColors['3S']} text-white`}>3S</Badge>
-                      <span>Seiso (Limpeza)</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="4S">
-                    <div className="flex items-center gap-2">
-                      <Badge className={`${sensoColors['4S']} text-white`}>4S</Badge>
-                      <span>Seiketsu (Padronização)</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="5S">
-                    <div className="flex items-center gap-2">
-                      <Badge className={`${sensoColors['5S']} text-white`}>5S</Badge>
-                      <span>Shitsuke (Disciplina)</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Sensos 5S * (selecione um ou mais)</Label>
+              <p className="text-sm text-muted-foreground mb-3">
+                Selecione todos os sensos 5S aplicáveis a este critério
+              </p>
               
-              <Alert className="mt-2 bg-blue-50 border-blue-200">
-                <AlertDescription className="text-sm text-blue-800">
-                  ℹ️ {sensoDescriptions[formData.senso]}
-                </AlertDescription>
-              </Alert>
+              <div className="space-y-3">
+                {Object.entries(sensoDescriptions).map(([senso, description]) => (
+                  <div key={senso} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
+                    <Checkbox
+                      id={`senso-${senso}`}
+                      checked={formData.senso.includes(senso as any)}
+                      onCheckedChange={() => toggleSenso(senso)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 space-y-1 cursor-pointer" onClick={() => toggleSenso(senso)}>
+                      <div className="flex items-center gap-2">
+                        <Badge className={`${sensoColors[senso as keyof typeof sensoColors]} text-white`}>
+                          {senso}
+                        </Badge>
+                        <span className="font-medium">
+                          {description.split(' - ')[0]}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {description.split(' - ')[1]}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {formData.senso.length > 0 && (
+                <Alert className="mt-3 bg-green-50 border-green-200">
+                  <AlertDescription className="text-sm text-green-800">
+                    ✓ {formData.senso.length} senso{formData.senso.length > 1 ? 's' : ''} selecionado{formData.senso.length > 1 ? 's' : ''}
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           </div>
 

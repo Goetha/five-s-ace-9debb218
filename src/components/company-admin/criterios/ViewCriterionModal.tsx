@@ -31,10 +31,12 @@ export function ViewCriterionModal({ criterion, open, onOpenChange }: ViewCriter
             ) : (
               <Badge className="bg-purple-100 text-purple-700 border-0">CRITÉRIO PERSONALIZADO</Badge>
             )}
-            <DialogTitle className="flex items-center gap-2">
-              <Badge className={`${sensoColors[criterion.senso]} text-white`}>
-                {criterion.senso}
-              </Badge>
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
+              {criterion.senso.map((s) => (
+                <Badge key={s} className={`${sensoColors[s]} text-white`}>
+                  {s}
+                </Badge>
+              ))}
               {criterion.name}
             </DialogTitle>
           </div>

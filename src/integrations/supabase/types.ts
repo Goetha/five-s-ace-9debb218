@@ -69,7 +69,7 @@ export type Database = {
           origin_model_id: string | null
           origin_model_name: string | null
           scoring_type: string
-          senso: string
+          senso: string[] | null
           status: string
           tags: string[] | null
           updated_at: string
@@ -86,7 +86,7 @@ export type Database = {
           origin_model_id?: string | null
           origin_model_name?: string | null
           scoring_type: string
-          senso: string
+          senso?: string[] | null
           status?: string
           tags?: string[] | null
           updated_at?: string
@@ -103,7 +103,7 @@ export type Database = {
           origin_model_id?: string | null
           origin_model_name?: string | null
           scoring_type?: string
-          senso?: string
+          senso?: string[] | null
           status?: string
           tags?: string[] | null
           updated_at?: string
@@ -246,7 +246,7 @@ export type Database = {
           id: string
           name: string
           scoring_type: string
-          senso: string
+          senso: string[] | null
           status: string
           tags: string[] | null
           updated_at: string
@@ -257,7 +257,7 @@ export type Database = {
           id?: string
           name: string
           scoring_type: string
-          senso: string
+          senso?: string[] | null
           status?: string
           tags?: string[] | null
           updated_at?: string
@@ -268,7 +268,7 @@ export type Database = {
           id?: string
           name?: string
           scoring_type?: string
-          senso?: string
+          senso?: string[] | null
           status?: string
           tags?: string[] | null
           updated_at?: string
