@@ -5,14 +5,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface WebhookEmailPayload {
-  adminEmail?: string;
-  adminName?: string;
-  temporaryPassword?: string;
+interface CompanyWebhookPayload {
+  companyName: string;
+  phone: string;
+  email: string;
+  timestamp: string;
+}
+
+interface UserCredentialsPayload {
+  adminEmail: string;
+  adminName: string;
+  temporaryPassword: string;
   companyName: string;
   timestamp: string;
-  phone?: string;
-  email?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -22,29 +27,27 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    console.log('📧 Recebida requisição para enviar webhook de empresa');
-    
-    const payload: WebhookEmailPayload = await req.json();
-    
+    const payload = await req.json();
     const WEBHOOK_URL = 'https://webhook.dev.copertino.shop/webhook/email';
 
-    // Detectar tipo de webhook: credenciais de usuário ou dados de empresa
-    const isUserCredentials = payload.adminEmail && payload.temporaryPassword;
+    // Detectar tipo de webhook baseado nos campos presentes
+    const isUserCredentials = 'adminEmail' in payload && 'temporaryPassword' in payload;
 
     if (isUserCredentials) {
-      // Webhook de credenciais (GET com query params)
+      // Webhook de credenciais de usuário (GET com query params)
+      const userPayload = payload as UserCredentialsPayload;
       console.log('📤 Enviando webhook de credenciais de usuário');
       
       const params = new URLSearchParams({
-        adminEmail: payload.adminEmail!,
-        adminName: payload.adminName!,
-        temporaryPassword: payload.temporaryPassword!,
-        companyName: payload.companyName,
-        timestamp: payload.timestamp,
+        adminEmail: userPayload.adminEmail,
+        adminName: userPayload.adminName,
+        temporaryPassword: userPayload.temporaryPassword,
+        companyName: userPayload.companyName,
+        timestamp: userPayload.timestamp,
       });
 
       const url = `${WEBHOOK_URL}?${params.toString()}`;
-      const safeLogUrl = `${WEBHOOK_URL}?adminEmail=${encodeURIComponent(payload.adminEmail!)}&adminName=${encodeURIComponent(payload.adminName!)}&companyName=${encodeURIComponent(payload.companyName)}&timestamp=${encodeURIComponent(payload.timestamp)}`;
+      const safeLogUrl = `${WEBHOOK_URL}?adminEmail=${encodeURIComponent(userPayload.adminEmail)}&adminName=${encodeURIComponent(userPayload.adminName)}&companyName=${encodeURIComponent(userPayload.companyName)}&timestamp=${encodeURIComponent(userPayload.timestamp)}`;
       console.log('➡️  Chamando webhook via GET:', safeLogUrl);
 
       const webhookResponse = await fetch(url, {
@@ -72,7 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       const responseData = await webhookResponse.text();
-      console.log('✅ Webhook enviado com sucesso:', responseData);
+      console.log('✅ Webhook de credenciais enviado com sucesso:', responseData);
 
       return new Response(
         JSON.stringify({ 
@@ -89,25 +92,16 @@ const handler = async (req: Request): Promise<Response> => {
       );
     } else {
       // Webhook de dados da empresa (POST com JSON)
+      const companyPayload = payload as CompanyWebhookPayload;
       console.log('📤 Enviando webhook de dados da empresa');
-      console.log('Payload:', {
-        companyName: payload.companyName,
-        phone: payload.phone,
-        email: payload.email,
-        timestamp: payload.timestamp,
-      });
+      console.log('Payload:', companyPayload);
 
       const webhookResponse = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          companyName: payload.companyName,
-          phone: payload.phone,
-          email: payload.email,
-          timestamp: payload.timestamp,
-        }),
+        body: JSON.stringify(companyPayload),
       });
 
       if (!webhookResponse.ok) {
@@ -131,7 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       const responseData = await webhookResponse.text();
-      console.log('✅ Webhook enviado com sucesso:', responseData);
+      console.log('✅ Webhook de empresa enviado com sucesso:', responseData);
 
       return new Response(
         JSON.stringify({ 
