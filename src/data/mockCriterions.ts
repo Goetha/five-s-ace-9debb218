@@ -165,8 +165,6 @@ export const mockCustomCriteria: Criterion[] = [
     description: 'Verificar se as ferramentas manuais específicas da linha 1 estão organizadas no painel designado',
     senso: '2S',
     scoring_type: 'conform-non-conform',
-    default_weight: 7,
-    custom_weight: 7,
     origin: 'custom',
     origin_model_id: null,
     origin_model_name: null,
@@ -179,9 +177,7 @@ export const mockCustomCriteria: Criterion[] = [
     audits_using: 3,
     average_score: 9.0,
     can_edit_content: true,
-    can_edit_weight: true,
-    can_delete: true,
-    is_weight_customized: false
+    can_delete: true
   },
   {
     id: 'crit-custom-002',
@@ -191,8 +187,6 @@ export const mockCustomCriteria: Criterion[] = [
     description: 'Verificar se todos os lotes de materiais no almoxarifado estão corretamente identificados com etiquetas',
     senso: '2S',
     scoring_type: '0-10',
-    default_weight: 8,
-    custom_weight: 8,
     origin: 'custom',
     origin_model_id: null,
     origin_model_name: null,
@@ -205,9 +199,7 @@ export const mockCustomCriteria: Criterion[] = [
     audits_using: 2,
     average_score: 8.5,
     can_edit_content: true,
-    can_edit_weight: true,
-    can_delete: true,
-    is_weight_customized: false
+    can_delete: true
   },
   {
     id: 'crit-custom-003',
@@ -217,8 +209,6 @@ export const mockCustomCriteria: Criterion[] = [
     description: 'Verificar se os EPIs (capacetes, óculos, luvas) estão limpos e em boas condições',
     senso: '3S',
     scoring_type: 'conform-non-conform',
-    default_weight: 9,
-    custom_weight: 9,
     origin: 'custom',
     origin_model_id: null,
     origin_model_name: null,
@@ -231,9 +221,7 @@ export const mockCustomCriteria: Criterion[] = [
     audits_using: 1,
     average_score: 9.0,
     can_edit_content: true,
-    can_edit_weight: true,
-    can_delete: true,
-    is_weight_customized: false
+    can_delete: true
   },
   {
     id: 'crit-custom-004',
@@ -243,8 +231,6 @@ export const mockCustomCriteria: Criterion[] = [
     description: 'Verificar se a temperatura do refeitório está adequada (entre 18-24°C)',
     senso: '4S',
     scoring_type: '0-10',
-    default_weight: 5,
-    custom_weight: 5,
     origin: 'custom',
     origin_model_id: null,
     origin_model_name: null,
@@ -257,9 +243,7 @@ export const mockCustomCriteria: Criterion[] = [
     audits_using: 1,
     average_score: 8.0,
     can_edit_content: true,
-    can_edit_weight: true,
-    can_delete: true,
-    is_weight_customized: false
+    can_delete: true
   },
   {
     id: 'crit-custom-005',
@@ -269,8 +253,6 @@ export const mockCustomCriteria: Criterion[] = [
     description: 'Verificar se os registros de manutenção preventiva estão atualizados nos últimos 30 dias',
     senso: '5S',
     scoring_type: 'conform-non-conform',
-    default_weight: 7,
-    custom_weight: 7,
     origin: 'custom',
     origin_model_id: null,
     origin_model_name: null,
@@ -282,9 +264,7 @@ export const mockCustomCriteria: Criterion[] = [
     updated_at: '2025-01-18T15:00:00Z',
     audits_using: 0,
     can_edit_content: true,
-    can_edit_weight: true,
-    can_delete: true,
-    is_weight_customized: false
+    can_delete: true
   }
 ];
 

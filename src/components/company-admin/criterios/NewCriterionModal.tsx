@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
+
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -50,7 +50,6 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
     description: '',
     senso: '1S',
     scoring_type: '0-10',
-    weight: 5,
     tags: [],
     status: 'active'
   });
@@ -80,19 +79,21 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      const { error } = await supabase.from('company_criteria').insert({
-        company_id: companyId,
-        name: formData.name,
-        description: formData.description,
-        senso: formData.senso,
-        scoring_type: formData.scoring_type,
-        default_weight: formData.weight,
-        custom_weight: formData.weight,
-        origin: 'custom',
-        tags: formData.tags,
-        status: formData.status,
-        created_by: user?.id
-      });
+      const { error } = await supabase
+        .from('company_criteria')
+        .insert([{
+          company_id: companyId,
+          name: formData.name,
+          description: formData.description,
+          senso: formData.senso,
+          scoring_type: formData.scoring_type,
+          default_weight: 5,
+          custom_weight: 5,
+          origin: 'custom',
+          tags: formData.tags,
+          status: formData.status,
+          created_by: user?.id
+        }]);
 
       if (error) throw error;
 
@@ -106,7 +107,6 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
         description: '',
         senso: '1S',
         scoring_type: '0-10',
-        weight: 5,
         tags: [],
         status: 'active'
       });
@@ -122,12 +122,6 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
     } finally {
       setLoading(false);
     }
-  };
-
-  const getWeightLabel = (weight: number) => {
-    if (weight <= 3) return '🟢 Baixo';
-    if (weight <= 7) return '🟡 Médio';
-    return '🔥 Alto/Crítico';
   };
 
   const toggleTag = (tag: string) => {
@@ -261,21 +255,6 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
                   <SelectItem value="percentage">Percentual (0-100%)</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div>
-              <Label>Peso * {getWeightLabel(formData.weight)}</Label>
-              <div className="flex items-center gap-4 mt-2">
-                <Slider
-                  value={[formData.weight]}
-                  onValueChange={([value]) => setFormData({ ...formData, weight: value })}
-                  min={1}
-                  max={10}
-                  step={1}
-                  className="flex-1"
-                />
-                <span className="text-lg font-bold w-8 text-center">{formData.weight}</span>
-              </div>
             </div>
           </div>
 

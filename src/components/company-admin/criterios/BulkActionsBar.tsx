@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, RotateCcw, Trash2 } from "lucide-react";
+import { Check, X, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -90,41 +90,6 @@ export function BulkActionsBar({ selectedIds, criteria, onSuccess, onClearSelect
     }
   };
 
-  const handleRestoreWeights = async () => {
-    setLoading(true);
-    try {
-      // Para critérios herdados, restaurar peso padrão
-      const updates = selected.map(criterion => ({
-        id: criterion.id,
-        custom_weight: criterion.default_weight
-      }));
-
-      for (const update of updates) {
-        const { error } = await supabase
-          .from('company_criteria')
-          .update({ custom_weight: update.custom_weight })
-          .eq('id', update.id);
-
-        if (error) throw error;
-      }
-
-      toast({
-        title: "✓ Pesos restaurados",
-        description: `${selectedIds.length} peso(s) restaurado(s) para o padrão IFA`
-      });
-
-      onSuccess();
-      onClearSelection();
-    } catch (error: any) {
-      toast({
-        title: "Erro ao restaurar pesos",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDelete = async () => {
     setLoading(true);
@@ -191,18 +156,6 @@ export function BulkActionsBar({ selectedIds, criteria, onSuccess, onClearSelect
               <span className="hidden sm:inline">Desativar</span>
             </Button>
 
-            {allInherited && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleRestoreWeights}
-                disabled={loading}
-                className="gap-2"
-              >
-                <RotateCcw className="h-4 w-4" />
-                <span className="hidden md:inline">Restaurar Pesos</span>
-              </Button>
-            )}
 
             {allCustom && (
               <Button

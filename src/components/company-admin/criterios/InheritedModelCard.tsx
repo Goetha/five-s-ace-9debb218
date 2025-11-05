@@ -106,7 +106,6 @@ export const InheritedModelCard = ({
                     <TableHead className="w-20">Senso</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead className="w-32">Tipo</TableHead>
-                    <TableHead className="w-24">Peso</TableHead>
                     <TableHead className="w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -120,11 +119,6 @@ export const InheritedModelCard = ({
                       </TableCell>
                       <TableCell className="font-medium">{criterion.name}</TableCell>
                       <TableCell className="text-sm">{criterion.scoring_type}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {criterion.custom_weight}
-                        </Badge>
-                      </TableCell>
                       <TableCell>
                         <Button 
                           variant="ghost" 

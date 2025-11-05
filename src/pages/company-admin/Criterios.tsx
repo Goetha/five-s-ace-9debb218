@@ -31,7 +31,7 @@ import {
   Eye,
   Loader2,
 } from "lucide-react";
-import { InlineWeightEditor } from "@/components/company-admin/criterios/InlineWeightEditor";
+
 import { NewCriterionModal } from "@/components/company-admin/criterios/NewCriterionModal";
 import { ViewCriterionModal } from "@/components/company-admin/criterios/ViewCriterionModal";
 import { BulkActionsBar } from "@/components/company-admin/criterios/BulkActionsBar";
@@ -180,29 +180,6 @@ export default function Criterios() {
   const customCount = criteria.filter(c => c.origin === 'custom').length;
   const activeCount = criteria.filter(c => c.status === 'active').length;
 
-  const handleWeightSave = async (criterionId: string, newWeight: number) => {
-    try {
-      const { error } = await supabase
-        .from('company_criteria')
-        .update({ custom_weight: newWeight })
-        .eq('id', criterionId);
-
-      if (error) throw error;
-
-      await fetchCriteria();
-
-      toast({
-        title: "Peso atualizado",
-        description: "O peso do critério foi atualizado com sucesso"
-      });
-    } catch (error: any) {
-      toast({
-        title: "Erro ao atualizar peso",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
 
   const handleSelectAll = () => {
     if (selectedCriteria.length === filteredCriteria.length) {
@@ -415,7 +392,6 @@ export default function Criterios() {
                     <TableHead className="min-w-[200px]">Nome</TableHead>
                     <TableHead className="min-w-[80px]">Senso</TableHead>
                     <TableHead className="hidden sm:table-cell min-w-[120px]">Tipo</TableHead>
-                    <TableHead className="min-w-[100px]">Peso</TableHead>
                     <TableHead className="hidden md:table-cell min-w-[150px]">Origem</TableHead>
                     <TableHead className="hidden lg:table-cell min-w-[80px]">Status</TableHead>
                     <TableHead className="hidden lg:table-cell min-w-[100px]">Em Uso</TableHead>
@@ -454,26 +430,6 @@ export default function Criterios() {
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <span className="text-sm">{criterion.scoring_type}</span>
-                      </TableCell>
-                      <TableCell>
-                        {criterion.origin === 'ifa' ? (
-                          <InlineWeightEditor
-                            criterionId={criterion.id}
-                            defaultWeight={criterion.default_weight}
-                            currentWeight={criterion.custom_weight}
-                            onSave={handleWeightSave}
-                          />
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <div className="w-full bg-muted rounded-full h-2">
-                              <div
-                                className="bg-primary h-2 rounded-full"
-                                style={{ width: `${(criterion.custom_weight / 10) * 100}%` }}
-                              />
-                            </div>
-                            <span className="text-sm font-medium">{criterion.custom_weight}</span>
-                          </div>
-                        )}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         {criterion.origin === 'ifa' ? (

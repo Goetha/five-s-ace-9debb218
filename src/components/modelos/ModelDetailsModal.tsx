@@ -86,7 +86,7 @@ export default function ModelDetailsModal({ open, onOpenChange, model }: ModelDe
                   <div key={c!.id} className="p-3 flex items-center justify-between">
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{c!.id} - {c!.name}</p>
-                      <p className="text-xs text-muted-foreground">{c!.scoreType} • Peso {c!.weight}</p>
+                      <p className="text-xs text-muted-foreground">{c!.scoreType}</p>
                     </div>
                     <Badge variant="outline" className={sensoColors[c!.senso]}>{c!.senso}</Badge>
                   </div>

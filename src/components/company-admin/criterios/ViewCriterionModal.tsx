@@ -21,8 +21,6 @@ const sensoColors = {
 export function ViewCriterionModal({ criterion, open, onOpenChange }: ViewCriterionModalProps) {
   if (!criterion) return null;
 
-  const isCustomized = criterion.custom_weight !== criterion.default_weight;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -55,41 +53,6 @@ export function ViewCriterionModal({ criterion, open, onOpenChange }: ViewCriter
           <div>
             <h4 className="font-semibold text-sm mb-2">Tipo de Pontuação:</h4>
             <p className="text-sm">{criterion.scoring_type}</p>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h4 className="font-semibold text-sm mb-2">Peso:</h4>
-            {criterion.origin === 'ifa' ? (
-              <div className="space-y-2 bg-muted p-4 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Peso Padrão (IFA):</span>
-                  <Badge variant="outline">{criterion.default_weight}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Seu Peso Customizado:</span>
-                  <div className="flex items-center gap-2">
-                    <Badge>{criterion.custom_weight}</Badge>
-                    {criterion.custom_weight >= 8 && <span className="text-xs">Alto/Crítico</span>}
-                    {criterion.custom_weight >= 4 && criterion.custom_weight <= 7 && <span className="text-xs">Médio</span>}
-                    {criterion.custom_weight <= 3 && <span className="text-xs">Baixo</span>}
-                  </div>
-                </div>
-                {isCustomized && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Você customizou este peso em {criterion.custom_weight > criterion.default_weight ? '+' : ''}{criterion.custom_weight - criterion.default_weight}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Badge>{criterion.custom_weight}</Badge>
-                {criterion.custom_weight >= 8 && <span className="text-xs">Alto/Crítico</span>}
-                {criterion.custom_weight >= 4 && criterion.custom_weight <= 7 && <span className="text-xs">Médio</span>}
-                {criterion.custom_weight <= 3 && <span className="text-xs">Baixo</span>}
-              </div>
-            )}
           </div>
 
           {criterion.tags && criterion.tags.length > 0 && (
