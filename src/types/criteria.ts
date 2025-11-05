@@ -1,5 +1,5 @@
 export type SensoType = "1S" | "2S" | "3S" | "4S" | "5S";
-export type ScoreType = "0-10" | "C/NC" | "0-5" | "Percentual";
+export type ScoreType = "0-10" | "conform-non-conform" | "0-5" | "percentage";
 export type CriteriaStatus = "Ativo" | "Inativo";
 export type CriteriaTag = "Industrial" | "Escritório" | "Banheiro" | "Refeitório" | "Almoxarifado" | "Todos";
 

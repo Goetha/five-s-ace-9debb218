@@ -87,9 +87,9 @@ const AdvancedFilters = ({ filters, onFiltersChange, onClose }: AdvancedFiltersP
               <SelectContent>
                 <SelectItem value="Todos">Todos</SelectItem>
                 <SelectItem value="0-10">0-10</SelectItem>
-                <SelectItem value="C/NC">C/NC</SelectItem>
+                <SelectItem value="conform-non-conform">C/NC</SelectItem>
                 <SelectItem value="0-5">0-5</SelectItem>
-                <SelectItem value="Percentual">Percentual</SelectItem>
+                <SelectItem value="percentage">Percentual</SelectItem>
               </SelectContent>
             </Select>
           </div>

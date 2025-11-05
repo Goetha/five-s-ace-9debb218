@@ -24,7 +24,7 @@ const criterionSchema = z.object({
   description: z.string().optional(),
   senso: z.array(z.enum(["1S", "2S", "3S", "4S", "5S"]))
     .min(1, "Selecione pelo menos um senso"),
-  scoreType: z.enum(["0-10", "C/NC", "0-5", "Percentual"], {
+  scoreType: z.enum(["0-10", "conform-non-conform", "0-5", "percentage"], {
     required_error: "Selecione um tipo de avaliação"
   }),
   tags: z.array(z.string()).default([]),
@@ -316,8 +316,10 @@ const selectedTags = form.watch("tags");
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="C/NC">Sim / Não (Conforme/Não Conforme)</SelectItem>
+                              <SelectItem value="conform-non-conform">Sim / Não (Conforme/Não Conforme)</SelectItem>
                               <SelectItem value="0-10">Escala 0-10 pontos</SelectItem>
+                              <SelectItem value="0-5">Escala 0-5 pontos</SelectItem>
+                              <SelectItem value="percentage">Percentual (0-100%)</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
