@@ -69,9 +69,17 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw]">
+    <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw] relative">
+      {/* Mobile background image */}
+      {heroImageSrc && (
+        <div 
+          className="md:hidden absolute inset-0 bg-cover bg-center opacity-20"
+          style={{ backgroundImage: `url(${heroImageSrc})` }}
+        />
+      )}
+      
       {/* Left column: sign-in form */}
-      <section className="flex-1 flex items-center justify-center p-8">
+      <section className="flex-1 flex items-center justify-center p-8 relative z-10">
         <div className="w-full max-w-md">
           <div className="flex flex-col gap-6">
             <h1 className="animate-element animate-delay-100 text-4xl md:text-5xl font-semibold leading-tight">{title}</h1>
