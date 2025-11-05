@@ -12,27 +12,18 @@ import BulkActions from "@/components/biblioteca/BulkActions";
 import Pagination from "@/components/biblioteca/Pagination";
 import CriterionFormModal from "@/components/biblioteca/CriterionFormModal";
 import ViewCriterionModal from "@/components/biblioteca/ViewCriterionModal";
-import { mockCriteria } from "@/data/mockCriteria";
 import { Criteria, CriteriaFilters, SensoType } from "@/types/criteria";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { toUiStatus, toDbStatus, normalizeSenso } from "@/lib/formatters";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const BibliotecaCriterios = () => {
   const { toast } = useToast();
   
-  // State management - Load criteria from localStorage
-  const [criteria, setCriteria] = useState<Criteria[]>(() => {
-    try {
-      const saved = localStorage.getItem('criteria');
-      return saved ? JSON.parse(saved) : mockCriteria;
-    } catch {
-      return mockCriteria;
-    }
-  });
-
-  // Save criteria to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('criteria', JSON.stringify(criteria));
-  }, [criteria]);
+  // State management - Load criteria from Supabase
+  const [criteria, setCriteria] = useState<Criteria[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchValue, setSearchValue] = useState("");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [activeTab, setActiveTab] = useState<SensoType | "Todos">("Todos");
@@ -51,6 +42,45 @@ const BibliotecaCriterios = () => {
     tags: [],
     status: "Todos",
   });
+
+  // Load criteria from Supabase on mount
+  useEffect(() => {
+    loadCriteria();
+  }, []);
+
+  const loadCriteria = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("master_criteria")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const normalizedCriteria: Criteria[] = (data || []).map((c: any): Criteria => ({
+        id: c.id,
+        name: c.name,
+        senso: normalizeSenso(c.senso) as SensoType[],
+        scoreType: c.scoring_type,
+        tags: c.tags || [],
+        status: toUiStatus(c.status),
+        companiesUsing: 0,
+        modelsUsing: 0,
+      }));
+
+      setCriteria(normalizedCriteria);
+    } catch (error) {
+      console.error("Error loading criteria:", error);
+      toast({
+        title: "Erro ao carregar critérios",
+        description: "Não foi possível carregar os critérios do banco de dados.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Filter criteria based on all filters
   const filteredCriteria = useMemo(() => {
@@ -115,47 +145,65 @@ const BibliotecaCriterios = () => {
   };
 
   // Handle new criterion save
-  const handleSaveCriterion = (newCriterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">) => {
-    if (editCriterion) {
-      // Update existing criterion
-      setCriteria(criteria.map(c => 
-        c.id === editCriterion.id 
-          ? { ...c, ...newCriterion }
-          : c
-      ));
-      
+  const handleSaveCriterion = async (newCriterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">) => {
+    try {
+      if (editCriterion) {
+        // Update existing criterion
+        const { error } = await supabase
+          .from("master_criteria")
+          .update({
+            name: newCriterion.name,
+            description: "",
+            senso: newCriterion.senso,
+            scoring_type: newCriterion.scoreType,
+            tags: newCriterion.tags,
+            status: toDbStatus(newCriterion.status),
+          })
+          .eq("id", editCriterion.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "✓ Critério atualizado com sucesso!",
+          description: `${newCriterion.name} foi atualizado.`,
+          duration: 3000,
+        });
+
+        setEditCriterion(null);
+      } else {
+        // Create new criterion
+        const { error } = await supabase
+          .from("master_criteria")
+          .insert({
+            name: newCriterion.name,
+            description: "",
+            senso: newCriterion.senso,
+            scoring_type: newCriterion.scoreType,
+            tags: newCriterion.tags,
+            status: toDbStatus(newCriterion.status),
+          });
+
+        if (error) throw error;
+
+        toast({
+          title: "✓ Critério criado com sucesso!",
+          description: `${newCriterion.name} foi adicionado à biblioteca.`,
+          duration: 3000,
+        });
+
+        setSelectedIds([]);
+        setCurrentPage(1);
+      }
+
+      // Reload criteria from backend
+      await loadCriteria();
+    } catch (error) {
+      console.error("Error saving criterion:", error);
       toast({
-        title: "✓ Critério atualizado com sucesso!",
-        description: `${newCriterion.name} foi atualizado.`,
-        duration: 3000,
+        title: "Erro ao salvar critério",
+        description: "Não foi possível salvar o critério. Tente novamente.",
+        variant: "destructive",
       });
-      
-      setEditCriterion(null);
-    } else {
-      // Generate new ID (next sequential number)
-      const maxId = Math.max(...criteria.map((c) => parseInt(c.id.replace(/\D/g, '')) || 0), 0);
-      const newId = `C${String(maxId + 1).padStart(3, "0")}`;
-
-      const criterionToAdd: Criteria = {
-        ...newCriterion,
-        id: newId,
-        companiesUsing: 0,
-        modelsUsing: 0,
-      };
-
-      // Add to the beginning of the list
-      setCriteria([criterionToAdd, ...criteria]);
-
-      // Show success toast
-      toast({
-        title: "✓ Critério criado com sucesso!",
-        description: `${newCriterion.name} foi adicionado à biblioteca.`,
-        duration: 3000,
-      });
-
-      // Reset selections and go to first page
-      setSelectedIds([]);
-      setCurrentPage(1);
     }
   };
 
@@ -171,27 +219,37 @@ const BibliotecaCriterios = () => {
   };
 
   // Handle duplicate criterion
-  const handleDuplicateCriterion = (criterion: Criteria) => {
-    const maxId = Math.max(...criteria.map((c) => parseInt(c.id.replace(/\D/g, '')) || 0), 0);
-    const newId = `C${String(maxId + 1).padStart(3, "0")}`;
+  const handleDuplicateCriterion = async (criterion: Criteria) => {
+    try {
+      const { error } = await supabase
+        .from("master_criteria")
+        .insert({
+          name: `${criterion.name} (Cópia)`,
+          description: "",
+          senso: criterion.senso,
+          scoring_type: criterion.scoreType,
+          tags: criterion.tags,
+          status: "inactive", // Duplicates start as inactive for review
+        });
 
-    const duplicatedCriterion: Criteria = {
-      ...criterion,
-      id: newId,
-      name: `${criterion.name} (Cópia)`,
-      companiesUsing: 0,
-      modelsUsing: 0,
-    };
+      if (error) throw error;
 
-    setCriteria([duplicatedCriterion, ...criteria]);
+      toast({
+        title: "✓ Critério duplicado com sucesso!",
+        description: `${criterion.name} foi duplicado.`,
+        duration: 3000,
+      });
 
-    toast({
-      title: "✓ Critério duplicado com sucesso!",
-      description: `${criterion.name} foi duplicado.`,
-      duration: 3000,
-    });
-
-    setCurrentPage(1);
+      setCurrentPage(1);
+      await loadCriteria();
+    } catch (error) {
+      console.error("Error duplicating criterion:", error);
+      toast({
+        title: "Erro ao duplicar critério",
+        description: "Não foi possível duplicar o critério. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Handle modal close
@@ -227,7 +285,15 @@ const BibliotecaCriterios = () => {
         </div>
 
         {/* Stats Cards */}
-        <StatsCards criteria={criteria} />
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-24 rounded-lg" />
+            ))}
+          </div>
+        ) : (
+          <StatsCards criteria={criteria} />
+        )}
 
         {/* Search and Filters */}
         <SearchAndFilters
@@ -263,18 +329,38 @@ const BibliotecaCriterios = () => {
         <BulkActions
           selectedCount={selectedIds.length}
           onClearSelection={() => setSelectedIds([])}
-          onAddTags={() => {
-            // Add a default tag to selected criteria
-            setCriteria(criteria.map(c =>
-              selectedIds.includes(c.id)
-                ? { ...c, tags: c.tags.includes("Industrial") ? c.tags : [...c.tags, "Industrial"] }
-                : c
-            ));
-            toast({
-              title: "Tags adicionadas",
-              description: `${selectedIds.length} ${selectedIds.length === 1 ? "item" : "itens"} receberam a tag \"Industrial\".`,
-              duration: 3000,
-            });
+          onAddTags={async () => {
+            try {
+              const updates = selectedIds.map(id => {
+                const criterion = criteria.find(c => c.id === id);
+                if (!criterion) return null;
+                
+                const newTags = criterion.tags.includes("Industrial") 
+                  ? criterion.tags 
+                  : [...criterion.tags, "Industrial"];
+                
+                return supabase
+                  .from("master_criteria")
+                  .update({ tags: newTags })
+                  .eq("id", id);
+              });
+              
+              await Promise.all(updates.filter(Boolean));
+              await loadCriteria();
+              
+              toast({
+                title: "Tags adicionadas",
+                description: `${selectedIds.length} ${selectedIds.length === 1 ? "item" : "itens"} receberam a tag "Industrial".`,
+                duration: 3000,
+              });
+            } catch (error) {
+              console.error("Error adding tags:", error);
+              toast({
+                title: "Erro ao adicionar tags",
+                description: "Não foi possível adicionar as tags.",
+                variant: "destructive",
+              });
+            }
           }}
           onAddToModel={() => {
             toast({
@@ -283,33 +369,70 @@ const BibliotecaCriterios = () => {
               duration: 3000,
             });
           }}
-          onDeactivate={() => {
-            setCriteria(criteria.map(c =>
-              selectedIds.includes(c.id)
-                ? { ...c, status: "Inativo" }
-                : c
-            ));
-            toast({
-              title: "Itens desativados",
-              description: `${selectedIds.length} ${selectedIds.length === 1 ? "item" : "itens"} marcados como Inativo.`,
-              duration: 3000,
-            });
+          onDeactivate={async () => {
+            try {
+              const updates = selectedIds.map(id =>
+                supabase
+                  .from("master_criteria")
+                  .update({ status: "inactive" })
+                  .eq("id", id)
+              );
+              
+              await Promise.all(updates);
+              await loadCriteria();
+              
+              toast({
+                title: "Itens desativados",
+                description: `${selectedIds.length} ${selectedIds.length === 1 ? "item" : "itens"} marcados como Inativo.`,
+                duration: 3000,
+              });
+              
+              setSelectedIds([]);
+            } catch (error) {
+              console.error("Error deactivating criteria:", error);
+              toast({
+                title: "Erro ao desativar",
+                description: "Não foi possível desativar os critérios.",
+                variant: "destructive",
+              });
+            }
           }}
-          onDelete={() => {
-            const remaining = criteria.filter(c => !selectedIds.includes(c.id));
-            const removedCount = criteria.length - remaining.length;
-            setCriteria(remaining);
-            setSelectedIds([]);
-            toast({
-              title: "Itens excluídos",
-              description: `${removedCount} ${removedCount === 1 ? "item" : "itens"} removidos da biblioteca.`,
-              duration: 3000,
-            });
+          onDelete={async () => {
+            try {
+              const { error } = await supabase
+                .from("master_criteria")
+                .delete()
+                .in("id", selectedIds);
+              
+              if (error) throw error;
+              
+              await loadCriteria();
+              setSelectedIds([]);
+              
+              toast({
+                title: "Itens excluídos",
+                description: `${selectedIds.length} ${selectedIds.length === 1 ? "item" : "itens"} removidos da biblioteca.`,
+                duration: 3000,
+              });
+            } catch (error) {
+              console.error("Error deleting criteria:", error);
+              toast({
+                title: "Erro ao excluir",
+                description: "Não foi possível excluir os critérios.",
+                variant: "destructive",
+              });
+            }
           }}
         />
 
         {/* Criteria Table or Cards */}
-        {viewMode === "table" ? (
+        {isLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-16 rounded-lg" />
+            ))}
+          </div>
+        ) : viewMode === "table" ? (
           <CriteriaTable
             criteria={paginatedCriteria}
             selectedIds={selectedIds}

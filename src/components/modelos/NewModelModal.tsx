@@ -12,6 +12,7 @@ import { Criteria, SensoType, CriteriaStatus } from "@/types/criteria";
 import { useToast } from "@/hooks/use-toast";
 import CriterionFormModal from "@/components/biblioteca/CriterionFormModal";
 import { supabase } from "@/integrations/supabase/client";
+import { toUiStatus, toDbStatus, normalizeSenso } from "@/lib/formatters";
 
 interface NewModelModalProps {
   open: boolean;
@@ -45,6 +46,7 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
   const [sensoFilter, setSensoFilter] = useState<string>("Todos");
   const [availableCriteria, setAvailableCriteria] = useState<Criteria[]>([]);
   const [isCreateCriterionOpen, setIsCreateCriterionOpen] = useState(false);
+  const [isLoadingCriteria, setIsLoadingCriteria] = useState(false);
 
   // Load criteria from Supabase
   useEffect(() => {
@@ -62,51 +64,59 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
       }
 
       // Then load criteria
-      const loadCriteria = async () => {
-        try {
-          const { data, error } = await supabase
-            .from("master_criteria")
-            .select("*")
-            .eq("status", "active")
-            .order("name");
-
-          if (error) throw error;
-
-          // Normalize senso to always be an array
-          const normalizedCriteria: Criteria[] = (data || []).map((c: any): Criteria => ({
-            id: c.id,
-            name: c.name,
-            senso: Array.isArray(c.senso) ? c.senso : [c.senso],
-            scoreType: c.scoring_type,
-            tags: c.tags || [],
-            status: (c.status === "active" ? "Ativo" : "Inativo") as CriteriaStatus,
-            companiesUsing: 0,
-            modelsUsing: 0,
-          }));
-          
-          setAvailableCriteria(normalizedCriteria);
-          
-          // If editing, load the selected criteria
-          if (editModel?.selectedCriteria && editModel.selectedCriteria.length > 0) {
-            const selected = normalizedCriteria.filter((c: Criteria) => 
-              editModel.selectedCriteria.includes(c.id)
-            );
-            setSelectedCriteria(selected);
-          }
-        } catch (error: any) {
-          console.error("Error loading criteria:", error);
-          toast({
-            title: "Erro ao carregar critérios",
-            description: error.message || "Não foi possível carregar os critérios",
-            variant: "destructive",
-          });
-          setAvailableCriteria([]);
-        }
-      };
-
       loadCriteria();
     }
   }, [open, editModel]);
+
+  const loadCriteria = async () => {
+    setIsLoadingCriteria(true);
+    try {
+      const { data, error } = await supabase
+        .from("master_criteria")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+
+      // Normalize senso to always be an array, filtering nulls
+      const normalizedCriteria: Criteria[] = (data || []).map((c: any): Criteria => ({
+        id: c.id,
+        name: c.name,
+        senso: normalizeSenso(c.senso) as SensoType[],
+        scoreType: c.scoring_type,
+        tags: c.tags || [],
+        status: toUiStatus(c.status) as CriteriaStatus,
+        companiesUsing: 0,
+        modelsUsing: 0,
+      }));
+      
+      setAvailableCriteria(normalizedCriteria);
+      
+      // If editing, load the selected criteria
+      if (editModel?.selectedCriteria && editModel.selectedCriteria.length > 0) {
+        const selected = normalizedCriteria.filter((c: Criteria) => 
+          editModel.selectedCriteria.includes(c.id)
+        );
+        setSelectedCriteria(selected);
+      }
+    } catch (error: any) {
+      console.error("Error loading criteria:", error);
+      
+      // Better error message for permission issues
+      const isPermissionError = error?.message?.includes('permission') || error?.code === '42501';
+      
+      toast({
+        title: isPermissionError ? "Acesso negado" : "Erro ao carregar critérios",
+        description: isPermissionError 
+          ? "Você não tem permissão para visualizar critérios. Contate um administrador IFA."
+          : error.message || "Não foi possível carregar os critérios",
+        variant: "destructive",
+      });
+      setAvailableCriteria([]);
+    } finally {
+      setIsLoadingCriteria(false);
+    }
+  };
 
   const filteredCriteria = availableCriteria.filter((c) => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -148,34 +158,15 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
           senso: criterionData.senso,
           scoring_type: criterionData.scoreType,
           tags: criterionData.tags || [],
-          status: (criterionData.status === "Ativo" || criterionData.status === "active") ? "active" : "inactive",
+          status: toDbStatus(criterionData.status),
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // Reload criteria to include the new one
-      const { data: allCriteria, error: fetchError } = await supabase
-        .from("master_criteria")
-        .select("*")
-        .eq("status", "active")
-        .order("name");
-
-      if (fetchError) throw fetchError;
-
-      const normalizedCriteria: Criteria[] = (allCriteria || []).map((c: any): Criteria => ({
-        id: c.id,
-        name: c.name,
-        senso: Array.isArray(c.senso) ? c.senso : [c.senso],
-        scoreType: c.scoring_type,
-        tags: c.tags || [],
-        status: (c.status === "active" ? "Ativo" : "Inativo") as CriteriaStatus,
-        companiesUsing: 0,
-        modelsUsing: 0,
-      }));
-
-      setAvailableCriteria(normalizedCriteria);
+      // Reload criteria list
+      await loadCriteria();
       
       toast({
         title: "Critério criado!",
@@ -327,6 +318,7 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
                     size="sm"
                     onClick={() => setIsCreateCriterionOpen(true)}
                     className="gap-1"
+                    disabled={isLoadingCriteria}
                   >
                     <Plus className="h-4 w-4" />
                     Criar Critério
@@ -360,7 +352,32 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
                 </div>
 
                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  {filteredCriteria.map((criterion) => (
+                  {isLoadingCriteria ? (
+                    <div className="space-y-2">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} className="h-16 bg-muted animate-pulse rounded" />
+                      ))}
+                    </div>
+                  ) : filteredCriteria.length === 0 && availableCriteria.length === 0 ? (
+                    <div className="text-center py-8 space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum critério criado ainda
+                      </p>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsCreateCriterionOpen(true)}
+                        className="gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Criar Primeiro Critério
+                      </Button>
+                    </div>
+                  ) : filteredCriteria.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-8">
+                      Nenhum critério encontrado com os filtros aplicados
+                    </p>
+                  ) : (
+                    filteredCriteria.map((criterion) => (
                     <div
                       key={criterion.id}
                       className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
@@ -387,27 +404,7 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
                         </Button>
                       </div>
                     </div>
-                  ))}
-                  {availableCriteria.length === 0 && (
-                    <div className="text-center py-8 space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                        Nenhum critério criado ainda
-                      </p>
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsCreateCriterionOpen(true)}
-                        className="gap-2"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Criar Primeiro Critério
-                      </Button>
-                    </div>
-                  )}
-                  {availableCriteria.length > 0 && filteredCriteria.length === 0 && (
-                    <p className="text-center text-sm text-muted-foreground py-8">
-                      Nenhum critério encontrado com os filtros aplicados
-                    </p>
-                  )}
+                  )))}
                 </div>
               </div>
 

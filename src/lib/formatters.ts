@@ -83,3 +83,30 @@ export const formatDateTime = (dateString: string): string => {
   
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
+
+/**
+ * Converte status do banco de dados para UI
+ */
+export const toUiStatus = (dbStatus: 'active' | 'inactive'): 'Ativo' | 'Inativo' => {
+  return dbStatus === 'active' ? 'Ativo' : 'Inativo';
+};
+
+/**
+ * Converte status da UI para banco de dados
+ */
+export const toDbStatus = (uiStatus: 'Ativo' | 'Inativo' | 'active' | 'inactive'): 'active' | 'inactive' => {
+  return (uiStatus === 'Ativo' || uiStatus === 'active') ? 'active' : 'inactive';
+};
+
+/**
+ * Normaliza array de senso, removendo valores nulos/undefined
+ */
+export const normalizeSenso = (input: unknown): string[] => {
+  if (Array.isArray(input)) {
+    return input.filter(Boolean);
+  }
+  if (input && typeof input === 'string') {
+    return [input];
+  }
+  return [];
+};
