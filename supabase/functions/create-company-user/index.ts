@@ -16,7 +16,7 @@ interface CreateUserRequest {
   linkedEnvironments: string[];
   status: 'active' | 'inactive';
   password: string;
-  companyId: string;
+  companyId?: string;
 }
 
 serve(async (req) => {
@@ -43,10 +43,6 @@ serve(async (req) => {
     console.log("Creating user:", requestData.email);
 
     // Validate required fields
-    if (!requestData.companyId) {
-      throw new Error("company_id é obrigatório");
-    }
-    
     if (!requestData.email || !requestData.name || !requestData.password) {
       throw new Error("email, name e password são obrigatórios");
     }
@@ -82,20 +78,22 @@ serve(async (req) => {
         }
       }
 
-      // Ensure company link exists
-      const { data: existingCompanyLink } = await supabaseAdmin
-        .from('user_companies')
-        .select('id')
-        .eq('user_id', existingUserId)
-        .eq('company_id', requestData.companyId)
-        .maybeSingle();
-
-      if (!existingCompanyLink) {
-        const { error: insertCompanyError } = await supabaseAdmin
+      // Ensure company link exists (only if companyId provided)
+      if (requestData.companyId) {
+        const { data: existingCompanyLink } = await supabaseAdmin
           .from('user_companies')
-          .insert({ user_id: existingUserId, company_id: requestData.companyId });
-        if (insertCompanyError) {
-          console.error('Error linking existing user to company:', insertCompanyError);
+          .select('id')
+          .eq('user_id', existingUserId)
+          .eq('company_id', requestData.companyId)
+          .maybeSingle();
+
+        if (!existingCompanyLink) {
+          const { error: insertCompanyError } = await supabaseAdmin
+            .from('user_companies')
+            .insert({ user_id: existingUserId, company_id: requestData.companyId });
+          if (insertCompanyError) {
+            console.error('Error linking existing user to company:', insertCompanyError);
+          }
         }
       }
 
@@ -190,17 +188,19 @@ serve(async (req) => {
       throw new Error(`Erro ao atribuir role: ${roleError.message}`);
     }
 
-    // 4. Link user to company
-    const { error: companyError } = await supabaseAdmin
-      .from('user_companies')
-      .insert({
-        user_id: authData.user.id,
-        company_id: requestData.companyId,
-      });
+    // 4. Link user to company (if provided)
+    if (requestData.companyId) {
+      const { error: companyError } = await supabaseAdmin
+        .from('user_companies')
+        .insert({
+          user_id: authData.user.id,
+          company_id: requestData.companyId,
+        });
 
-    if (companyError) {
-      console.error("Company link error:", companyError);
-      throw new Error(`Erro ao vincular à empresa: ${companyError.message}`);
+      if (companyError) {
+        console.error("Company link error:", companyError);
+        throw new Error(`Erro ao vincular à empresa: ${companyError.message}`);
+      }
     }
 
     // 5. Link auditor to environments (if applicable)

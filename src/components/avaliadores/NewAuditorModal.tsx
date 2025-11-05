@@ -130,26 +130,27 @@ export function NewAuditorModal({ open, onOpenChange, onSuccess }: NewAuditorMod
       
       const { data, error } = await supabase.functions.invoke('create-company-user', {
         body: {
+          name: formData.name,
           email: formData.email,
-          password: password,
-          full_name: formData.name,
           phone: formData.phone || undefined,
           role: 'auditor',
-          company_id: primaryCompanyId,
-          linked_environments: [],
-          send_credentials_email: formData.send_email,
+          linkedEnvironments: [],
+          status: 'active',
+          password: password,
+          companyId: primaryCompanyId,
         },
       });
 
       if (error) throw error;
 
       // If more than one company, link to additional companies
-      if (selectedCompanyIds.length > 1 && data.user_id) {
+      const createdUserId = (data && (data as any).userId) || (data as any)?.user_id;
+      if (selectedCompanyIds.length > 1 && createdUserId) {
         const additionalCompanyIds = selectedCompanyIds.slice(1);
         
         await supabase.functions.invoke('update-auditor-companies', {
           body: {
-            auditor_id: data.user_id,
+            auditor_id: createdUserId,
             company_ids: selectedCompanyIds, // All companies
           },
         });

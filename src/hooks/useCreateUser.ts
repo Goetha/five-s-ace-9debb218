@@ -28,11 +28,6 @@ export function useCreateUser() {
     setIsLoading(true);
     
     try {
-      // Validate companyId before proceeding
-      if (!data.companyId || data.companyId.trim() === '') {
-        throw new Error("company_id não pode ser vazio");
-      }
-
       // Generate or use provided password
       const password = data.passwordType === 'auto' 
         ? generateTemporaryPassword() 
