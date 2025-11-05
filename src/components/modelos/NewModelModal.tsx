@@ -176,14 +176,6 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
       return;
     }
 
-    if (selectedCriteria.length === 0) {
-      toast({
-        title: "Erro de validação",
-        description: "Adicione pelo menos 1 critério",
-        variant: "destructive",
-      });
-      return;
-    }
 
     const criteriaBySenso = selectedCriteria.reduce((acc, c) => {
       ensureSensoArray(c.senso).forEach((s) => {
