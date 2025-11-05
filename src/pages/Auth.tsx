@@ -83,7 +83,7 @@ export default function Auth() {
     <SignInPage
       title={<span className="font-light text-foreground tracking-tighter">SaaS 5S Manager</span>}
       description="Sistema de gestão de auditorias 5S"
-      heroImageSrc="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=2160&q=80"
+      heroImageSrc="/images/hero-login.png"
       testimonials={testimonials}
       onSignIn={handleLogin}
       isLoading={authLoading}
