@@ -4,7 +4,7 @@ export const mockCriteria: Criteria[] = [
   {
     id: "C001",
     name: "Ausência de materiais desnecessários na área",
-    senso: "1S",
+    senso: ["1S"],
     scoreType: "0-10",
     tags: ["Industrial", "Todos"],
     companiesUsing: 0,
@@ -14,7 +14,7 @@ export const mockCriteria: Criteria[] = [
   {
     id: "C002",
     name: "Identificação visual de ferramentas e equipamentos",
-    senso: "2S",
+    senso: ["2S"],
     scoreType: "0-10",
     tags: ["Industrial", "Todos"],
     companiesUsing: 0,
@@ -24,7 +24,7 @@ export const mockCriteria: Criteria[] = [
   {
     id: "C003",
     name: "Limpeza de pisos e corredores",
-    senso: "3S",
+    senso: ["3S"],
     scoreType: "C/NC",
     tags: ["Industrial", "Escritório", "Todos"],
     companiesUsing: 0,
@@ -34,7 +34,7 @@ export const mockCriteria: Criteria[] = [
   {
     id: "C004",
     name: "Banheiros com papel higiênico e sabonete",
-    senso: "4S",
+    senso: ["4S"],
     scoreType: "C/NC",
     tags: ["Banheiro", "Todos"],
     companiesUsing: 0,
@@ -44,7 +44,7 @@ export const mockCriteria: Criteria[] = [
   {
     id: "C005",
     name: "Equipe segue procedimentos padronizados",
-    senso: "5S",
+    senso: ["5S"],
     scoreType: "0-10",
     tags: ["Industrial", "Escritório", "Todos"],
     companiesUsing: 0,
@@ -54,7 +54,7 @@ export const mockCriteria: Criteria[] = [
   {
     id: "C006",
     name: "Estantes e armários organizados",
-    senso: "2S",
+    senso: ["2S"],
     scoreType: "0-10",
     tags: ["Almoxarifado", "Escritório", "Todos"],
     companiesUsing: 0,
@@ -64,7 +64,7 @@ export const mockCriteria: Criteria[] = [
   {
     id: "C007",
     name: "Refeitório limpo após refeições",
-    senso: "3S",
+    senso: ["3S"],
     scoreType: "C/NC",
     tags: ["Refeitório", "Todos"],
     companiesUsing: 0,
@@ -74,7 +74,7 @@ export const mockCriteria: Criteria[] = [
   {
     id: "C008",
     name: "Registro de auditorias anteriores visível",
-    senso: "4S",
+    senso: ["4S"],
     scoreType: "C/NC",
     tags: ["Industrial", "Escritório", "Todos"],
     companiesUsing: 0,

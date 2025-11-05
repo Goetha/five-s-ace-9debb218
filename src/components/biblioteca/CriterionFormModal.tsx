@@ -22,9 +22,8 @@ import { Criteria, SensoType, ScoreType, CriteriaTag } from "@/types/criteria";
 const criterionSchema = z.object({
   name: z.string().min(10, "O nome deve ter no mínimo 10 caracteres").max(100, "O nome deve ter no máximo 100 caracteres"),
   description: z.string().max(500, "A descrição deve ter no máximo 500 caracteres").optional(),
-  senso: z.enum(["1S", "2S", "3S", "4S", "5S"], {
-    required_error: "Selecione um senso"
-  }),
+  senso: z.array(z.enum(["1S", "2S", "3S", "4S", "5S"]))
+    .min(1, "Selecione pelo menos um senso"),
   scoreType: z.enum(["0-10", "C/NC", "0-5", "Percentual"], {
     required_error: "Selecione um tipo de avaliação"
   }),
@@ -64,22 +63,22 @@ const CriterionFormModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState("");
-  const form = useForm<CriterionFormValues>({
-    resolver: zodResolver(criterionSchema),
-    mode: "onChange",
-    // Validate on change to enable button in real-time
-    defaultValues: {
-      name: "",
-      description: "",
-      senso: undefined,
-      scoreType: "0-10",
-      tags: [],
-      status: "Ativo"
-    }
-  });
-  const selectedSenso = form.watch("senso");
-  const description = form.watch("description");
-  const selectedTags = form.watch("tags");
+const form = useForm<CriterionFormValues>({
+  resolver: zodResolver(criterionSchema),
+  mode: "onChange",
+  // Validate on change to enable button in real-time
+  defaultValues: {
+    name: "",
+    description: "",
+    senso: [],
+    scoreType: "0-10",
+    tags: [],
+    status: "Ativo"
+  }
+});
+const selectedSensos = form.watch("senso");
+const description = form.watch("description");
+const selectedTags = form.watch("tags");
 
   // Reset form or load criterion data when modal opens
   useEffect(() => {
@@ -89,7 +88,7 @@ const CriterionFormModal = ({
         form.reset({
           name: criterion.name,
           description: "",
-          senso: criterion.senso,
+          senso: Array.isArray(criterion.senso) ? criterion.senso : [criterion.senso],
           scoreType: criterion.scoreType,
           tags: criterion.tags,
           status: criterion.status
@@ -205,61 +204,57 @@ const CriterionFormModal = ({
                     Classificação 5S
                   </h3>
 
-                  <FormField control={form.control} name="senso" render={({
-                  field
-                }) => <FormItem>
+                  <FormField
+                    control={form.control}
+                    name="senso"
+                    render={({ field }) => (
+                      <FormItem>
                         <FormLabel>
-                          Senso 5S <span className="text-destructive">*</span>
+                          Sensos 5S <span className="text-destructive">*</span>
                         </FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o senso..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="1S">
-                              <div className="flex items-center gap-2">
-                                <Badge className={sensoColors["1S"]}>1S</Badge>
-                                <span>Seiri (Utilização)</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="2S">
-                              <div className="flex items-center gap-2">
-                                <Badge className={sensoColors["2S"]}>2S</Badge>
-                                <span>Seiton (Organização)</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="3S">
-                              <div className="flex items-center gap-2">
-                                <Badge className={sensoColors["3S"]}>3S</Badge>
-                                <span>Seiso (Limpeza)</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="4S">
-                              <div className="flex items-center gap-2">
-                                <Badge className={sensoColors["4S"]}>4S</Badge>
-                                <span>Seiketsu (Padronização)</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="5S">
-                              <div className="flex items-center gap-2">
-                                <Badge className={sensoColors["5S"]}>5S</Badge>
-                                <span>Shitsuke (Disciplina)</span>
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="space-y-2">
+                          {(["1S","2S","3S","4S","5S"] as const).map((s) => (
+                            <div key={s} className="flex items-start gap-3 p-2 rounded-md border hover:bg-accent/50">
+                              <Checkbox
+                                id={`senso-${s}`}
+                                checked={field.value?.includes(s)}
+                                onCheckedChange={(checked) => {
+                                  const current = field.value || [];
+                                  field.onChange(
+                                    checked
+                                      ? [...current, s]
+                                      : current.filter((v: any) => v !== s)
+                                  );
+                                }}
+                                className="mt-1"
+                              />
+                              <Label htmlFor={`senso-${s}`} className="cursor-pointer flex items-center gap-2">
+                                <Badge className={`bg-senso-${s.toLowerCase()} text-white`}>{s}</Badge>
+                                <span>
+                                  {s === "1S" && "Seiri (Utilização)"}
+                                  {s === "2S" && "Seiton (Organização)"}
+                                  {s === "3S" && "Seiso (Limpeza)"}
+                                  {s === "4S" && "Seiketsu (Padronização)"}
+                                  {s === "5S" && "Shitsuke (Disciplina)"}
+                                </span>
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
                         <FormMessage />
 
-                        {/* Senso Description Card */}
-                        {selectedSenso && <Card className="p-3 bg-muted/50 border-none animate-fade-in">
-                            <p className="text-sm text-muted-foreground">
-                              <strong>{selectedSenso}:</strong>{" "}
-                              {sensoDescriptions[selectedSenso]}
-                            </p>
-                          </Card>}
-                      </FormItem>} />
+                        {selectedSensos?.length > 0 && (
+                          <Card className="p-3 bg-muted/50 border-none animate-fade-in mt-2">
+                            <div className="flex flex-wrap gap-1">
+                              {selectedSensos.map((s: any) => (
+                                <Badge key={s} className={`bg-senso-${s.toLowerCase()} text-white`}>{s}</Badge>
+                              ))}
+                            </div>
+                          </Card>
+                        )}
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                  {/* SEÇÃO 3: Sistema de Pontuação com Níveis 5S */}

@@ -28,7 +28,7 @@ const CriteriaCards = ({
       "3S": "bg-yellow-500/10 border-yellow-500/20",
       "4S": "bg-green-500/10 border-green-500/20",
       "5S": "bg-blue-500/10 border-blue-500/20"
-    };
+    } as const;
     return colors[senso as keyof typeof colors] || "bg-gray-500/10 border-gray-500/20";
   };
   if (criteria.length === 0) {
@@ -37,17 +37,18 @@ const CriteriaCards = ({
       </Card>;
   }
   return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {criteria.map(criterion => <Card key={criterion.id} className={`hover:shadow-lg transition-all relative overflow-hidden ${getSensoBackgroundColor(criterion.senso)}`}>
+      {criteria.map(criterion => <Card key={criterion.id} className={`hover:shadow-lg transition-all relative overflow-hidden ${getSensoBackgroundColor((criterion.senso[0] as string) || "1S")}` }>
           <CardContent className="p-6 space-y-4 relative">
             {/* Header com checkbox e título */}
             <div className="flex items-start gap-3">
               <Checkbox checked={selectedIds.includes(criterion.id)} onCheckedChange={checked => onSelectOne(criterion.id, checked === true)} className="mt-1" />
               <div className="space-y-2 flex-1">
-                <div className="flex items-center gap-2">
-                  
-                  <Badge variant="secondary" className="text-xs">
-                    {criterion.senso}
-                  </Badge>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {criterion.senso.map((s) => (
+                    <Badge key={s} variant="secondary" className="text-xs">
+                      {s}
+                    </Badge>
+                  ))}
                 </div>
                 <h3 className="font-semibold text-base leading-tight">
                   {criterion.name}

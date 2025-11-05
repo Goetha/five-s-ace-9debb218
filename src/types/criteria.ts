@@ -6,7 +6,7 @@ export type CriteriaTag = "Industrial" | "Escritório" | "Banheiro" | "Refeitór
 export interface Criteria {
   id: string;
   name: string;
-  senso: SensoType;
+  senso: SensoType[]; // múltiplos sensos
   scoreType: ScoreType;
   tags: CriteriaTag[];
   companiesUsing: number;
