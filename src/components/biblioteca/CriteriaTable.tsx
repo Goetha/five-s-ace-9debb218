@@ -108,9 +108,13 @@ const CriteriaTable = ({
                 </TableCell>
                 <TableCell className="font-medium">{item.name}</TableCell>
                 <TableCell>
-                  <Badge className={getSensoColor(item.senso)}>
-                    {item.senso}
-                  </Badge>
+                  <div className="flex flex-wrap gap-1">
+                    {item.senso.map((s) => (
+                      <Badge key={s} className={getSensoColor(s)}>
+                        {s}
+                      </Badge>
+                    ))}
+                  </div>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {item.scoreType}

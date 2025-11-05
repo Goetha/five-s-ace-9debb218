@@ -423,10 +423,16 @@ const selectedTags = form.watch("tags");
               </h3>
               
               <div className="space-y-4">
-                {/* Senso Badge */}
-                {selectedSenso && <Badge className={sensoColors[selectedSenso]}>
-                    {selectedSenso}
-                  </Badge>}
+                {/* Senso Badges */}
+                {selectedSensos && selectedSensos.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {selectedSensos.map((s: any) => (
+                      <Badge key={s} className={sensoColors[s]}>
+                        {s}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
 
                 {/* Criterion Name */}
                 <div>

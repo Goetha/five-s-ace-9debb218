@@ -11,7 +11,7 @@ interface SensoTabsProps {
 const SensoTabs = ({ criteria, activeTab, onTabChange }: SensoTabsProps) => {
   const getCriteriaCount = (senso: SensoType | "Todos") => {
     if (senso === "Todos") return criteria.length;
-    return criteria.filter((c) => c.senso === senso).length;
+    return criteria.filter((c) => c.senso.includes(senso)).length;
   };
 
   const tabs = [

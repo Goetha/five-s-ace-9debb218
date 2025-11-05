@@ -65,12 +65,12 @@ const BibliotecaCriterios = () => {
 
     // Tab filter (senso)
     if (activeTab !== "Todos") {
-      result = result.filter((c) => c.senso === activeTab);
+      result = result.filter((c) => c.senso.includes(activeTab as any));
     }
 
     // Advanced filters
     if (filters.senso !== "Todos") {
-      result = result.filter((c) => c.senso === filters.senso);
+      result = result.filter((c) => c.senso.includes(filters.senso as any));
     }
 
     if (filters.scoreType !== "Todos") {

@@ -88,7 +88,11 @@ export default function ModelDetailsModal({ open, onOpenChange, model }: ModelDe
                       <p className="text-sm font-medium truncate">{c!.id} - {c!.name}</p>
                       <p className="text-xs text-muted-foreground">{c!.scoreType}</p>
                     </div>
-                    <Badge variant="outline" className={sensoColors[c!.senso]}>{c!.senso}</Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {c!.senso.map((s) => (
+                        <Badge key={s} variant="outline" className={sensoColors[s]}>{s}</Badge>
+                      ))}
+                    </div>
                   </div>
                 ))
               ) : (

@@ -76,7 +76,7 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
 
   const filteredCriteria = availableCriteria.filter((c) => {
     const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSenso = sensoFilter === "Todos" || c.senso === sensoFilter;
+    const matchesSenso = sensoFilter === "Todos" || c.senso.includes(sensoFilter as any);
     const notSelected = !selectedCriteria.find((sc) => sc.id === c.id);
     return matchesSearch && matchesSenso && notSelected;
   });
@@ -152,7 +152,9 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
     }
 
     const criteriaBySenso = selectedCriteria.reduce((acc, c) => {
-      acc[c.senso] = (acc[c.senso] || 0) + 1;
+      c.senso.forEach((s) => {
+        acc[s] = (acc[s] || 0) + 1;
+      });
       return acc;
     }, {} as Record<string, number>);
 
@@ -180,7 +182,9 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
   };
 
   const criteriaDistribution = selectedCriteria.reduce((acc, c) => {
-    acc[c.senso] = (acc[c.senso] || 0) + 1;
+    c.senso.forEach((s) => {
+      acc[s] = (acc[s] || 0) + 1;
+    });
     return acc;
   }, {} as Record<string, number>);
 
@@ -306,9 +310,11 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
                             {criterion.id} - {criterion.name}
                           </p>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
-                            <Badge className={sensoColors[criterion.senso]} variant="secondary">
-                              {criterion.senso}
-                            </Badge>
+                            {criterion.senso.map((s) => (
+                              <Badge key={s} className={sensoColors[s]} variant="secondary">
+                                {s}
+                              </Badge>
+                            ))}
                             <span className="text-xs text-muted-foreground">
                               {criterion.scoreType}
                             </span>
@@ -393,9 +399,11 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
                             {criterion.id} - {criterion.name}
                           </p>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
-                            <Badge className={sensoColors[criterion.senso]} variant="secondary">
-                              {criterion.senso}
-                            </Badge>
+                            {criterion.senso.map((s) => (
+                              <Badge key={s} className={sensoColors[s]} variant="secondary">
+                                {s}
+                              </Badge>
+                            ))}
                           </div>
                         </div>
                         <Button

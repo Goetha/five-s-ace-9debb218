@@ -60,10 +60,12 @@ const ViewCriterionModal = ({
               <DialogDescription className="mb-2">
                 Detalhes do critério mestre 5S
               </DialogDescription>
-              <div className="flex items-center gap-2">
-                <Badge className={getSensoColor(criterion.senso)}>
-                  {criterion.senso}
-                </Badge>
+              <div className="flex items-center gap-2 flex-wrap">
+                {criterion.senso.map((s) => (
+                  <Badge key={s} className={getSensoColor(s)}>
+                    {s}
+                  </Badge>
+                ))}
                 <Badge
                   variant={criterion.status === "Ativo" ? "default" : "secondary"}
                   className={
@@ -96,9 +98,13 @@ const ViewCriterionModal = ({
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
-                  Senso 5S
+                  Sensos 5S
                 </label>
-                <p className="text-base mt-1">{getSensoName(criterion.senso)}</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {criterion.senso.map((s) => (
+                    <p key={s} className="text-base">{getSensoName(s)}</p>
+                  ))}
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
