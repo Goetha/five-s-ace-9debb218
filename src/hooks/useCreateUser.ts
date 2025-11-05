@@ -57,15 +57,15 @@ export function useCreateUser() {
         throw new Error(result?.error || "Erro ao criar usuário");
       }
 
-      // Get company name
+      // Fetch company name for webhook context
       const { data: companyData } = await supabase
         .from('companies')
         .select('name')
         .eq('id', data.companyId)
-        .single();
+        .maybeSingle();
 
-      // Send webhook with user data (including password)
-      if (data.sendEmail && data.passwordType === 'auto') {
+      // Send webhook only when a NEW user was created
+      if (result?.created && data.sendEmail && data.passwordType === 'auto') {
         try {
           const webhookResult = await sendUserCreationWebhook({
             userName: data.name,

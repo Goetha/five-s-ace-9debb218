@@ -42,17 +42,91 @@ serve(async (req) => {
     
     console.log("Creating user:", requestData.email);
 
-    // Check if user already exists
-    const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-    
-    if (listError) {
-      console.error("Error checking existing users:", listError);
-    } else {
-      const existingUser = existingUsers?.users?.find(u => u.email === requestData.email);
-      if (existingUser) {
-        console.log("User already exists with email:", requestData.email);
-        throw new Error(`Já existe um usuário cadastrado com o email ${requestData.email}. Por favor, use outro email ou vincule o usuário existente.`);
+    // Check if user already exists (fallback using listUsers)
+    const { data: usersPage, error: listErr } = await supabaseAdmin.auth.admin.listUsers();
+
+    if (listErr) {
+      console.error("Error checking existing users:", listErr);
+    }
+
+    // If user exists in the current page, link to company and assign role instead of failing
+    const existingUser = usersPage?.users?.find((u) => (u.email || '').toLowerCase() === requestData.email.toLowerCase());
+
+    if (existingUser) {
+      const existingUserId = existingUser.id;
+      console.log("User already exists with email:", requestData.email, "- linking to company and ensuring role");
+
+      // Ensure role exists
+      const { data: existingRole } = await supabaseAdmin
+        .from('user_roles')
+        .select('id')
+        .eq('user_id', existingUserId)
+        .eq('role', requestData.role)
+        .maybeSingle();
+
+      if (!existingRole) {
+        const { error: insertRoleError } = await supabaseAdmin
+          .from('user_roles')
+          .insert({ user_id: existingUserId, role: requestData.role });
+        if (insertRoleError) {
+          console.error('Error inserting role for existing user:', insertRoleError);
+        }
       }
+
+      // Ensure company link exists
+      const { data: existingCompanyLink } = await supabaseAdmin
+        .from('user_companies')
+        .select('id')
+        .eq('user_id', existingUserId)
+        .eq('company_id', requestData.companyId)
+        .maybeSingle();
+
+      if (!existingCompanyLink) {
+        const { error: insertCompanyError } = await supabaseAdmin
+          .from('user_companies')
+          .insert({ user_id: existingUserId, company_id: requestData.companyId });
+        if (insertCompanyError) {
+          console.error('Error linking existing user to company:', insertCompanyError);
+        }
+      }
+
+      // Link environments if provided and role is auditor
+      if (requestData.role === 'auditor' && requestData.linkedEnvironments?.length) {
+        for (const envId of requestData.linkedEnvironments) {
+          const { data: existsEnvLink } = await supabaseAdmin
+            .from('user_environments')
+            .select('id')
+            .eq('user_id', existingUserId)
+            .eq('environment_id', envId)
+            .maybeSingle();
+
+          if (!existsEnvLink) {
+            const { error: insertEnvError } = await supabaseAdmin
+              .from('user_environments')
+              .insert({ user_id: existingUserId, environment_id: envId });
+            if (insertEnvError) {
+              console.error('Error linking environment for existing user:', insertEnvError);
+            }
+          }
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          userId: existingUserId,
+          linkedExisting: true,
+          created: false,
+          message: 'Usuário já existente vinculado à empresa com sucesso',
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          },
+        }
+      );
     }
 
     // 1. Create user in Supabase Auth
