@@ -70,16 +70,74 @@ export const SignInPage: React.FC<SignInPageProps> = ({
 
   return (
     <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw] relative">
-      {/* Mobile background image */}
-      {heroImageSrc && (
-        <div 
-          className="md:hidden absolute inset-0 bg-cover bg-center opacity-20"
-          style={{ backgroundImage: `url(${heroImageSrc})` }}
-        />
-      )}
-      
-      {/* Left column: sign-in form */}
-      <section className="flex-1 flex items-center justify-center p-8 relative z-10">
+      {/* Mobile: Hero header + card layout */}
+      <div className="md:hidden h-full flex flex-col bg-background">
+        {/* Hero image header */}
+        {heroImageSrc && (
+          <div 
+            className="h-48 bg-cover bg-center relative rounded-b-3xl overflow-hidden"
+            style={{ backgroundImage: `url(${heroImageSrc})` }}
+          >
+            <div className="absolute inset-0 bg-black/20" />
+          </div>
+        )}
+        
+        {/* White card */}
+        <div className="flex-1 -mt-8 bg-background rounded-t-3xl px-6 py-8 overflow-y-auto">
+          <h1 className="text-2xl font-semibold text-center mb-8">Login</h1>
+          
+          <form className="space-y-5" onSubmit={onSignIn}>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">Email</label>
+              <input 
+                name="email" 
+                type="email" 
+                placeholder="seu@email.com" 
+                className="w-full bg-muted/30 text-sm p-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary border border-border" 
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">Senha</label>
+              <div className="relative">
+                <input 
+                  name="password" 
+                  type={showPassword ? 'text' : 'password'} 
+                  placeholder="••••••••" 
+                  className="w-full bg-muted/30 text-sm p-4 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary border border-border" 
+                  required
+                  disabled={isLoading}
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)} 
+                  className="absolute inset-y-0 right-3 flex items-center"
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5 text-muted-foreground" /> : <Eye className="w-5 h-5 text-muted-foreground" />}
+                </button>
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              className="w-full rounded-xl bg-foreground text-background py-4 font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed mt-8"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Entrando...' : 'Login'}
+            </button>
+          </form>
+
+          <p className="text-center text-sm text-muted-foreground mt-6">
+            Ao continuar, você concorda com nossos Termos de Serviço
+          </p>
+        </div>
+      </div>
+
+      {/* Desktop: Original layout */}
+      <section className="hidden md:flex flex-1 items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="flex flex-col gap-6">
             <h1 className="animate-element animate-delay-100 text-4xl md:text-5xl font-semibold leading-tight">{title}</h1>
