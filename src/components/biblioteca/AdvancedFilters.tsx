@@ -33,7 +33,6 @@ const AdvancedFilters = ({ filters, onFiltersChange, onClose }: AdvancedFiltersP
       search: filters.search,
       senso: "Todos",
       scoreType: "Todos",
-      weightRange: "Todos",
       tags: [],
       status: "Todos",
     });
@@ -91,27 +90,6 @@ const AdvancedFilters = ({ filters, onFiltersChange, onClose }: AdvancedFiltersP
                 <SelectItem value="C/NC">C/NC</SelectItem>
                 <SelectItem value="0-5">0-5</SelectItem>
                 <SelectItem value="Percentual">Percentual</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Weight Range Filter */}
-          <div className="space-y-2">
-            <Label>Faixa de Peso</Label>
-            <Select
-              value={filters.weightRange}
-              onValueChange={(value) =>
-                onFiltersChange({ ...filters, weightRange: value as any })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Todos">Todos</SelectItem>
-                <SelectItem value="Alto">Alto (8-10)</SelectItem>
-                <SelectItem value="Médio">Médio (4-7)</SelectItem>
-                <SelectItem value="Baixo">Baixo (1-3)</SelectItem>
               </SelectContent>
             </Select>
           </div>

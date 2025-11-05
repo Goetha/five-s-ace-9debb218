@@ -28,7 +28,6 @@ const criterionSchema = z.object({
   scoreType: z.enum(["0-10", "C/NC", "0-5", "Percentual"], {
     required_error: "Selecione um tipo de avaliação"
   }),
-  weight: z.number().min(1).max(10),
   tags: z.array(z.string()).default([]),
   status: z.enum(["Ativo", "Inativo"]).default("Ativo")
 });
@@ -74,14 +73,12 @@ const CriterionFormModal = ({
       description: "",
       senso: undefined,
       scoreType: "0-10",
-      weight: 5,
       tags: [],
       status: "Ativo"
     }
   });
   const selectedSenso = form.watch("senso");
   const description = form.watch("description");
-  const weight = form.watch("weight");
   const selectedTags = form.watch("tags");
 
   // Reset form or load criterion data when modal opens
@@ -94,7 +91,6 @@ const CriterionFormModal = ({
           description: "",
           senso: criterion.senso,
           scoreType: criterion.scoreType,
-          weight: criterion.weight,
           tags: criterion.tags,
           status: criterion.status
         });
@@ -105,7 +101,6 @@ const CriterionFormModal = ({
           description: "",
           senso: undefined,
           scoreType: "0-10",
-          weight: 5,
           tags: [],
           status: "Ativo"
         });
@@ -114,23 +109,6 @@ const CriterionFormModal = ({
       setNewTagInput("");
     }
   }, [open, mode, criterion, form]);
-  const getWeightCategory = (weight: number) => {
-    if (weight >= 8) return {
-      label: "Alto",
-      icon: "🔴",
-      color: "text-red-500"
-    };
-    if (weight >= 4) return {
-      label: "Médio",
-      icon: "🟡",
-      color: "text-yellow-500"
-    };
-    return {
-      label: "Baixo",
-      icon: "🟢",
-      color: "text-green-500"
-    };
-  };
   const handleAddCustomTag = () => {
     if (newTagInput.trim() && !customTags.includes(newTagInput.trim())) {
       const newTag = newTagInput.trim();
@@ -155,7 +133,6 @@ const CriterionFormModal = ({
       name: data.name,
       senso: data.senso,
       scoreType: data.scoreType,
-      weight: data.weight,
       tags: data.tags as CriteriaTag[],
       status: data.status
     });
@@ -173,7 +150,7 @@ const CriterionFormModal = ({
       onClose();
     }
   };
-  const weightCategory = getWeightCategory(weight);
+  
   return <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         
@@ -348,26 +325,6 @@ const CriterionFormModal = ({
                               <SelectItem value="0-10">Escala 0-10 pontos</SelectItem>
                             </SelectContent>
                           </Select>
-                          <FormMessage />
-                        </FormItem>} />
-
-                    <FormField control={form.control} name="weight" render={({
-                    field
-                  }) => <FormItem>
-                          <FormLabel>
-                            Peso Padrão <span className="text-destructive">*</span>
-                          </FormLabel>
-                          <FormControl>
-                            <div className="flex items-center gap-3">
-                              <Input type="number" min={1} max={10} value={field.value} onChange={e => field.onChange(parseInt(e.target.value) || 1)} className="w-20" />
-                              <span className={`text-lg ${weightCategory.color}`}>
-                                {weightCategory.icon} {weightCategory.label}
-                              </span>
-                            </div>
-                          </FormControl>
-                          <FormDescription>
-                            As empresas poderão ajustar este peso depois
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>} />
                   </div>

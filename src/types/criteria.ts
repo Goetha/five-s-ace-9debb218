@@ -8,7 +8,6 @@ export interface Criteria {
   name: string;
   senso: SensoType;
   scoreType: ScoreType;
-  weight: number;
   tags: CriteriaTag[];
   companiesUsing: number;
   modelsUsing: number;
@@ -19,7 +18,6 @@ export interface CriteriaFilters {
   search: string;
   senso: SensoType | "Todos";
   scoreType: ScoreType | "Todos";
-  weightRange: "Todos" | "Alto" | "Médio" | "Baixo";
   tags: CriteriaTag[];
   status: "Todos" | CriteriaStatus;
 }

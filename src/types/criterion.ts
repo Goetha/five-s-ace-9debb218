@@ -11,8 +11,6 @@ export interface Criterion {
   description: string;
   senso: CriterionSenso;
   scoring_type: CriterionScoringType;
-  default_weight: number; // peso padrão (do IFA ou inicial do custom)
-  custom_weight: number; // peso atual customizado
   origin: CriterionOrigin;
   origin_model_id: string | null;
   origin_model_name: string | null;
@@ -26,9 +24,7 @@ export interface Criterion {
   audits_using: number;
   average_score?: number;
   can_edit_content: boolean;
-  can_edit_weight: boolean;
   can_delete: boolean;
-  is_weight_customized: boolean;
 }
 
 export interface CriterionFormData {
@@ -36,7 +32,6 @@ export interface CriterionFormData {
   description?: string;
   senso: CriterionSenso;
   scoring_type: CriterionScoringType;
-  weight: number;
   tags: string[];
   status: CriterionStatus;
 }

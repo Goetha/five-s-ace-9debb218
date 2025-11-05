@@ -31,11 +31,6 @@ const CriteriaCards = ({
     };
     return colors[senso as keyof typeof colors] || "bg-gray-500/10 border-gray-500/20";
   };
-  const getWeightColor = (weight: number) => {
-    if (weight >= 8) return "bg-red-500";
-    if (weight >= 4) return "bg-orange-500";
-    return "bg-yellow-500";
-  };
   if (criteria.length === 0) {
     return <Card className="p-12 text-center">
         <p className="text-muted-foreground">Nenhum critério encontrado</p>
@@ -60,16 +55,11 @@ const CriteriaCards = ({
               </div>
             </div>
 
-            {/* Tipo e Peso */}
+            {/* Tipo */}
             <div className="flex items-center gap-3 text-sm">
               <Badge variant="outline" className="bg-background/50">
                 {criterion.scoreType}
               </Badge>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-xs">Peso:</span>
-                <div className={`h-2 w-10 rounded-full ${getWeightColor(criterion.weight)}`} />
-                <span className="font-bold text-foreground">{criterion.weight}</span>
-              </div>
             </div>
 
             {/* Tags */}

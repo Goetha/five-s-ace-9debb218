@@ -106,14 +106,6 @@ const ViewCriterionModal = ({
                 </label>
                 <p className="text-base mt-1">{criterion.scoreType}</p>
               </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Peso Padrão
-                </label>
-                <p className="text-base mt-1">
-                  {criterion.weight} de 10
-                </p>
-              </div>
             </div>
           </div>
 

@@ -55,12 +55,6 @@ const CriteriaTable = ({
     return colors[senso];
   };
 
-  const getWeightColor = (weight: number) => {
-    if (weight >= 8) return "bg-error";
-    if (weight >= 4) return "bg-warning";
-    return "bg-success";
-  };
-
   if (criteria.length === 0) {
     return (
       <div className="text-center py-12 border rounded-lg bg-muted/30">
@@ -88,7 +82,6 @@ const CriteriaTable = ({
               <TableHead className="min-w-[250px]">Nome do Critério</TableHead>
               <TableHead>Senso</TableHead>
               <TableHead>Tipo</TableHead>
-              <TableHead className="min-w-[150px]">Peso</TableHead>
               <TableHead className="hidden lg:table-cell">Tags</TableHead>
               <TableHead className="hidden xl:table-cell">Em Uso</TableHead>
               <TableHead>Status</TableHead>
@@ -121,16 +114,6 @@ const CriteriaTable = ({
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {item.scoreType}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Progress
-                      value={item.weight * 10}
-                      className="h-2 w-20"
-                      indicatorClassName={getWeightColor(item.weight)}
-                    />
-                    <span className="text-sm font-medium w-6">{item.weight}</span>
-                  </div>
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
                   <div className="flex flex-wrap gap-1">

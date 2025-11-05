@@ -10,8 +10,6 @@ const StatsCards = ({ criteria }: StatsCardsProps) => {
   const totalCriteria = criteria.length;
   const activeCriteria = criteria.filter((c) => c.status === "Ativo").length;
   const inactiveCriteria = criteria.filter((c) => c.status === "Inativo").length;
-  const averageWeight =
-    criteria.reduce((sum, c) => sum + c.weight, 0) / totalCriteria || 0;
 
   const stats = [
     {
@@ -34,13 +32,6 @@ const StatsCards = ({ criteria }: StatsCardsProps) => {
       icon: XCircle,
       iconColor: "text-muted-foreground",
       bgColor: "bg-muted",
-    },
-    {
-      title: "Peso Médio",
-      value: averageWeight.toFixed(1),
-      icon: Scale,
-      iconColor: "text-warning",
-      bgColor: "bg-warning/10",
     },
   ];
 
