@@ -172,6 +172,23 @@ const Dashboard = () => {
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="w-12 h-12 rounded-lg bg-orange-500/10 flex items-center justify-center mb-4">
+                <Users className="h-6 w-6 text-orange-500" />
+              </div>
+              <CardTitle>Gestão de Avaliadores</CardTitle>
+              <CardDescription>
+                Gerencie auditores e suas empresas vinculadas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/avaliadores">
+                <Button className="w-full">Gerenciar Avaliadores</Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <div className="w-12 h-12 rounded-lg bg-orange-500/10 flex items-center justify-center mb-4">
                 <TrendingUp className="h-6 w-6 text-orange-500" />
               </div>
               <CardTitle>Relatórios Globais</CardTitle>

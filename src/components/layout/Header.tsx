@@ -71,6 +71,16 @@ const Header = () => {
               Empresas
             </Link>
             <Link
+              to="/avaliadores"
+              className={`text-sm font-medium transition-colors ${
+                isActive("/avaliadores") 
+                  ? "text-primary border-b-2 border-primary pb-1" 
+                  : "text-foreground hover:text-primary"
+              }`}
+            >
+              Avaliadores
+            </Link>
+            <Link
               to="/modelos-mestre"
               className={`text-sm font-medium transition-colors ${
                 isActive("/modelos-mestre") 

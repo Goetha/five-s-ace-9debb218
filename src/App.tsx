@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Empresas from "./pages/Empresas";
+import Avaliadores from "./pages/Avaliadores";
 import ModelosMestre from "./pages/ModelosMestre";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -30,6 +31,7 @@ const App = () => (
             {/* IFA Admin Routes */}
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/empresas" element={<ProtectedRoute><Empresas /></ProtectedRoute>} />
+            <Route path="/avaliadores" element={<ProtectedRoute><Avaliadores /></ProtectedRoute>} />
             <Route path="/modelos-mestre" element={<ProtectedRoute><ModelosMestre /></ProtectedRoute>} />
             
             {/* Company Admin Routes */}
