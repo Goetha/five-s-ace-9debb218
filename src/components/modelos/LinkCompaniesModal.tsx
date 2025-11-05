@@ -5,8 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Search, Building } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Company } from "@/types/company";
+import { Skeleton } from "@/components/ui/skeleton";
 import { MasterModel } from "@/types/model";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Company {
+  id: string;
+  name: string;
+  cnpj: string;
+  city: string;
+  state: string;
+  status: string;
+}
 
 interface LinkCompaniesModalProps {
   open: boolean;
@@ -19,20 +29,50 @@ export default function LinkCompaniesModal({ open, onOpenChange, model, onSave }
   const [companies, setCompanies] = useState<Company[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      // Load companies from localStorage
-      const stored = localStorage.getItem("companies");
-      if (stored) {
-        const companiesData = JSON.parse(stored);
-        setCompanies(companiesData.filter((c: Company) => c.status === "active"));
-      } else {
-        setCompanies([]);
-      }
-      setSelectedCompanies([]);
+    if (open && model) {
+      loadCompaniesAndLinks();
     }
-  }, [open]);
+  }, [open, model]);
+
+  const loadCompaniesAndLinks = async () => {
+    if (!model) return;
+    
+    try {
+      setIsLoading(true);
+
+      // Load all active companies
+      const { data: companiesData, error: companiesError } = await supabase
+        .from("companies")
+        .select("id, name, cnpj, city, state, status")
+        .eq("status", "active")
+        .order("name");
+
+      if (companiesError) throw companiesError;
+
+      setCompanies(companiesData || []);
+
+      // Load companies already linked to this model
+      const { data: linksData, error: linksError } = await supabase
+        .from("company_models")
+        .select("company_id")
+        .eq("model_id", model.id)
+        .eq("status", "active");
+
+      if (linksError) throw linksError;
+
+      const linkedCompanyIds = linksData?.map((link) => link.company_id) || [];
+      setSelectedCompanies(linkedCompanyIds);
+    } catch (error) {
+      console.error("Error loading companies:", error);
+      setCompanies([]);
+      setSelectedCompanies([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredCompanies = companies.filter((c) =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -91,7 +131,13 @@ export default function LinkCompaniesModal({ open, onOpenChange, model, onSave }
           )}
 
           <div className="border rounded-lg divide-y max-h-[400px] overflow-y-auto">
-            {filteredCompanies.length > 0 ? (
+            {isLoading ? (
+              <div className="p-4 space-y-3">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : filteredCompanies.length > 0 ? (
               filteredCompanies.map((company) => (
                 <div
                   key={company.id}
