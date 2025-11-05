@@ -16,7 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { CompanyFormData } from "@/types/company";
 import { formatPhone } from "@/lib/formatters";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const companySchema = z.object({
   name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres"),
@@ -61,7 +62,7 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
     setIsSubmitting(true);
     
     try {
-      // Send webhook notification
+      // Send webhook notification via Edge Function
       const webhookPayload = {
         companyName: data.name,
         phone: data.phone,
@@ -71,16 +72,12 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
 
       console.log('📤 Enviando webhook com dados da empresa:', webhookPayload);
 
-      const webhookResponse = await fetch('https://webhook.dev.copertino.shop/webhook/email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(webhookPayload),
+      const { error: webhookError } = await supabase.functions.invoke('send-company-email', {
+        body: webhookPayload,
       });
 
-      if (!webhookResponse.ok) {
-        console.warn('⚠️ Webhook retornou status:', webhookResponse.status);
+      if (webhookError) {
+        console.warn('⚠️ Erro ao enviar webhook:', webhookError);
       } else {
         console.log('✅ Webhook enviado com sucesso');
       }
