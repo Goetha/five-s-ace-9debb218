@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card } from "@/components/ui/card";
@@ -286,11 +285,39 @@ const CriterionFormModal = ({
                       </FormItem>} />
                 </div>
 
-                {/* SEÇÃO 3: Sistema de Pontuação */}
+                 {/* SEÇÃO 3: Sistema de Pontuação com Níveis 5S */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-foreground">
-                    Sistema de Pontuação
+                    Sistema de Pontuação 5S
                   </h3>
+
+                  {/* Score Level Visual Guide */}
+                  <Card className="p-4 bg-muted/30 space-y-3">
+                    <p className="text-sm font-medium text-muted-foreground">Níveis de Atendimento:</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3 p-2 rounded bg-red-50 border border-red-200">
+                        <span className="text-2xl">🔴</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-red-700">Não atende o padrão 5S</p>
+                          <p className="text-xs text-red-600">De 0 a 4 pontos</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-2 rounded bg-yellow-50 border border-yellow-200">
+                        <span className="text-2xl">🟡</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-yellow-700">Atende parcialmente ao padrão 5S</p>
+                          <p className="text-xs text-yellow-600">De 5 a 8 pontos</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-2 rounded bg-green-50 border border-green-200">
+                        <span className="text-2xl">🟢</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-green-700">Atende ao padrão 5S</p>
+                          <p className="text-xs text-green-600">De 9 a 10 pontos</p>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="scoreType" render={({
@@ -304,10 +331,8 @@ const CriterionFormModal = ({
                               </TooltipTrigger>
                               <TooltipContent className="max-w-xs">
                                 <div className="space-y-2 text-sm">
-                                  <p><strong>0-10:</strong> Escala detalhada de 0 a 10</p>
-                                  <p><strong>C/NC:</strong> Conforme ou Não Conforme (binário)</p>
-                                  <p><strong>0-5:</strong> Escala simplificada de 0 a 5</p>
-                                  <p><strong>Percentual:</strong> De 0% a 100%</p>
+                                  <p><strong>Sim/Não:</strong> Resposta binária (atende ou não atende)</p>
+                                  <p><strong>0-10:</strong> Escala detalhada de 0 a 10 pontos</p>
                                 </div>
                               </TooltipContent>
                             </Tooltip>
@@ -319,10 +344,8 @@ const CriterionFormModal = ({
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="0-10">Escala 0-10</SelectItem>
-                              <SelectItem value="C/NC">Conforme / Não Conforme (C/NC)</SelectItem>
-                              <SelectItem value="0-5">Escala 0-5</SelectItem>
-                              <SelectItem value="Percentual">Percentual (0-100%)</SelectItem>
+                              <SelectItem value="C/NC">Sim / Não (Conforme/Não Conforme)</SelectItem>
+                              <SelectItem value="0-10">Escala 0-10 pontos</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
