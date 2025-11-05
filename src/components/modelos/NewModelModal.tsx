@@ -44,11 +44,16 @@ const NewModelModal = ({ open, onOpenChange, onSave, editModel }: NewModelModalP
       const stored = localStorage.getItem("criteria");
       if (stored) {
         const allCriteria = JSON.parse(stored);
-        setAvailableCriteria(allCriteria);
+        // Normalize senso to always be an array
+        const normalizedCriteria = allCriteria.map((c: any) => ({
+          ...c,
+          senso: Array.isArray(c.senso) ? c.senso : [c.senso]
+        }));
+        setAvailableCriteria(normalizedCriteria);
         
         // If editing, load the selected criteria
         if (editModel?.selectedCriteria && editModel.selectedCriteria.length > 0) {
-          const selected = allCriteria.filter((c: Criteria) => 
+          const selected = normalizedCriteria.filter((c: Criteria) => 
             editModel.selectedCriteria.includes(c.id)
           );
           setSelectedCriteria(selected);
