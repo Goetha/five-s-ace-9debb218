@@ -20,7 +20,7 @@ import { Criteria, SensoType, ScoreType, CriteriaTag } from "@/types/criteria";
 
 // Validation Schema
 const criterionSchema = z.object({
-  name: z.string().min(10, "O nome deve ter no mínimo 10 caracteres").max(100, "O nome deve ter no máximo 100 caracteres"),
+  name: z.string().min(10, "O nome deve ter no mínimo 10 caracteres").max(500, "O nome deve ter no máximo 500 caracteres"),
   description: z.string().max(500, "A descrição deve ter no máximo 500 caracteres").optional(),
   senso: z.array(z.enum(["1S", "2S", "3S", "4S", "5S"]))
     .min(1, "Selecione pelo menos um senso"),

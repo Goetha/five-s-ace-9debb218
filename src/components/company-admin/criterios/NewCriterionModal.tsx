@@ -180,11 +180,11 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Ex: Organização de ferramentas manuais"
-                maxLength={150}
+                maxLength={500}
                 required
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {formData.name.length}/150 caracteres
+                {formData.name.length}/500 caracteres
               </p>
             </div>
 
