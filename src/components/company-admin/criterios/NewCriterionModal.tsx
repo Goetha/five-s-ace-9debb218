@@ -57,10 +57,10 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (formData.name.length < 10) {
+    if (!formData.name.trim()) {
       toast({
-        title: "Nome muito curto",
-        description: "O nome deve ter no mínimo 10 caracteres",
+        title: "Nome obrigatório",
+        description: "O nome do critério não pode estar vazio",
         variant: "destructive"
       });
       return;
@@ -70,15 +70,6 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
       toast({
         title: "Selecione pelo menos um senso",
         description: "É necessário selecionar ao menos um senso 5S",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (formData.description && formData.description.length < 20) {
-      toast({
-        title: "Descrição muito curta",
-        description: "A descrição deve ter no mínimo 20 caracteres",
         variant: "destructive"
       });
       return;
@@ -180,12 +171,8 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Ex: Organização de ferramentas manuais"
-                maxLength={500}
                 required
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                {formData.name.length}/500 caracteres
-              </p>
             </div>
 
             <div>
@@ -196,11 +183,7 @@ export function NewCriterionModal({ open, onOpenChange, onSuccess, companyId }: 
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Descreva como avaliar este critério..."
                 rows={4}
-                maxLength={500}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                {formData.description?.length || 0}/500 caracteres
-              </p>
             </div>
           </div>
 
