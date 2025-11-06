@@ -220,7 +220,7 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
       const evaluatorCredentials: Array<{email: string, password: string, name: string}> = [];
       
       if (auditors.length > 0 && companyId) {
-        console.log('📤 Criando avaliadores como company_admin para empresa:', companyId);
+        console.log('📤 Criando avaliadores (role auditor) para empresa:', companyId);
         
         for (const auditor of auditors) {
           const temporaryPassword = generateTemporaryPassword();
@@ -230,7 +230,7 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
               email: auditor.email,
               name: auditor.name,
               password: temporaryPassword,
-              role: 'company_admin', // ← MUDOU DE 'auditor' PARA 'company_admin'
+              role: 'auditor', // garantir que terá papel de avaliador
               companyId: companyId,
             },
           });
@@ -243,7 +243,7 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
               variant: "destructive",
             });
           } else {
-            console.log(`✅ Avaliador ${auditor.name} criado como company_admin`);
+            console.log(`✅ Avaliador ${auditor.name} criado com role auditor`);
             evaluatorCredentials.push({
               email: auditor.email,
               password: temporaryPassword,
@@ -280,6 +280,30 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
         console.log('🔗 Vinculando avaliadores existentes à empresa:', selectedExistingAuditorIds);
         
         for (const auditorId of selectedExistingAuditorIds) {
+          // 1) Ensure the user has 'auditor' role; if not, add it (caller is IFA admin)
+          const { data: roleCheck, error: roleCheckError } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', auditorId)
+            .eq('role', 'auditor')
+            .maybeSingle();
+
+          if (roleCheckError) {
+            console.warn('⚠️ Erro ao verificar role do usuário:', roleCheckError);
+          }
+
+          if (!roleCheck) {
+            const { error: addRoleError } = await supabase
+              .from('user_roles')
+              .insert({ user_id: auditorId, role: 'auditor' });
+            if (addRoleError) {
+              console.error('❌ Falha ao atribuir role auditor ao usuário:', addRoleError);
+              throw addRoleError;
+            }
+            console.log('✅ Role auditor atribuído ao usuário', auditorId);
+          }
+
+          // 2) Merge company links and update via function
           const auditor = existingAuditors.find(a => a.id === auditorId);
           const currentCompanies = (auditor?.linked_companies ?? []).map(c => c.id).filter(Boolean);
           const company_ids = Array.from(new Set([...currentCompanies, companyId])).filter(Boolean) as string[];
