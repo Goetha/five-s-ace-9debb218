@@ -60,7 +60,27 @@ export function EditCompanyModal({ company, open, onOpenChange, onSave }: EditCo
   const fetchLinkedAuditors = async (companyId: string) => {
     setIsLoadingAuditors(true);
     try {
-      // Call list-all-auditors edge function to get all auditors with their linked companies
+      // First, get all user_ids linked to this company from user_companies table
+      const { data: userCompanies, error: userCompaniesError } = await supabase
+        .from('user_companies')
+        .select('user_id')
+        .eq('company_id', companyId);
+
+      if (userCompaniesError) {
+        console.error('Error fetching user_companies:', userCompaniesError);
+        setLinkedAuditors([]);
+        return;
+      }
+
+      // Extract user IDs
+      const linkedUserIds = (userCompanies || []).map(uc => uc.user_id);
+
+      if (linkedUserIds.length === 0) {
+        setLinkedAuditors([]);
+        return;
+      }
+
+      // Call list-all-auditors to get full auditor details
       const { data, error } = await supabase.functions.invoke('list-all-auditors');
 
       if (error) {
@@ -69,9 +89,9 @@ export function EditCompanyModal({ company, open, onOpenChange, onSave }: EditCo
         return;
       }
 
-      // Filter auditors that are linked to this specific company
+      // Filter auditors that are in our linked user IDs list
       const auditorsForCompany = data?.auditors?.filter((auditor: any) => 
-        auditor.linked_companies?.some((company: any) => company.id === companyId)
+        linkedUserIds.includes(auditor.id)
       ) || [];
 
       const auditorsData: LinkedAuditor[] = auditorsForCompany.map((auditor: any) => ({
@@ -80,6 +100,7 @@ export function EditCompanyModal({ company, open, onOpenChange, onSave }: EditCo
         email: auditor.email,
       }));
 
+      console.log(`✅ Encontrados ${auditorsData.length} avaliadores para empresa ${companyId}`);
       setLinkedAuditors(auditorsData);
     } catch (error) {
       console.error('Error fetching linked auditors:', error);
