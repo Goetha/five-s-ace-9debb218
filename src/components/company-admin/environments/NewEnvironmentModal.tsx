@@ -69,13 +69,11 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
   const [icon, setIcon] = useState("Factory");
   const [description, setDescription] = useState("");
   const [selectedParentId, setSelectedParentId] = useState("");
-  const [responsibleId, setResponsibleId] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isCriterionModalOpen, setIsCriterionModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [parentEnvironments, setParentEnvironments] = useState<any[]>([]);
-  const [eligibleUsers, setEligibleUsers] = useState<any[]>([]);
   const [availableCriteria, setAvailableCriteria] = useState<any[]>([]);
   const [selectedCriteriaIds, setSelectedCriteriaIds] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string>("");
@@ -97,7 +95,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
       if (editingEnvironment) {
         setName(editingEnvironment.name);
         setDescription(editingEnvironment.description || "");
-        setResponsibleId(editingEnvironment.responsible_user_id || "");
         setStatus(editingEnvironment.status);
         setEnvironmentType(editingEnvironment.parent_id ? "sub" : "parent");
         setSelectedParentId(editingEnvironment.parent_id || "");
@@ -108,7 +105,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         // Reset form for new environment
         setName("");
         setDescription("");
-        setResponsibleId("");
         setStatus("active");
         setEnvironmentType("parent");
         setSelectedParentId("");
@@ -158,33 +154,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         if (linkedCriteria) {
           setSelectedCriteriaIds(linkedCriteria.map((c: any) => c.criterion_id));
         }
-      }
-
-      // Fetch users (admins, gestores e avaliadores) que podem ser responsáveis
-      const { data: usersData, error: usersError } = await supabase.functions.invoke('list-company-users');
-      
-      if (usersError) {
-        console.error("Error fetching users:", usersError);
-        setEligibleUsers([]);
-      } else if (usersData?.success && usersData?.users) {
-        // Incluir company_admin, area_manager e auditor
-        const eligible = usersData.users
-          .filter((u: any) => ['company_admin', 'area_manager', 'auditor'].includes(u.role))
-          .map((u: any) => {
-            let roleLabel = 'Avaliador';
-            if (u.role === 'company_admin') roleLabel = 'Admin';
-            else if (u.role === 'area_manager') roleLabel = 'Gestor de Área';
-            
-            return {
-              id: u.id,
-              name: u.name || 'Usuário',
-              email: u.email || '',
-              role: u.role,
-              role_label: roleLabel,
-            };
-          });
-        console.log('Eligible users with roles:', eligible);
-        setEligibleUsers(eligible);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -238,7 +207,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
             name: name.trim(),
             description: description.trim() || null,
             parent_id: environmentType === "sub" ? selectedParentId : null,
-            responsible_user_id: responsibleId || null,
             status,
           })
           .eq('id', editingEnvironment.id);
@@ -283,7 +251,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
             name: name.trim(),
             description: description.trim() || null,
             parent_id: environmentType === "sub" ? selectedParentId : null,
-            responsible_user_id: responsibleId || null,
             status,
           }])
           .select()
@@ -320,7 +287,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
       setIcon("Factory");
       setDescription("");
       setSelectedParentId("");
-      setResponsibleId("");
       setStatus("active");
       setEnvironmentType("parent");
       setSelectedCriteriaIds([]);
@@ -450,56 +416,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
             />
             <p className="text-xs text-muted-foreground text-right">
               {description.length}/300 caracteres
-            </p>
-          </div>
-
-          {/* Responsável */}
-          <div className="space-y-2">
-            <Label htmlFor="responsible">Responsável pelo Ambiente</Label>
-            <div className="flex gap-2">
-              <Select value={responsibleId} onValueChange={setResponsibleId}>
-                <SelectTrigger id="responsible" className="flex-1">
-                  <SelectValue placeholder="Selecione o responsável" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  {eligibleUsers.length === 0 ? (
-                    <div className="p-4 text-sm text-muted-foreground text-center">
-                      Nenhum usuário disponível
-                    </div>
-                  ) : (
-                    eligibleUsers.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        <div className="flex items-center gap-3 py-1">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                              {user.name.substring(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{user.name}</div>
-                            <div className="text-xs text-muted-foreground">{user.email}</div>
-                          </div>
-                          <div className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
-                            {user.role_label}
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setIsUserModalOpen(true)}
-                className="shrink-0"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Opcional: Você pode atribuir um responsável agora ou depois
             </p>
           </div>
 
