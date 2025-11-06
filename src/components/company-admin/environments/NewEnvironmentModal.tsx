@@ -30,6 +30,7 @@ import {
   Cog,
   Folder,
   Loader2,
+  Eye,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { NewUserModal } from "../users/NewUserModal";
@@ -46,6 +47,7 @@ interface NewEnvironmentModalProps {
   onSuccess?: () => void;
   editingEnvironment?: Environment | null;
   parentId?: string | null;
+  companyId?: string;
 }
 
 const iconOptions = [
@@ -60,8 +62,8 @@ const iconOptions = [
   { value: "Cog", label: "Outros", Icon: Cog },
 ];
 
-export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvironment, parentId }: NewEnvironmentModalProps) {
-  const [environmentType, setEnvironmentType] = useState<"parent" | "sub">("parent");
+export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvironment, parentId, companyId: propsCompanyId }: NewEnvironmentModalProps) {
+  const [environmentType, setEnvironmentType] = useState<"environment" | "location">("environment");
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("Factory");
   const [description, setDescription] = useState("");
@@ -69,15 +71,15 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [parentEnvironments, setParentEnvironments] = useState<any[]>([]);
+  const [availableEnvironments, setAvailableEnvironments] = useState<any[]>([]);
   const [availableModels, setAvailableModels] = useState<any[]>([]);
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string>("");
+  const [allEnvironments, setAllEnvironments] = useState<any[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
 
   const isEditing = !!editingEnvironment;
-  const isMainEnvironment = editingEnvironment?.parent_id === null;
 
   // Fetch data when modal opens
   useEffect(() => {
@@ -86,29 +88,31 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
     }
   }, [open, user]);
 
-  // Populate form when editing or adding sub-environment
+  // Populate form when editing or adding location
   useEffect(() => {
     if (open) {
       if (editingEnvironment) {
         setName(editingEnvironment.name);
         setDescription(editingEnvironment.description || "");
         setStatus(editingEnvironment.status);
-        setEnvironmentType(editingEnvironment.parent_id ? "sub" : "parent");
+        // Determinar tipo baseado na hierarquia
+        const isLocation = editingEnvironment.parent_id && allEnvironments.find(e => e.id === editingEnvironment.parent_id)?.parent_id;
+        setEnvironmentType(isLocation ? "location" : "environment");
         setSelectedParentId(editingEnvironment.parent_id || "");
       } else if (parentId) {
-        setEnvironmentType("sub");
+        setEnvironmentType("location");
         setSelectedParentId(parentId);
       } else {
         // Reset form for new environment
         setName("");
         setDescription("");
         setStatus("active");
-        setEnvironmentType("parent");
+        setEnvironmentType("environment");
         setSelectedParentId("");
         setSelectedModelIds([]);
       }
     }
-  }, [open, editingEnvironment, parentId]);
+  }, [open, editingEnvironment, parentId, allEnvironments]);
 
   const fetchData = async () => {
     if (!user) return;
@@ -121,16 +125,19 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
       const fetchedCompanyId = companyIdData as string;
       setCompanyId(fetchedCompanyId);
 
-      // Fetch parent environments
-      const { data: envData } = await supabase
+      // Fetch Ambientes (nível 1) - environments que têm company_id como parent
+      const { data: allEnvs } = await supabase
         .from('environments')
-        .select('id, name')
+        .select('id, name, parent_id')
         .eq('company_id', fetchedCompanyId)
-        .is('parent_id', null)
         .eq('status', 'active')
         .order('name');
 
-      setParentEnvironments(envData || []);
+      const company = allEnvs?.find(e => e.parent_id === null);
+      const environments = allEnvs?.filter(e => e.parent_id === company?.id) || [];
+
+      setAllEnvironments(allEnvs || []);
+      setAvailableEnvironments(environments);
 
       // Fetch models linked to this company
       const { data: companyModelsData } = await supabase
@@ -205,16 +212,16 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
     if (!name.trim()) {
       toast({
         title: "Campos obrigatórios",
-        description: "Preencha o nome do ambiente.",
+        description: `Preencha o nome do ${environmentType === 'environment' ? 'ambiente' : 'local'}.`,
         variant: "destructive",
       });
       return;
     }
 
-    if (environmentType === "sub" && !selectedParentId) {
+    if (environmentType === "location" && !selectedParentId) {
       toast({
         title: "Campos obrigatórios",
-        description: "Selecione o ambiente pai.",
+        description: "Selecione o ambiente pai para este local.",
         variant: "destructive",
       });
       return;
@@ -237,13 +244,17 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
       }
 
       if (isEditing && editingEnvironment) {
-        // Update existing environment
+        // Update existing environment/location
+        const finalParentId = environmentType === "environment" 
+          ? (propsCompanyId || companyIdData as string)
+          : selectedParentId;
+
         const { error } = await supabase
           .from('environments')
           .update({
             name: name.trim(),
             description: description.trim() || null,
-            parent_id: environmentType === "sub" ? selectedParentId : null,
+            parent_id: finalParentId,
             status,
           })
           .eq('id', editingEnvironment.id);
@@ -284,18 +295,22 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         }
 
         toast({
-          title: "✓ Ambiente atualizado!",
-          description: `O ambiente "${name}" foi atualizado.`,
+          title: "✓ Atualizado com sucesso!",
+          description: `${environmentType === 'environment' ? 'O ambiente' : 'O local'} "${name}" foi atualizado.`,
         });
       } else {
-        // Insert new environment
+        // Insert new environment/location
+        const finalParentId = environmentType === "environment" 
+          ? (propsCompanyId || companyIdData as string)
+          : selectedParentId;
+
         const { data: newEnv, error } = await supabase
           .from('environments')
           .insert([{
             company_id: companyIdData as string,
             name: name.trim(),
             description: description.trim() || null,
-            parent_id: environmentType === "sub" ? selectedParentId : null,
+            parent_id: finalParentId,
             status,
           }])
           .select()
@@ -331,8 +346,8 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         }
 
         toast({
-          title: "✓ Ambiente criado com sucesso!",
-          description: `O ambiente "${name}" foi criado com ${selectedModelIds.length} ${selectedModelIds.length === 1 ? 'modelo vinculado' : 'modelos vinculados'}.`,
+          title: "✓ Criado com sucesso!",
+          description: `${environmentType === 'environment' ? 'O ambiente' : 'O local'} "${name}" foi criado com ${selectedModelIds.length} ${selectedModelIds.length === 1 ? 'modelo vinculado' : 'modelos vinculados'}.`,
         });
       }
 
@@ -342,7 +357,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
       setDescription("");
       setSelectedParentId("");
       setStatus("active");
-      setEnvironmentType("parent");
+      setEnvironmentType("environment");
       setSelectedModelIds([]);
       onOpenChange(false);
 
@@ -366,80 +381,89 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Editar Ambiente" : "Criar Novo Ambiente"}</DialogTitle>
+          <DialogTitle>
+            {isEditing 
+              ? `Editar ${editingEnvironment?.parent_id && allEnvironments.find(e => e.id === editingEnvironment.parent_id)?.parent_id ? 'Local' : 'Ambiente'}`
+              : environmentType === 'environment' ? 'Criar Novo Ambiente' : 'Criar Novo Local'
+            }
+          </DialogTitle>
           <DialogDescription>
-            {isEditing ? "Atualize as informações do ambiente" : "Adicione uma área ou setor para auditorias"}
+            {isEditing 
+              ? "Atualize as informações" 
+              : environmentType === 'environment' 
+                ? "Ambientes são as grandes áreas da empresa (Produção, Administrativo, etc)" 
+                : "Locais são subdivisões de ambientes (Linha 1, Sala 101, etc)"
+            }
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Tipo de Ambiente */}
-          <div className="space-y-3">
-            <Label>Tipo de Ambiente *</Label>
-            <RadioGroup 
-              value={environmentType} 
-              onValueChange={(v) => setEnvironmentType(v as "parent" | "sub")}
-              disabled={isMainEnvironment}
-            >
-              <div className={`flex items-center space-x-2 p-4 border rounded-lg ${!isMainEnvironment ? 'cursor-pointer hover:bg-muted' : 'opacity-60'}`}>
-                <RadioGroupItem value="parent" id="parent" disabled={isMainEnvironment} />
-                <Label htmlFor="parent" className={`flex items-center gap-2 flex-1 ${!isMainEnvironment ? 'cursor-pointer' : ''}`}>
-                  <Building2 className="h-5 w-5 text-primary" />
-                  <div>
-                    <div className="font-medium">Ambiente Principal</div>
-                    <div className="text-sm text-muted-foreground">Raiz da hierarquia</div>
-                  </div>
-                </Label>
-              </div>
-              {!isMainEnvironment && (
-                <div className="flex items-center space-x-2 p-4 border rounded-lg cursor-pointer hover:bg-muted">
-                  <RadioGroupItem value="sub" id="sub" />
-                  <Label htmlFor="sub" className="flex items-center gap-2 cursor-pointer flex-1">
-                    <Folder className="h-5 w-5 text-accent-foreground" />
+          {/* Tipo: Ambiente ou Local */}
+          {!isEditing && (
+            <div className="space-y-3">
+              <Label>Tipo *</Label>
+              <RadioGroup 
+                value={environmentType} 
+                onValueChange={(v) => setEnvironmentType(v as "environment" | "location")}
+              >
+                <div className="flex items-center space-x-2 p-4 border rounded-lg cursor-pointer hover:bg-muted border-orange-500/30">
+                  <RadioGroupItem value="environment" id="environment" />
+                  <Label htmlFor="environment" className="flex items-center gap-2 cursor-pointer flex-1">
+                    <Factory className="h-5 w-5 text-orange-500" />
                     <div>
-                      <div className="font-medium">Sub-ambiente</div>
-                      <div className="text-sm text-muted-foreground">Pertence a um ambiente pai</div>
+                      <div className="font-medium">Ambiente</div>
+                      <div className="text-sm text-muted-foreground">Exemplo: Produção, Administrativo, Estoque</div>
                     </div>
                   </Label>
                 </div>
-              )}
-            </RadioGroup>
+                <div className="flex items-center space-x-2 p-4 border rounded-lg cursor-pointer hover:bg-muted border-green-500/30">
+                  <RadioGroupItem value="location" id="location" />
+                  <Label htmlFor="location" className="flex items-center gap-2 cursor-pointer flex-1">
+                    <Eye className="h-5 w-5 text-green-600" />
+                    <div>
+                      <div className="font-medium">Local</div>
+                      <div className="text-sm text-muted-foreground">Exemplo: Linha 1, Sala 101, Depósito A</div>
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
 
-            {environmentType === "sub" && (
-              <div className="ml-8 space-y-2">
-                <Label htmlFor="parent">Sub-ambiente de *</Label>
-                <Select value={selectedParentId} onValueChange={setSelectedParentId}>
-                  <SelectTrigger id="parent">
-                    <SelectValue placeholder="Selecione o ambiente pai" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {parentEnvironments.map((env) => (
-                      <SelectItem key={env.id} value={env.id}>
-                        {env.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
+              {environmentType === "location" && (
+                <div className="ml-8 space-y-2">
+                  <Label htmlFor="parent">Local dentro de *</Label>
+                  <Select value={selectedParentId} onValueChange={setSelectedParentId}>
+                    <SelectTrigger id="parent">
+                      <SelectValue placeholder="Selecione o ambiente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableEnvironments.map((env) => (
+                        <SelectItem key={env.id} value={env.id}>
+                          {env.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Nome */}
           <div className="space-y-2">
-            <Label htmlFor="name">Nome do Ambiente *</Label>
+            <Label htmlFor="name">Nome {environmentType === 'environment' ? 'do Ambiente' : 'do Local'} *</Label>
             <Input
               id="name"
-              placeholder="Ex: Linha de Produção 1"
+              placeholder={environmentType === 'environment' ? "Ex: Produção" : "Ex: Linha 1"}
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
             />
           </div>
 
-          {/* Ícone - Apenas para sub-ambientes */}
-          {!isMainEnvironment && environmentType === "sub" && (
+          {/* Ícone - Apenas para locais */}
+          {environmentType === "location" && (
             <div className="space-y-2">
-              <Label htmlFor="icon">Ícone do Ambiente</Label>
+              <Label htmlFor="icon">Ícone do Local</Label>
               <div className="flex gap-4 items-center">
                 <Select value={icon} onValueChange={setIcon}>
                   <SelectTrigger id="icon" className="flex-1">
@@ -457,29 +481,29 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
                   </SelectContent>
                 </Select>
                 {selectedIcon && (
-                  <div className="p-4 bg-primary/10 rounded-lg">
-                    <selectedIcon.Icon className="h-8 w-8 text-primary" />
+                  <div className="p-4 bg-green-500/10 rounded-lg">
+                    <selectedIcon.Icon className="h-8 w-8 text-green-600" />
                   </div>
                 )}
               </div>
             </div>
           )}
           
-          {/* Ícone fixo para ambientes principais */}
-          {(isMainEnvironment || environmentType === "parent") && (
+          {/* Ícone fixo para ambientes */}
+          {environmentType === "environment" && (
             <div className="space-y-2">
               <Label>Ícone do Ambiente</Label>
               <div className="flex gap-4 items-center p-4 border rounded-lg bg-muted/30">
                 <div className="flex items-center gap-2 flex-1">
-                  <Building2 className="h-5 w-5 text-primary" />
-                  <span className="text-sm font-medium">Ícone Padrão - Ambiente Principal</span>
+                  <Factory className="h-5 w-5 text-orange-500" />
+                  <span className="text-sm font-medium">Ícone Padrão - Ambientes</span>
                 </div>
-                <div className="p-4 bg-primary/10 rounded-lg">
-                  <Building2 className="h-8 w-8 text-primary" />
+                <div className="p-4 bg-orange-500/10 rounded-lg">
+                  <Factory className="h-8 w-8 text-orange-500" />
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Ambientes principais usam sempre o mesmo ícone
+                Todos os ambientes usam o mesmo ícone
               </p>
             </div>
           )}
@@ -489,7 +513,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
             <Label htmlFor="description">Descrição</Label>
             <Textarea
               id="description"
-              placeholder="Descreva este ambiente e suas características..."
+              placeholder={environmentType === 'environment' ? "Descreva este ambiente..." : "Descreva este local..."}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
@@ -598,7 +622,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
                   {isEditing ? "Salvando..." : "Criando..."}
                 </>
               ) : (
-                isEditing ? "Salvar Alterações" : "Criar Ambiente"
+                isEditing ? "Salvar Alterações" : environmentType === 'environment' ? "Criar Ambiente" : "Criar Local"
               )}
             </Button>
           </div>

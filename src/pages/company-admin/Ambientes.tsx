@@ -9,9 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Building2, CheckCircle, Folder, Plus } from "lucide-react";
+import { Building2, CheckCircle, Factory, MapPin, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { EnvironmentCard } from "@/components/company-admin/environments/EnvironmentCard";
+import { CompanyCard } from "@/components/company-admin/environments/CompanyCard";
 import { NewEnvironmentModal } from "@/components/company-admin/environments/NewEnvironmentModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,7 +24,7 @@ export default function Ambientes() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [editingEnvironment, setEditingEnvironment] = useState<Environment | null>(null);
-  const [newSubEnvironmentParentId, setNewSubEnvironmentParentId] = useState<string | null>(null);
+  const [newLocationParentId, setNewLocationParentId] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -93,63 +94,60 @@ export default function Ambientes() {
     return matchesSearch && matchesStatus;
   });
 
-  const parentEnvironments = filteredEnvironments.filter((env) => !env.parent_id);
-  const totalEnvironments = environments.length;
-  const activeEnvironments = environments.filter((env) => env.status === "active").length;
-  const subEnvironments = environments.filter((env) => env.parent_id !== null).length;
+  // Hierarquia de 3 níveis
+  const company = environments.find(env => env.parent_id === null); // Nível 0 - Empresa
+  const environmentsList = filteredEnvironments.filter(env => env.parent_id === company?.id); // Nível 1 - Ambientes
+  const locationsList = filteredEnvironments.filter(env => {
+    const parent = environments.find(e => e.id === env.parent_id);
+    return parent && parent.parent_id === company?.id;
+  }); // Nível 2 - Locais
+
+  const totalEnvironments = environmentsList.length;
+  const totalLocations = locationsList.length;
+  const activeEnvironments = environmentsList.filter((env) => env.status === "active").length;
+  const activeLocations = locationsList.filter((env) => env.status === "active").length;
 
   return (
     <CompanyAdminLayout breadcrumbs={[{ label: "Dashboard" }, { label: "Ambientes" }]}>
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">Ambientes e Setores</h1>
+          <h1 className="text-3xl font-bold">Ambientes e Locais</h1>
           <p className="text-muted-foreground mt-1">
-            Organize as áreas da sua empresa para auditorias 5S
+            Organize os ambientes e locais da sua empresa para auditorias 5S
           </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="bg-card border-border">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <Building2 className="h-6 w-6 text-primary" />
+                <div className="p-3 bg-orange-500/10 rounded-lg">
+                  <Factory className="h-6 w-6 text-orange-500" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total de Ambientes</p>
                   <p className="text-3xl font-bold">{totalEnvironments}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-success/10 rounded-lg">
-                  <CheckCircle className="h-6 w-6 text-success" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Ativos</p>
-                  <p className="text-3xl font-bold">{activeEnvironments}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-accent/20 rounded-lg">
-                  <Folder className="h-6 w-6 text-accent-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Sub-ambientes</p>
-                  <p className="text-3xl font-bold">{subEnvironments}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Organizados hierarquicamente
+                    {activeEnvironments} ativos
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-500/10 rounded-lg">
+                  <MapPin className="h-6 w-6 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total de Locais</p>
+                  <p className="text-3xl font-bold">{totalLocations}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {activeLocations} ativos
                   </p>
                 </div>
               </div>
@@ -186,32 +184,43 @@ export default function Ambientes() {
 
         {/* Environments Hierarchy */}
         <div className="space-y-4">
-          {parentEnvironments.map((env) => (
+          {/* Company Card (nível 0) */}
+          {company && (
+            <CompanyCard
+              company={company}
+              totalEnvironments={totalEnvironments}
+              totalLocations={totalLocations}
+              onAddEnvironment={() => setIsNewModalOpen(true)}
+            />
+          )}
+
+          {/* Ambientes (nível 1) e seus Locais (nível 2) */}
+          {environmentsList.map((env) => (
             <EnvironmentCard
               key={env.id}
               environment={env}
-              subEnvironments={filteredEnvironments.filter(
-                (sub) => sub.parent_id === env.id
+              locations={locationsList.filter(
+                (loc) => loc.parent_id === env.id
               )}
               onEdit={(environment) => {
                 setEditingEnvironment(environment);
                 setIsNewModalOpen(true);
               }}
-              onAddSubEnvironment={(parentId) => {
-                setNewSubEnvironmentParentId(parentId);
+              onAddLocation={(parentId) => {
+                setNewLocationParentId(parentId);
                 setIsNewModalOpen(true);
               }}
               onRefresh={fetchEnvironments}
             />
           ))}
 
-          {filteredEnvironments.length === 0 && (
+          {environmentsList.length === 0 && (
             <Card>
               <CardContent className="p-12 text-center">
-                <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <Factory className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Nenhum ambiente encontrado</h3>
                 <p className="text-muted-foreground mb-4">
-                  Tente ajustar os filtros ou crie um novo ambiente
+                  Comece criando ambientes para organizar os locais da sua empresa
                 </p>
                 <Button
                   onClick={() => setIsNewModalOpen(true)}
@@ -232,12 +241,13 @@ export default function Ambientes() {
           setIsNewModalOpen(open);
           if (!open) {
             setEditingEnvironment(null);
-            setNewSubEnvironmentParentId(null);
+            setNewLocationParentId(null);
           }
         }}
         onSuccess={fetchEnvironments}
         editingEnvironment={editingEnvironment}
-        parentId={newSubEnvironmentParentId}
+        parentId={newLocationParentId}
+        companyId={company?.id}
       />
     </CompanyAdminLayout>
   );
