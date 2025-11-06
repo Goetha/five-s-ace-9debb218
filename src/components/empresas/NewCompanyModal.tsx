@@ -275,27 +275,26 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
         }
       }
       
-      // Link existing selected auditors to the company
+      // Link existing selected auditors to the company (preserving their current links)
       if (selectedExistingAuditorIds.length > 0) {
         console.log('🔗 Vinculando avaliadores existentes à empresa:', selectedExistingAuditorIds);
         
-        const { error: linkError } = await supabase.functions.invoke('update-auditor-companies', {
-          body: {
-            userId: selectedExistingAuditorIds[0], // Edge function expects single userId
-            companyIds: [companyId],
-            addCompanies: true,
-          },
-        });
+        for (const auditorId of selectedExistingAuditorIds) {
+          const auditor = existingAuditors.find(a => a.id === auditorId);
+          const currentCompanies = (auditor?.linked_companies ?? []).map(c => c.id).filter(Boolean);
+          const company_ids = Array.from(new Set([...currentCompanies, companyId])).filter(Boolean) as string[];
 
-        // For multiple auditors, call the function multiple times
-        for (const auditorId of selectedExistingAuditorIds.slice(1)) {
-          await supabase.functions.invoke('update-auditor-companies', {
+          const { error: linkError } = await supabase.functions.invoke('update-auditor-companies', {
             body: {
-              userId: auditorId,
-              companyIds: [companyId],
-              addCompanies: true,
+              auditor_id: auditorId,
+              company_ids,
             },
           });
+
+          if (linkError) {
+            console.error('❌ Erro ao vincular avaliador à empresa:', linkError);
+            throw linkError;
+          }
         }
       }
 
