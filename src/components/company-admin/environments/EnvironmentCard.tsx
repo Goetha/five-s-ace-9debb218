@@ -105,126 +105,90 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
 
   return (
     <div className="space-y-2">
-      {/* Ambiente (nível 1) - Laranja */}
+      {/* Ambiente (nível 1) - Laranja - COMPACTO */}
       <Card className="hover:shadow-md transition-shadow border-orange-500/30">
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="p-2 bg-orange-500/10 rounded-lg">
-                <Factory className="h-6 w-6 text-orange-500" />
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-1 flex-wrap">
+              <div className="p-1.5 bg-orange-500/10 rounded">
+                <Factory className="h-4 w-4 text-orange-500" />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-semibold">{environment.name}</h3>
-                  <Badge variant="secondary" className="text-xs bg-orange-500/10 text-orange-700 border-orange-500/30">
-                    Ambiente
-                  </Badge>
-                </div>
-                {environment.description && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {environment.description}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={isActive ? "default" : "secondary"}>
+              <h3 className="font-semibold text-base">{environment.name}</h3>
+              <Badge variant="secondary" className="text-xs bg-orange-500/10 text-orange-700 border-orange-500/30">
+                Ambiente
+              </Badge>
+              <Badge variant={isActive ? "default" : "secondary"} className="text-xs">
                 {isActive ? "Ativo" : "Inativo"}
               </Badge>
-            </div>
-          </div>
-
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <BarChart3 className="h-4 w-4" />
-              <span>{environment.audits_count} auditorias realizadas</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <span>
-                Criado em: {format(new Date(environment.created_at), "dd/MM/yyyy", { locale: ptBR })}
+              <span className="text-xs text-muted-foreground">
+                {environment.audits_count} aud • {format(new Date(environment.created_at), "dd/MM/yy")} • {locations.length} loc
               </span>
             </div>
-            {locations.length > 0 && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <User className="h-4 w-4" />
-                <span>{locations.length} {locations.length === 1 ? 'local' : 'locais'}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-2 mt-4 pt-4 border-t">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => onEdit(environment)}
-            >
-              <Pencil className="h-4 w-4 mr-1" />
-              Editar
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="bg-green-500/10 hover:bg-green-500/20 text-green-700 border-green-500/30"
-              onClick={() => onAddLocation(environment.id)}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Adicionar Local
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="text-destructive hover:bg-destructive/10"
-              onClick={() => {
-                setDeletingId(environment.id);
-                setDeleteDialogOpen(true);
-              }}
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Excluir
-            </Button>
+            
+            {/* Botões compactos inline */}
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => onEdit(environment)}
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="text-green-700 hover:bg-green-500/10"
+                onClick={() => onAddLocation(environment.id)}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setDeletingId(environment.id);
+                  setDeleteDialogOpen(true);
+                }}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Locais (nível 2) - Verde */}
+      {/* Locais (nível 2) - Verde - SUPER COMPACTOS */}
       {locations.length > 0 && (
-        <div className="ml-8 space-y-2 border-l-2 border-green-500/30 pl-4">
+        <div className="ml-4 space-y-1 border-l border-green-500/30 pl-2">
           {locations.map((location) => {
             const LocationIcon = iconMap[location.icon] || Eye;
             const isLocationActive = location.status === "active";
 
             return (
               <Card key={location.id} className="hover:shadow-sm transition-shadow border-green-500/20">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="p-2 bg-green-500/10 rounded-lg">
-                        <LocationIcon className="h-5 w-5 text-green-600" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium">{location.name}</h4>
-                          <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-700 border-green-500/30">
-                            Local
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                          <span className="flex items-center gap-1">
-                            <BarChart3 className="h-3 w-3" />
-                            {location.audits_count} auditorias
-                          </span>
-                        </div>
-                      </div>
-                     </div>
-                    <div className="flex items-center gap-2">
+                <CardContent className="p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1">
+                      <LocationIcon className="h-4 w-4 text-green-600" />
+                      <span className="font-medium text-sm">{location.name}</span>
+                      <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-500/30">
+                        Local
+                      </Badge>
+                      <Badge variant={isLocationActive ? "default" : "secondary"} className="text-xs">
+                        {isLocationActive ? "Ativo" : "Inativo"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {location.audits_count} aud
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
                       <Button 
                         variant="ghost" 
                         size="sm"
                         onClick={() => onEdit(location)}
                       >
-                        <Pencil className="h-4 w-4 mr-1" />
-                        Editar
+                        <Pencil className="h-3 w-3" />
                       </Button>
                       <Button 
                         variant="ghost" 
@@ -235,15 +199,8 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                           setDeleteDialogOpen(true);
                         }}
                       >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Excluir
+                        <Trash2 className="h-3 w-3" />
                       </Button>
-                      <Badge
-                        variant={isLocationActive ? "default" : "secondary"}
-                        className="text-xs"
-                      >
-                        {isLocationActive ? "Ativo" : "Inativo"}
-                      </Badge>
                     </div>
                   </div>
                 </CardContent>

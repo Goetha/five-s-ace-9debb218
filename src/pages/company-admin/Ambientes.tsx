@@ -109,7 +109,7 @@ export default function Ambientes() {
 
   return (
     <CompanyAdminLayout breadcrumbs={[{ label: "Dashboard" }, { label: "Ambientes" }]}>
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-6 space-y-3 max-w-7xl mx-auto">
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold">Ambientes e Locais</h1>
@@ -118,18 +118,18 @@ export default function Ambientes() {
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Stats Cards - COMPACTAS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Card className="bg-card border-border">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-orange-500/10 rounded-lg">
-                  <Factory className="h-6 w-6 text-orange-500" />
+            <CardContent className="p-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-500/10 rounded-lg">
+                  <Factory className="h-5 w-5 text-orange-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total de Ambientes</p>
-                  <p className="text-3xl font-bold">{totalEnvironments}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground">Total de Ambientes</p>
+                  <p className="text-2xl font-bold">{totalEnvironments}</p>
+                  <p className="text-xs text-muted-foreground">
                     {activeEnvironments} ativos
                   </p>
                 </div>
@@ -138,15 +138,15 @@ export default function Ambientes() {
           </Card>
 
           <Card className="bg-card border-border">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-500/10 rounded-lg">
-                  <MapPin className="h-6 w-6 text-green-500" />
+            <CardContent className="p-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-500/10 rounded-lg">
+                  <MapPin className="h-5 w-5 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total de Locais</p>
-                  <p className="text-3xl font-bold">{totalLocations}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground">Total de Locais</p>
+                  <p className="text-2xl font-bold">{totalLocations}</p>
+                  <p className="text-xs text-muted-foreground">
                     {activeLocations} ativos
                   </p>
                 </div>
@@ -182,8 +182,8 @@ export default function Ambientes() {
           </Button>
         </div>
 
-        {/* Environments Hierarchy */}
-        <div className="space-y-4">
+        {/* Environments Hierarchy - ESPAÇAMENTO REDUZIDO */}
+        <div className="space-y-2">
           {/* Company Card (nível 0) */}
           {company && (
             <CompanyCard
