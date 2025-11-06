@@ -11,8 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, UserCheck, Mail } from "lucide-react";
 import { formatPhone } from "@/lib/formatters";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 
 interface EditCompanyModalProps {
   company: Company | null;
@@ -21,8 +24,16 @@ interface EditCompanyModalProps {
   onSave: (data: CompanyFormData) => void;
 }
 
+interface LinkedAuditor {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export function EditCompanyModal({ company, open, onOpenChange, onSave }: EditCompanyModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingAuditors, setIsLoadingAuditors] = useState(false);
+  const [linkedAuditors, setLinkedAuditors] = useState<LinkedAuditor[]>([]);
   const [formData, setFormData] = useState<CompanyFormData>({
     name: '',
     phone: '',
@@ -40,8 +51,80 @@ export function EditCompanyModal({ company, open, onOpenChange, onSave }: EditCo
         adminName: company.admin.name,
         adminEmail: company.admin.email,
       });
+      
+      // Fetch linked auditors
+      fetchLinkedAuditors(company.id);
     }
   }, [company]);
+
+  const fetchLinkedAuditors = async (companyId: string) => {
+    setIsLoadingAuditors(true);
+    try {
+      // Fetch users linked to this company via user_companies
+      const { data: userCompanies, error: ucError } = await supabase
+        .from('user_companies')
+        .select('user_id')
+        .eq('company_id', companyId);
+
+      if (ucError) throw ucError;
+
+      if (!userCompanies || userCompanies.length === 0) {
+        setLinkedAuditors([]);
+        return;
+      }
+
+      const userIds = userCompanies.map(uc => uc.user_id);
+
+      // Fetch user profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Fetch user roles to filter only auditors
+      const { data: roles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', userIds)
+        .eq('role', 'auditor');
+
+      if (rolesError) throw rolesError;
+
+      const auditorIds = roles?.map(r => r.user_id) || [];
+
+      // Get emails from auth.users via admin API would require edge function
+      // For now, we'll fetch from a local source or show without emails
+      // We need to call the edge function to get emails
+      const { data: auditorEmails, error: emailError } = await supabase.functions.invoke(
+        'list-all-auditors',
+        { body: { companyId } }
+      );
+
+      if (emailError) {
+        console.error('Error fetching auditor emails:', emailError);
+      }
+
+      const auditorsData: LinkedAuditor[] = profiles
+        ?.filter(p => auditorIds.includes(p.id))
+        .map(p => {
+          const auditorEmail = auditorEmails?.auditors?.find((a: any) => a.id === p.id);
+          return {
+            id: p.id,
+            name: p.full_name,
+            email: auditorEmail?.email || 'Email não disponível',
+          };
+        }) || [];
+
+      setLinkedAuditors(auditorsData);
+    } catch (error) {
+      console.error('Error fetching linked auditors:', error);
+      setLinkedAuditors([]);
+    } finally {
+      setIsLoadingAuditors(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,37 +196,51 @@ export function EditCompanyModal({ company, open, onOpenChange, onSave }: EditCo
               </div>
             </div>
 
-            {/* Administrador */}
+            {/* Avaliadores Vinculados */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">Administrador Principal</h3>
+              <h3 className="text-lg font-semibold mb-4">Avaliadores Vinculados</h3>
               
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="adminName">Nome Completo do Avaliador *</Label>
-                  <Input
-                    id="adminName"
-                    value={formData.adminName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, adminName: e.target.value }))}
-                    placeholder="Ex: João da Silva"
-                    required
-                  />
+              {isLoadingAuditors ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-sm text-muted-foreground">Carregando avaliadores...</span>
                 </div>
-
-                <div>
-                  <Label htmlFor="adminEmail">Email do Avaliador *</Label>
-                  <Input
-                    id="adminEmail"
-                    type="email"
-                    value={formData.adminEmail}
-                    onChange={(e) => setFormData(prev => ({ ...prev, adminEmail: e.target.value }))}
-                    placeholder="joao.silva@empresa.com.br"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Este email é usado para login no sistema
+              ) : linkedAuditors.length === 0 ? (
+                <Card className="p-6 text-center border-dashed">
+                  <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum avaliador vinculado a esta empresa
                   </p>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {linkedAuditors.map((auditor) => (
+                    <Card key={auditor.id} className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <UserCheck className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-medium text-sm">{auditor.name}</p>
+                              <Badge variant="secondary" className="text-xs">Avaliador</Badge>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              <span className="truncate">{auditor.email}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
-              </div>
+              )}
+              
+              <p className="text-xs text-muted-foreground mt-3">
+                Para adicionar ou remover avaliadores, use a página de Avaliadores
+              </p>
             </div>
           </div>
 
