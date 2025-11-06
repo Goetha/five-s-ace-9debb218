@@ -13,7 +13,7 @@ interface CreateUserRequest {
   phone?: string;
   position?: string;
   role: string;
-  linkedEnvironments: string[];
+  linkedEnvironments?: string[];
   status: 'active' | 'inactive';
   password: string;
   companyId?: string;
@@ -204,8 +204,8 @@ serve(async (req) => {
     }
 
     // 5. Link auditor to environments (if applicable)
-    if (requestData.role === 'auditor' && requestData.linkedEnvironments.length > 0) {
-      const environmentLinks = requestData.linkedEnvironments.map(envId => ({
+    if (requestData.role === 'auditor' && (requestData.linkedEnvironments?.length || 0) > 0) {
+      const environmentLinks = (requestData.linkedEnvironments || []).map((envId) => ({
         user_id: authData.user.id,
         environment_id: envId,
       }));
@@ -215,7 +215,7 @@ serve(async (req) => {
         .insert(environmentLinks);
 
       if (envError) {
-        console.error("Environment link error:", envError);
+        console.error('Environment link error:', envError);
       }
     }
 
