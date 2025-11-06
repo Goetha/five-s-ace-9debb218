@@ -21,6 +21,7 @@ interface UserCredentialsPayload {
   temporaryPassword: string;
   companyName: string;
   timestamp: string;
+  auditor: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -47,6 +48,7 @@ const handler = async (req: Request): Promise<Response> => {
         temporaryPassword: userPayload.temporaryPassword,
         companyName: userPayload.companyName,
         timestamp: userPayload.timestamp,
+        auditor: String(userPayload.auditor),
       });
 
       const url = `${WEBHOOK_URL}?${params.toString()}`;
