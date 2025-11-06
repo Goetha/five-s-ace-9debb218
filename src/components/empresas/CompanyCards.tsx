@@ -1,4 +1,4 @@
-import { Eye, Edit, Link2, MoreVertical, Building, Mail, Users } from "lucide-react";
+import { Eye, Edit, Link2, MoreVertical, Building, Mail, Users, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,7 +7,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -22,9 +21,7 @@ interface CompanyCardsProps {
   onView: (company: Company) => void;
   onEdit: (company: Company) => void;
   onAssignModels: (company: Company) => void;
-  onToggleStatus: (company: Company) => void;
-  onDelete: (company: Company) => void;
-  onSendEmail: (company: Company) => void;
+  onAssignAuditors: (company: Company) => void;
 }
 
 export function CompanyCards({
@@ -35,9 +32,7 @@ export function CompanyCards({
   onView,
   onEdit,
   onAssignModels,
-  onToggleStatus,
-  onDelete,
-  onSendEmail,
+  onAssignAuditors,
 }: CompanyCardsProps) {
   const allSelected = companies.length > 0 && selectedCompanies.length === companies.length;
 
@@ -116,23 +111,9 @@ export function CompanyCards({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onView(company)}>
-                        👤 Gerenciar Admin
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>👥 Ver Usuários</DropdownMenuItem>
-                      <DropdownMenuItem>📊 Ver Estatísticas</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onSendEmail(company)}>
-                        📧 Enviar Email
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onToggleStatus(company)}>
-                        🔄 {company.status === 'active' ? 'Desativar' : 'Ativar'}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => onDelete(company)}
-                        className="text-red-600 focus:text-red-600"
-                      >
-                        🗑️ Excluir Empresa
+                      <DropdownMenuItem onClick={() => onAssignAuditors(company)}>
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Atribuir Avaliador
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

@@ -19,6 +19,7 @@ import { NewCompanyModal } from "@/components/empresas/NewCompanyModal";
 import { ViewCompanyModal } from "@/components/empresas/ViewCompanyModal";
 import { EditCompanyModal } from "@/components/empresas/EditCompanyModal";
 import { AssignModelsModal } from "@/components/empresas/AssignModelsModal";
+import { AssignAuditorsModal } from "@/components/empresas/AssignAuditorsModal";
 import { DeleteCompanyDialog } from "@/components/empresas/DeleteCompanyDialog";
 import { ToggleStatusDialog } from "@/components/empresas/ToggleStatusDialog";
 import { SendEmailModal } from "@/components/empresas/SendEmailModal";
@@ -181,6 +182,7 @@ export default function Empresas() {
   const [viewCompany, setViewCompany] = useState<Company | null>(null);
   const [editCompany, setEditCompany] = useState<Company | null>(null);
   const [assignModelsCompany, setAssignModelsCompany] = useState<Company | null>(null);
+  const [assignAuditorsCompany, setAssignAuditorsCompany] = useState<Company | null>(null);
   const [deleteCompany, setDeleteCompany] = useState<Company | null>(null);
   const [toggleStatusCompany, setToggleStatusCompany] = useState<Company | null>(null);
   const [sendEmailCompany, setSendEmailCompany] = useState<Company | null>(null);
@@ -356,6 +358,10 @@ export default function Empresas() {
 
   const handleAssignModels = (company: Company) => {
     setAssignModelsCompany(company);
+  };
+
+  const handleAssignAuditors = (company: Company) => {
+    setAssignAuditorsCompany(company);
   };
 
   const handleSaveModels = async (linkedModels: string[]) => {
@@ -673,9 +679,7 @@ export default function Empresas() {
                 onView={handleView}
                 onEdit={handleEdit}
                 onAssignModels={handleAssignModels}
-                onToggleStatus={handleToggleStatus}
-                onDelete={handleDelete}
-                onSendEmail={setSendEmailCompany}
+                onAssignAuditors={handleAssignAuditors}
               />
             </div>
           </>
@@ -712,6 +716,13 @@ export default function Empresas() {
         onOpenChange={(open) => !open && setAssignModelsCompany(null)}
         onSave={handleSaveModels}
         onCreateModel={handleCreateModel}
+      />
+
+      <AssignAuditorsModal
+        company={assignAuditorsCompany}
+        open={!!assignAuditorsCompany}
+        onOpenChange={(open) => !open && setAssignAuditorsCompany(null)}
+        onSuccess={loadCompaniesFromBackend}
       />
 
       <DeleteCompanyDialog
