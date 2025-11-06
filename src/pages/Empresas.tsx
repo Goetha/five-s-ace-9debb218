@@ -120,7 +120,7 @@ export default function Empresas() {
     setSelectedCompanies(checked ? filteredCompanies.map((c) => c.id) : []);
   };
 
-  const handleSaveNewCompany = (data: CompanyFormData) => {
+  const handleSaveNewCompany = async (data: CompanyFormData) => {
     const newCompany: Company = {
       id: String(companies.length + 1).padStart(3, '0'),
       name: data.name,
@@ -147,6 +147,9 @@ export default function Empresas() {
       description: `${data.name} foi criada. Credenciais enviadas para ${data.adminEmail}`,
       className: "bg-green-50 border-green-200",
     });
+
+    // Return company ID so modal can create auditors with correct company link
+    return newCompany.id;
   };
 
   const handleView = (company: Company) => {

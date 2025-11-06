@@ -36,7 +36,7 @@ const companySchema = z.object({
 interface NewCompanyModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: CompanyFormData) => void;
+  onSave: (data: CompanyFormData) => Promise<string>;
 }
 
 export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalProps) {
@@ -105,6 +105,10 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
     setIsSubmitting(true);
     
     try {
+      // Create company first to get the ID
+      const companyId = await onSave(data);
+      console.log('📝 Empresa criada com ID:', companyId);
+
       // Send webhook notification via Edge Function with all information
       const webhookPayload = {
         companyName: data.name,
@@ -130,9 +134,9 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
         console.log('✅ Webhook enviado com sucesso');
       }
 
-      // Create auditors via Edge Function
-      if (auditors.length > 0) {
-        console.log('📤 Criando avaliadores:', auditors);
+      // Create auditors via Edge Function with company ID
+      if (auditors.length > 0 && companyId) {
+        console.log('📤 Criando avaliadores para empresa:', companyId);
         
         for (const auditor of auditors) {
           const temporaryPassword = generateTemporaryPassword();
@@ -143,6 +147,7 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
               name: auditor.name,
               password: temporaryPassword,
               role: 'auditor',
+              companyId: companyId, // Pass company ID here!
             },
           });
 
@@ -154,18 +159,15 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
               variant: "destructive",
             });
           } else {
-            console.log(`✅ Avaliador ${auditor.name} criado com sucesso`);
+            console.log(`✅ Avaliador ${auditor.name} criado e vinculado à empresa ${companyId}`);
           }
         }
       }
-
-      // Save company data
-      onSave(data);
       
       toast({
         title: "Empresa criada com sucesso!",
         description: auditors.length > 0 
-          ? `Empresa e ${auditors.length} avaliador(es) criados.`
+          ? `Empresa e ${auditors.length} avaliador(es) criados e vinculados.`
           : "Os dados da empresa foram salvos.",
       });
       
