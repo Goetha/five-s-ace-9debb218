@@ -77,6 +77,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
   const { user } = useAuth();
 
   const isEditing = !!editingEnvironment;
+  const isMainEnvironment = editingEnvironment?.parent_id === null;
 
   // Fetch data when modal opens
   useEffect(() => {
@@ -375,10 +376,14 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           {/* Tipo de Ambiente */}
           <div className="space-y-3">
             <Label>Tipo de Ambiente *</Label>
-            <RadioGroup value={environmentType} onValueChange={(v) => setEnvironmentType(v as "parent" | "sub")}>
-              <div className="flex items-center space-x-2 p-4 border rounded-lg cursor-pointer hover:bg-muted">
-                <RadioGroupItem value="parent" id="parent" />
-                <Label htmlFor="parent" className="flex items-center gap-2 cursor-pointer flex-1">
+            <RadioGroup 
+              value={environmentType} 
+              onValueChange={(v) => setEnvironmentType(v as "parent" | "sub")}
+              disabled={isMainEnvironment}
+            >
+              <div className={`flex items-center space-x-2 p-4 border rounded-lg ${!isMainEnvironment ? 'cursor-pointer hover:bg-muted' : 'opacity-60'}`}>
+                <RadioGroupItem value="parent" id="parent" disabled={isMainEnvironment} />
+                <Label htmlFor="parent" className={`flex items-center gap-2 flex-1 ${!isMainEnvironment ? 'cursor-pointer' : ''}`}>
                   <Building2 className="h-5 w-5 text-primary" />
                   <div>
                     <div className="font-medium">Ambiente Principal</div>
@@ -386,16 +391,18 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
                   </div>
                 </Label>
               </div>
-              <div className="flex items-center space-x-2 p-4 border rounded-lg cursor-pointer hover:bg-muted">
-                <RadioGroupItem value="sub" id="sub" />
-                <Label htmlFor="sub" className="flex items-center gap-2 cursor-pointer flex-1">
-                  <Folder className="h-5 w-5 text-accent-foreground" />
-                  <div>
-                    <div className="font-medium">Sub-ambiente</div>
-                    <div className="text-sm text-muted-foreground">Pertence a um ambiente pai</div>
-                  </div>
-                </Label>
-              </div>
+              {!isMainEnvironment && (
+                <div className="flex items-center space-x-2 p-4 border rounded-lg cursor-pointer hover:bg-muted">
+                  <RadioGroupItem value="sub" id="sub" />
+                  <Label htmlFor="sub" className="flex items-center gap-2 cursor-pointer flex-1">
+                    <Folder className="h-5 w-5 text-accent-foreground" />
+                    <div>
+                      <div className="font-medium">Sub-ambiente</div>
+                      <div className="text-sm text-muted-foreground">Pertence a um ambiente pai</div>
+                    </div>
+                  </Label>
+                </div>
+              )}
             </RadioGroup>
 
             {environmentType === "sub" && (
@@ -429,32 +436,53 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
             />
           </div>
 
-          {/* Ícone */}
-          <div className="space-y-2">
-            <Label htmlFor="icon">Ícone do Ambiente</Label>
-            <div className="flex gap-4 items-center">
-              <Select value={icon} onValueChange={setIcon}>
-                <SelectTrigger id="icon" className="flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {iconOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      <div className="flex items-center gap-2">
-                        <opt.Icon className="h-4 w-4" />
-                        {opt.label}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedIcon && (
-                <div className="p-4 bg-primary/10 rounded-lg">
-                  <selectedIcon.Icon className="h-8 w-8 text-primary" />
-                </div>
-              )}
+          {/* Ícone - Apenas para sub-ambientes */}
+          {!isMainEnvironment && environmentType === "sub" && (
+            <div className="space-y-2">
+              <Label htmlFor="icon">Ícone do Ambiente</Label>
+              <div className="flex gap-4 items-center">
+                <Select value={icon} onValueChange={setIcon}>
+                  <SelectTrigger id="icon" className="flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {iconOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        <div className="flex items-center gap-2">
+                          <opt.Icon className="h-4 w-4" />
+                          {opt.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedIcon && (
+                  <div className="p-4 bg-primary/10 rounded-lg">
+                    <selectedIcon.Icon className="h-8 w-8 text-primary" />
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
+          
+          {/* Ícone fixo para ambientes principais */}
+          {(isMainEnvironment || environmentType === "parent") && (
+            <div className="space-y-2">
+              <Label>Ícone do Ambiente</Label>
+              <div className="flex gap-4 items-center p-4 border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-2 flex-1">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  <span className="text-sm font-medium">Ícone Padrão - Ambiente Principal</span>
+                </div>
+                <div className="p-4 bg-primary/10 rounded-lg">
+                  <Building2 className="h-8 w-8 text-primary" />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Ambientes principais usam sempre o mesmo ícone
+              </p>
+            </div>
+          )}
 
           {/* Descrição */}
           <div className="space-y-2">
