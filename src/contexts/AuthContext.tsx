@@ -43,18 +43,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Fetch user data (role, profile, company)
   const fetchUserData = async (userId: string) => {
     try {
-      // Fetch role
-      const { data: roleData, error: roleError } = await supabase
+      // Fetch roles (may have multiple). Choose precedence: ifa_admin > company_admin > auditor
+      const { data: roles, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .single();
+        .eq('user_id', userId);
 
       if (roleError) {
-        console.error('Error fetching user role:', roleError);
+        console.error('Error fetching user roles:', roleError);
       }
 
-      const role = roleData?.role as AppRole || null;
+      const rolePriority: AppRole[] = ['ifa_admin', 'company_admin', 'auditor'];
+      const userRoles = (roles ?? []).map(r => r.role as AppRole);
+      const role = rolePriority.find(r => userRoles.includes(r)) || null;
       setUserRole(role);
 
       // Fetch profile
