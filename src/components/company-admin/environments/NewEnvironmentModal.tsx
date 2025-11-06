@@ -398,53 +398,51 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Tipo: Ambiente ou Local */}
-          {!isEditing && (
+          {/* Tipo: Ambiente ou Local - Apenas quando não vem do botão da empresa */}
+          {!isEditing && parentId && (
             <div className="space-y-3">
               <Label>Tipo *</Label>
-              <RadioGroup 
-                value={environmentType} 
-                onValueChange={(v) => setEnvironmentType(v as "environment" | "location")}
-              >
-                <div className="flex items-center space-x-2 p-4 border rounded-lg cursor-pointer hover:bg-muted border-orange-500/30">
-                  <RadioGroupItem value="environment" id="environment" />
-                  <Label htmlFor="environment" className="flex items-center gap-2 cursor-pointer flex-1">
-                    <Factory className="h-5 w-5 text-orange-500" />
-                    <div>
-                      <div className="font-medium">Ambiente</div>
-                      <div className="text-sm text-muted-foreground">Exemplo: Produção, Administrativo, Estoque</div>
-                    </div>
-                  </Label>
+              <div className="p-4 border rounded-lg bg-green-500/10 border-green-500/30">
+                <div className="flex items-center gap-2">
+                  <Eye className="h-5 w-5 text-green-600" />
+                  <div>
+                    <div className="font-medium">Local</div>
+                    <div className="text-sm text-muted-foreground">Exemplo: Linha 1, Sala 101, Depósito A</div>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2 p-4 border rounded-lg cursor-pointer hover:bg-muted border-green-500/30">
-                  <RadioGroupItem value="location" id="location" />
-                  <Label htmlFor="location" className="flex items-center gap-2 cursor-pointer flex-1">
-                    <Eye className="h-5 w-5 text-green-600" />
-                    <div>
-                      <div className="font-medium">Local</div>
-                      <div className="text-sm text-muted-foreground">Exemplo: Linha 1, Sala 101, Depósito A</div>
-                    </div>
-                  </Label>
-                </div>
-              </RadioGroup>
+              </div>
 
-              {environmentType === "location" && (
-                <div className="ml-8 space-y-2">
-                  <Label htmlFor="parent">Local dentro de *</Label>
-                  <Select value={selectedParentId} onValueChange={setSelectedParentId}>
-                    <SelectTrigger id="parent">
-                      <SelectValue placeholder="Selecione o ambiente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableEnvironments.map((env) => (
-                        <SelectItem key={env.id} value={env.id}>
-                          {env.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="ml-8 space-y-2">
+                <Label htmlFor="parent">Local dentro de *</Label>
+                <Select value={selectedParentId} onValueChange={setSelectedParentId}>
+                  <SelectTrigger id="parent">
+                    <SelectValue placeholder="Selecione o ambiente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableEnvironments.map((env) => (
+                      <SelectItem key={env.id} value={env.id}>
+                        {env.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {/* Quando vem do botão da empresa - apenas mostrar que é Ambiente */}
+          {!isEditing && !parentId && (
+            <div className="space-y-3">
+              <Label>Tipo *</Label>
+              <div className="p-4 border rounded-lg bg-orange-500/10 border-orange-500/30">
+                <div className="flex items-center gap-2">
+                  <Factory className="h-5 w-5 text-orange-500" />
+                  <div>
+                    <div className="font-medium">Ambiente</div>
+                    <div className="text-sm text-muted-foreground">Grande área da empresa (Produção, Administrativo, Estoque)</div>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
