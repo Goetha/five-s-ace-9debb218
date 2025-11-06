@@ -119,7 +119,7 @@ export function EditCompanyModal({ company, open, onOpenChange, onSave }: EditCo
               
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="adminName">Nome Completo do Admin *</Label>
+                  <Label htmlFor="adminName">Nome Completo do Avaliador *</Label>
                   <Input
                     id="adminName"
                     value={formData.adminName}
@@ -130,7 +130,7 @@ export function EditCompanyModal({ company, open, onOpenChange, onSave }: EditCo
                 </div>
 
                 <div>
-                  <Label htmlFor="adminEmail">Email do Admin *</Label>
+                  <Label htmlFor="adminEmail">Email do Avaliador *</Label>
                   <Input
                     id="adminEmail"
                     type="email"
