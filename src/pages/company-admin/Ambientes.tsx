@@ -71,28 +71,13 @@ export default function Ambientes() {
         return;
       }
 
-      // Fetch users to map responsible names
-      const { data: usersData } = await supabase.functions.invoke('list-company-users');
-      const usersMap = new Map();
-      if (usersData?.success && usersData?.users) {
-        usersData.users.forEach((u: any) => {
-          usersMap.set(u.id, { name: u.name, email: u.email });
-        });
-      }
-
-      // Map database rows to Environment type with user names
-      const mappedEnvironments: Environment[] = (data || []).map(env => {
-        const responsible = env.responsible_user_id ? usersMap.get(env.responsible_user_id) : null;
-        return {
-          ...env,
-          status: env.status as 'active' | 'inactive',
-          icon: 'Factory', // Default icon
-          responsible_name: responsible?.name || 'Não atribuído',
-          responsible_email: responsible?.email || '',
-          responsible_avatar: null,
-          audits_count: 0,
-        };
-      });
+      // Map database rows to Environment type
+      const mappedEnvironments: Environment[] = (data || []).map(env => ({
+        ...env,
+        status: env.status as 'active' | 'inactive',
+        icon: 'Factory', // Default icon
+        audits_count: 0,
+      }));
 
       setEnvironments(mappedEnvironments);
     } catch (error) {

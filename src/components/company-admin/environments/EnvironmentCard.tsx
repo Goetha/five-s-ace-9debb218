@@ -159,13 +159,6 @@ export function EnvironmentCard({ environment, subEnvironments, onEdit, onAddSub
 
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <User className="h-4 w-4" />
-              <span>
-                Responsável: <span className="font-medium text-foreground">{environment.responsible_name}</span>
-                {" "}({environment.responsible_email})
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
               <BarChart3 className="h-4 w-4" />
               <span>{environment.audits_count} auditorias realizadas</span>
             </div>
@@ -229,10 +222,6 @@ export function EnvironmentCard({ environment, subEnvironments, onEdit, onAddSub
                       <div className="flex-1">
                         <h4 className="font-medium">{subEnv.name}</h4>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                          <span className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            Resp: {subEnv.responsible_name}
-                          </span>
                           <span className="flex items-center gap-1">
                             <BarChart3 className="h-3 w-3" />
                             {subEnv.audits_count} auditorias
