@@ -29,10 +29,8 @@ import {
   Trees,
   Cog,
   Folder,
-  Plus,
   Loader2,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { NewUserModal } from "../users/NewUserModal";
 import { supabase } from "@/integrations/supabase/client";
