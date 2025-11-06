@@ -118,11 +118,15 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
     if (!user) return;
 
     try {
-      // Get company ID
-      const { data: companyIdData } = await supabase.rpc('get_user_company_id', { _user_id: user.id });
-      if (!companyIdData) return;
+      // Use propsCompanyId if provided, otherwise get from RPC
+      let fetchedCompanyId = propsCompanyId;
+      
+      if (!fetchedCompanyId) {
+        const { data: companyIdData } = await supabase.rpc('get_user_company_id', { _user_id: user.id });
+        if (!companyIdData) return;
+        fetchedCompanyId = companyIdData as string;
+      }
 
-      const fetchedCompanyId = companyIdData as string;
       setCompanyId(fetchedCompanyId);
 
       // Fetch Ambientes (nível 1) - environments que têm company_id como parent
@@ -232,15 +236,20 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
     try {
       setLoading(true);
 
-      // Get company ID
-      const { data: companyIdData } = await supabase.rpc('get_user_company_id', { _user_id: user.id });
+      // Use propsCompanyId if provided, otherwise get from RPC
+      let companyIdData = propsCompanyId;
+      
       if (!companyIdData) {
-        toast({
-          title: "Erro",
-          description: "Empresa não encontrada.",
-          variant: "destructive",
-        });
-        return;
+        const { data: rpcData } = await supabase.rpc('get_user_company_id', { _user_id: user.id });
+        if (!rpcData) {
+          toast({
+            title: "Erro",
+            description: "Empresa não encontrada.",
+            variant: "destructive",
+          });
+          return;
+        }
+        companyIdData = rpcData as string;
       }
 
       if (isEditing && editingEnvironment) {

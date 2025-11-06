@@ -214,6 +214,6 @@ export default function Ambientes() {
         setEditingEnvironment(null);
         setNewLocationParentId(null);
       }
-    }} onSuccess={fetchEnvironments} editingEnvironment={editingEnvironment} parentId={newLocationParentId} companyId={company?.id} />
+    }} onSuccess={fetchEnvironments} editingEnvironment={editingEnvironment} parentId={newLocationParentId} companyId={activeCompanyId} />
     </CompanyAdminLayout>;
 }
