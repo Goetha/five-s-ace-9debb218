@@ -60,7 +60,8 @@ const ModelosMestre = () => {
       // Fetch company models to count companies using each model
       const { data: companyModelsData, error: companyModelsError } = await supabase
         .from("company_models")
-        .select("model_id");
+        .select("model_id, status")
+        .eq("status", "active");
 
       if (companyModelsError) throw companyModelsError;
 

@@ -86,7 +86,7 @@ export default function LinkCompaniesModal({ open, onOpenChange, model, onSave }
   };
 
   const handleSave = () => {
-    if (model && selectedCompanies.length > 0) {
+    if (model) {
       onSave(model.id, selectedCompanies);
       onOpenChange(false);
     }
@@ -190,11 +190,8 @@ export default function LinkCompaniesModal({ open, onOpenChange, model, onSave }
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={selectedCompanies.length === 0}
-          >
-            Vincular {selectedCompanies.length > 0 && `(${selectedCompanies.length})`}
+          <Button onClick={handleSave}>
+            Salvar
           </Button>
         </DialogFooter>
       </DialogContent>
