@@ -144,6 +144,7 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
           temporaryPassword: adminPassword,
           companyName: data.name,
           timestamp: new Date().toISOString(),
+          auditor: false, // Admin principal da empresa
         },
       });
 
@@ -200,6 +201,7 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
               temporaryPassword: evaluator.password,
               companyName: data.name,
               timestamp: new Date().toISOString(),
+              auditor: true, // Avaliador (company_admin adicional)
             },
           });
 
