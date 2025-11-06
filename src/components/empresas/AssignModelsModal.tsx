@@ -15,8 +15,10 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import NewModelModal from "@/components/modelos/NewModelModal";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface AssignModelsModalProps {
   company: Company | null;
@@ -42,24 +44,60 @@ export function AssignModelsModal({
   onSave,
   onCreateModel
 }: AssignModelsModalProps) {
+  const { toast } = useToast();
   const [modelLinks, setModelLinks] = useState<Map<string, ModelLink>>(new Map());
   const [notifyAll, setNotifyAll] = useState(false);
   const [showNewModelModal, setShowNewModelModal] = useState(false);
+  const [isLoadingLinks, setIsLoadingLinks] = useState(false);
 
   useEffect(() => {
-    if (company && models.length > 0) {
+    if (company && models.length > 0 && open) {
+      loadExistingLinks();
+    }
+  }, [company, models, open]);
+
+  const loadExistingLinks = async () => {
+    if (!company) return;
+    
+    setIsLoadingLinks(true);
+    try {
+      // Fetch existing company_models links from backend
+      const { data: existingLinks, error } = await supabase
+        .from('company_models')
+        .select('model_id, status, notify_admin')
+        .eq('company_id', company.id);
+
+      if (error) {
+        console.error('Error loading existing model links:', error);
+      }
+
+      const existingModelIds = new Set(existingLinks?.map(link => link.model_id) || []);
+      console.log('✅ Vínculos existentes carregados:', existingModelIds);
+
+      // Initialize model links with existing state
       const links = new Map<string, ModelLink>();
       models.forEach(model => {
+        const existingLink = existingLinks?.find(link => link.model_id === model.id);
         links.set(model.id, {
           modelId: model.id,
-          enabled: false,
-          status: 'active',
-          notify: false
+          enabled: existingModelIds.has(model.id),
+          status: (existingLink?.status === 'inactive' ? 'inactive' : 'active') as 'active' | 'inactive',
+          notify: existingLink?.notify_admin || false
         });
       });
+      
       setModelLinks(links);
+    } catch (error) {
+      console.error('Error in loadExistingLinks:', error);
+      toast({
+        title: "Erro ao carregar vínculos",
+        description: "Não foi possível carregar os modelos vinculados.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingLinks(false);
     }
-  }, [company, models]);
+  };
 
   const toggleModel = (modelId: string, enabled: boolean) => {
     setModelLinks(prev => {
@@ -133,8 +171,14 @@ export function AssignModelsModal({
             </div>
           </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {models.map(model => {
+        {isLoadingLinks ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-3 text-sm text-muted-foreground">Carregando vínculos...</span>
+          </div>
+        ) : (
+          <div className="space-y-4 py-4">
+            {models.map(model => {
             const link = modelLinks.get(model.id);
             if (!link) return null;
 
@@ -212,6 +256,7 @@ export function AssignModelsModal({
             );
           })}
         </div>
+        )}
 
         <DialogFooter>
           <div className="flex items-center justify-between w-full">
