@@ -84,10 +84,16 @@ export function AssignAuditorsModal({
     
     setIsSubmitting(true);
     try {
+      console.log('🔍 Starting auditor assignment for company:', company.id);
+      console.log('📋 Selected auditor IDs:', selectedAuditorIds);
+      console.log('👥 Existing auditors:', existingAuditors.length);
+      
       // Build a list of all auditors that need updates
       const previouslyLinkedIds = existingAuditors
         .filter(a => a.linked_companies.some(c => c.id === company.id))
         .map(a => a.id);
+      
+      console.log('🔗 Previously linked IDs:', previouslyLinkedIds);
       
       // Auditors to add this company to
       const toAdd = selectedAuditorIds.filter(id => !previouslyLinkedIds.includes(id));
@@ -95,10 +101,16 @@ export function AssignAuditorsModal({
       // Auditors to remove this company from
       const toRemove = previouslyLinkedIds.filter(id => !selectedAuditorIds.includes(id));
       
+      console.log('➕ To add:', toAdd);
+      console.log('➖ To remove:', toRemove);
+      
       // For auditors that need to be added
       for (const auditorId of toAdd) {
         const auditor = existingAuditors.find(a => a.id === auditorId);
-        if (!auditor) continue;
+        if (!auditor) {
+          console.warn('⚠️ Auditor not found:', auditorId);
+          continue;
+        }
         
         // Get all company IDs this auditor should have (existing + new one)
         const allCompanyIds = [
@@ -106,43 +118,75 @@ export function AssignAuditorsModal({
           company.id
         ];
         
-        await supabase.functions.invoke('update-auditor-companies', {
+        console.log(`📤 Adding company to auditor ${auditor.name}:`, {
+          auditor_id: auditorId,
+          company_ids: allCompanyIds
+        });
+        
+        const { data, error } = await supabase.functions.invoke('update-auditor-companies', {
           body: {
             auditor_id: auditorId,
             company_ids: allCompanyIds,
           },
         });
+        
+        if (error) {
+          console.error('❌ Error adding company to auditor:', error);
+          throw error;
+        }
+        
+        console.log('✅ Successfully added:', data);
       }
 
       // For auditors that need to be removed
       for (const auditorId of toRemove) {
         const auditor = existingAuditors.find(a => a.id === auditorId);
-        if (!auditor) continue;
+        if (!auditor) {
+          console.warn('⚠️ Auditor not found for removal:', auditorId);
+          continue;
+        }
         
         // Get all company IDs except the one being removed
         const remainingCompanyIds = auditor.linked_companies
           .map(c => c.id)
           .filter(id => id !== company.id);
         
-        // If no companies remain, we still need to pass at least an empty array
-        // but the edge function requires at least one, so we'll skip if empty
-        if (remainingCompanyIds.length > 0) {
-          await supabase.functions.invoke('update-auditor-companies', {
-            body: {
-              auditor_id: auditorId,
-              company_ids: remainingCompanyIds,
-            },
-          });
-        } else {
-          // If no companies left, delete all links
+        console.log(`📤 Removing company from auditor ${auditor.name}:`, {
+          auditor_id: auditorId,
+          remaining_companies: remainingCompanyIds
+        });
+        
+        // If no companies remain, delete all links directly
+        if (remainingCompanyIds.length === 0) {
+          console.log('🗑️ No companies left, deleting all links for auditor');
           const { error } = await supabase
             .from('user_companies')
             .delete()
             .eq('user_id', auditorId);
             
-          if (error) console.error('Error removing all companies:', error);
+          if (error) {
+            console.error('❌ Error removing all companies:', error);
+            throw error;
+          }
+        } else {
+          // Update with remaining companies
+          const { data, error } = await supabase.functions.invoke('update-auditor-companies', {
+            body: {
+              auditor_id: auditorId,
+              company_ids: remainingCompanyIds,
+            },
+          });
+          
+          if (error) {
+            console.error('❌ Error removing company from auditor:', error);
+            throw error;
+          }
+          
+          console.log('✅ Successfully removed:', data);
         }
       }
+
+      console.log('✅ All auditor assignments completed successfully');
 
       toast({
         title: "Avaliadores atualizados",
@@ -152,10 +196,10 @@ export function AssignAuditorsModal({
       onSuccess();
       onOpenChange(false);
     } catch (error) {
-      console.error('Error assigning auditors:', error);
+      console.error('❌ Error assigning auditors:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível atribuir os avaliadores.",
+        description: error instanceof Error ? error.message : "Não foi possível atribuir os avaliadores.",
         variant: "destructive",
       });
     } finally {
