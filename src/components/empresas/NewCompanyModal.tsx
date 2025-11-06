@@ -19,6 +19,7 @@ import { formatPhone } from "@/lib/formatters";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Separator } from "@/components/ui/separator";
+import { generateTemporaryPassword } from "@/lib/passwordGenerator";
 
 interface AuditorData {
   id: string;
@@ -134,16 +135,24 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
         console.log('📤 Criando avaliadores:', auditors);
         
         for (const auditor of auditors) {
+          const temporaryPassword = generateTemporaryPassword();
+          
           const { error: auditorError } = await supabase.functions.invoke('create-company-user', {
             body: {
               email: auditor.email,
               name: auditor.name,
+              password: temporaryPassword,
               role: 'auditor',
             },
           });
 
           if (auditorError) {
             console.warn(`⚠️ Erro ao criar avaliador ${auditor.name}:`, auditorError);
+            toast({
+              title: "Aviso",
+              description: `Não foi possível criar o avaliador ${auditor.name}`,
+              variant: "destructive",
+            });
           } else {
             console.log(`✅ Avaliador ${auditor.name} criado com sucesso`);
           }
