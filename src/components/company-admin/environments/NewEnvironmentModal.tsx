@@ -35,7 +35,6 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { NewUserModal } from "../users/NewUserModal";
-import { NewCriterionModal } from "../criterios/NewCriterionModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Environment } from "@/types/environment";
@@ -71,11 +70,10 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
   const [selectedParentId, setSelectedParentId] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [isCriterionModalOpen, setIsCriterionModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [parentEnvironments, setParentEnvironments] = useState<any[]>([]);
-  const [availableCriteria, setAvailableCriteria] = useState<any[]>([]);
-  const [selectedCriteriaIds, setSelectedCriteriaIds] = useState<string[]>([]);
+  const [availableModels, setAvailableModels] = useState<any[]>([]);
+  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string>("");
   const { toast } = useToast();
   const { user } = useAuth();
@@ -108,6 +106,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         setStatus("active");
         setEnvironmentType("parent");
         setSelectedParentId("");
+        setSelectedModelIds([]);
       }
     }
   }, [open, editingEnvironment, parentId]);
@@ -134,25 +133,64 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
       setParentEnvironments(envData || []);
 
-      // Fetch criteria
-      const { data: criteriaData } = await supabase
-        .from('company_criteria')
-        .select('id, name, senso, status, origin')
+      // Fetch models linked to this company
+      const { data: companyModelsData } = await supabase
+        .from('company_models')
+        .select(`
+          model_id,
+          master_models (
+            id,
+            name,
+            description,
+            status
+          )
+        `)
         .eq('company_id', fetchedCompanyId)
-        .eq('status', 'active')
-        .order('name');
+        .eq('status', 'active');
 
-      setAvailableCriteria(criteriaData || []);
+      // Process models with criteria count
+      const modelsWithCount = await Promise.all(
+        (companyModelsData || []).map(async (cm: any) => {
+          const model = cm.master_models;
+          if (!model) return null;
 
-      // If editing, fetch linked criteria
+          // Count criteria for this model
+          const { count } = await supabase
+            .from('master_model_criteria')
+            .select('*', { count: 'exact', head: true })
+            .eq('model_id', model.id);
+
+          return {
+            id: model.id,
+            name: model.name,
+            description: model.description,
+            criteria_count: count || 0,
+          };
+        })
+      );
+
+      setAvailableModels(modelsWithCount.filter(Boolean));
+
+      // If editing, fetch linked models (via criteria)
       if (editingEnvironment) {
         const { data: linkedCriteria } = await supabase
           .from('environment_criteria')
-          .select('criterion_id')
+          .select(`
+            criterion_id,
+            company_criteria!inner (
+              origin_model_id
+            )
+          `)
           .eq('environment_id', editingEnvironment.id);
         
         if (linkedCriteria) {
-          setSelectedCriteriaIds(linkedCriteria.map((c: any) => c.criterion_id));
+          // Get unique model IDs from linked criteria
+          const modelIds = [...new Set(
+            linkedCriteria
+              .map((lc: any) => lc.company_criteria?.origin_model_id)
+              .filter(Boolean)
+          )];
+          setSelectedModelIds(modelIds as string[]);
         }
       }
     } catch (error) {
@@ -221,21 +259,29 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           return;
         }
 
-        // Update criteria links
+        // Update criteria links from selected models
         // Remove old links
         await supabase
           .from('environment_criteria')
           .delete()
           .eq('environment_id', editingEnvironment.id);
 
-        // Add new links
-        if (selectedCriteriaIds.length > 0) {
-          await supabase
-            .from('environment_criteria')
-            .insert(selectedCriteriaIds.map(criterionId => ({
-              environment_id: editingEnvironment.id,
-              criterion_id: criterionId
-            })));
+        // Add new links from selected models
+        if (selectedModelIds.length > 0) {
+          const { data: modelCriteria } = await supabase
+            .from('company_criteria')
+            .select('id')
+            .eq('company_id', companyIdData as string)
+            .in('origin_model_id', selectedModelIds);
+
+          if (modelCriteria && modelCriteria.length > 0) {
+            await supabase
+              .from('environment_criteria')
+              .insert(modelCriteria.map(c => ({
+                environment_id: editingEnvironment.id,
+                criterion_id: c.id
+              })));
+          }
         }
 
         toast({
@@ -266,19 +312,28 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           return;
         }
 
-        // Link criteria
-        if (newEnv && selectedCriteriaIds.length > 0) {
-          await supabase
-            .from('environment_criteria')
-            .insert(selectedCriteriaIds.map(criterionId => ({
-              environment_id: newEnv.id,
-              criterion_id: criterionId
-            })));
+        // Link criteria from selected models
+        if (newEnv && selectedModelIds.length > 0) {
+          // Get all criteria IDs from selected models
+          const { data: modelCriteria } = await supabase
+            .from('company_criteria')
+            .select('id')
+            .eq('company_id', companyIdData as string)
+            .in('origin_model_id', selectedModelIds);
+
+          if (modelCriteria && modelCriteria.length > 0) {
+            await supabase
+              .from('environment_criteria')
+              .insert(modelCriteria.map(c => ({
+                environment_id: newEnv.id,
+                criterion_id: c.id
+              })));
+          }
         }
 
         toast({
           title: "✓ Ambiente criado com sucesso!",
-          description: `O ambiente "${name}" foi criado com ${selectedCriteriaIds.length} critérios vinculados.`,
+          description: `O ambiente "${name}" foi criado com ${selectedModelIds.length} ${selectedModelIds.length === 1 ? 'modelo vinculado' : 'modelos vinculados'}.`,
         });
       }
 
@@ -289,7 +344,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
       setSelectedParentId("");
       setStatus("active");
       setEnvironmentType("parent");
-      setSelectedCriteriaIds([]);
+      setSelectedModelIds([]);
       onOpenChange(false);
 
       // Call onSuccess callback to refresh parent component
@@ -419,89 +474,65 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
             </p>
           </div>
 
-          {/* Critérios Aplicáveis */}
+          {/* Modelos Aplicáveis */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Critérios Aplicáveis</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsCriterionModalOpen(true)}
-                className="text-xs"
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Novo Critério
-              </Button>
+              <Label>Modelos de Critérios</Label>
             </div>
             <p className="text-xs text-muted-foreground">
-              Selecione quais critérios devem ser avaliados neste ambiente
+              Selecione os modelos de critérios que devem ser avaliados neste ambiente
             </p>
             
-            {availableCriteria.length === 0 ? (
+            {availableModels.length === 0 ? (
               <div className="border rounded-lg p-6 text-center">
-                <p className="text-sm text-muted-foreground mb-3">
-                  Nenhum critério disponível ainda
+                <p className="text-sm text-muted-foreground">
+                  Nenhum modelo disponível. Os modelos são atribuídos pelo Administrador IFA.
                 </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsCriterionModalOpen(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Criar Primeiro Critério
-                </Button>
               </div>
             ) : (
-              <ScrollArea className="h-[200px] border rounded-lg p-4">
+              <ScrollArea className="h-[250px] border rounded-lg p-3">
                 <div className="space-y-2">
-                  {availableCriteria.map((criterion) => (
-                    <div key={criterion.id} className="flex items-start space-x-3 p-2 rounded hover:bg-muted">
+                  {availableModels.map((model) => (
+                    <div 
+                      key={model.id}
+                      className="flex items-start space-x-3 p-3 hover:bg-muted rounded-md transition-colors border"
+                    >
                       <Checkbox
-                        id={criterion.id}
-                        checked={selectedCriteriaIds.includes(criterion.id)}
+                        id={model.id}
+                        checked={selectedModelIds.includes(model.id)}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            setSelectedCriteriaIds([...selectedCriteriaIds, criterion.id]);
+                            setSelectedModelIds([...selectedModelIds, model.id]);
                           } else {
-                            setSelectedCriteriaIds(selectedCriteriaIds.filter(id => id !== criterion.id));
+                            setSelectedModelIds(selectedModelIds.filter(id => id !== model.id));
                           }
                         }}
+                        className="mt-1"
                       />
                       <div className="flex-1">
                         <Label
-                          htmlFor={criterion.id}
-                          className="text-sm font-medium cursor-pointer flex items-center gap-2"
+                          htmlFor={model.id}
+                          className="text-sm font-semibold cursor-pointer flex items-center gap-2"
                         >
-                          {criterion.name}
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs ${
-                              criterion.senso === '1S' ? 'bg-red-50 text-red-700 border-red-200' :
-                              criterion.senso === '2S' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                              criterion.senso === '3S' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                              criterion.senso === '4S' ? 'bg-green-50 text-green-700 border-green-200' :
-                              'bg-blue-50 text-blue-700 border-blue-200'
-                            }`}
-                          >
-                            {criterion.senso}
+                          {model.name}
+                          <Badge variant="secondary" className="text-xs">
+                            {model.criteria_count} {model.criteria_count === 1 ? 'critério' : 'critérios'}
                           </Badge>
-                          {criterion.origin === 'ifa' && (
-                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                              IFA
-                            </Badge>
-                          )}
                         </Label>
+                        {model.description && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {model.description}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               </ScrollArea>
             )}
-            {selectedCriteriaIds.length > 0 && (
+            {selectedModelIds.length > 0 && (
               <p className="text-xs text-primary font-medium">
-                {selectedCriteriaIds.length} {selectedCriteriaIds.length === 1 ? 'critério selecionado' : 'critérios selecionados'}
+                {selectedModelIds.length} {selectedModelIds.length === 1 ? 'modelo selecionado' : 'modelos selecionados'}
               </p>
             )}
           </div>
@@ -556,17 +587,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           setIsUserModalOpen(false);
           fetchData();
         }}
-      />
-
-      {/* Modal de Criar Critério */}
-      <NewCriterionModal
-        open={isCriterionModalOpen}
-        onOpenChange={setIsCriterionModalOpen}
-        onSuccess={async () => {
-          setIsCriterionModalOpen(false);
-          await fetchData();
-        }}
-        companyId={companyId}
       />
     </Dialog>
   );
