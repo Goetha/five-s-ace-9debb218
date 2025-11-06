@@ -524,68 +524,70 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
             </p>
           </div>
 
-          {/* Modelos Aplicáveis */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Modelos de Critérios</Label>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Selecione os modelos de critérios que devem ser avaliados neste ambiente
-            </p>
-            
-            {availableModels.length === 0 ? (
-              <div className="border rounded-lg p-6 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Nenhum modelo disponível. Os modelos são atribuídos pelo Administrador IFA.
-                </p>
+          {/* Modelos Aplicáveis - Apenas para Ambientes */}
+          {environmentType === "environment" && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Modelos de Critérios</Label>
               </div>
-            ) : (
-              <ScrollArea className="h-[250px] border rounded-lg p-3">
-                <div className="space-y-2">
-                  {availableModels.map((model) => (
-                    <div 
-                      key={model.id}
-                      className="flex items-start space-x-3 p-3 hover:bg-muted rounded-md transition-colors border"
-                    >
-                      <Checkbox
-                        id={model.id}
-                        checked={selectedModelIds.includes(model.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedModelIds([...selectedModelIds, model.id]);
-                          } else {
-                            setSelectedModelIds(selectedModelIds.filter(id => id !== model.id));
-                          }
-                        }}
-                        className="mt-1"
-                      />
-                      <div className="flex-1">
-                        <Label
-                          htmlFor={model.id}
-                          className="text-sm font-semibold cursor-pointer flex items-center gap-2"
-                        >
-                          {model.name}
-                          <Badge variant="secondary" className="text-xs">
-                            {model.criteria_count} {model.criteria_count === 1 ? 'critério' : 'critérios'}
-                          </Badge>
-                        </Label>
-                        {model.description && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {model.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-            {selectedModelIds.length > 0 && (
-              <p className="text-xs text-primary font-medium">
-                {selectedModelIds.length} {selectedModelIds.length === 1 ? 'modelo selecionado' : 'modelos selecionados'}
+              <p className="text-xs text-muted-foreground">
+                Selecione os modelos de critérios que devem ser avaliados neste ambiente
               </p>
-            )}
-          </div>
+            
+              {availableModels.length === 0 ? (
+                <div className="border rounded-lg p-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum modelo disponível. Os modelos são atribuídos pelo Administrador IFA.
+                  </p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[250px] border rounded-lg p-3">
+                  <div className="space-y-2">
+                    {availableModels.map((model) => (
+                      <div 
+                        key={model.id}
+                        className="flex items-start space-x-3 p-3 hover:bg-muted rounded-md transition-colors border"
+                      >
+                        <Checkbox
+                          id={model.id}
+                          checked={selectedModelIds.includes(model.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedModelIds([...selectedModelIds, model.id]);
+                            } else {
+                              setSelectedModelIds(selectedModelIds.filter(id => id !== model.id));
+                            }
+                          }}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <Label
+                            htmlFor={model.id}
+                            className="text-sm font-semibold cursor-pointer flex items-center gap-2"
+                          >
+                            {model.name}
+                            <Badge variant="secondary" className="text-xs">
+                              {model.criteria_count} {model.criteria_count === 1 ? 'critério' : 'critérios'}
+                            </Badge>
+                          </Label>
+                          {model.description && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {model.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+              {selectedModelIds.length > 0 && (
+                <p className="text-xs text-primary font-medium">
+                  {selectedModelIds.length} {selectedModelIds.length === 1 ? 'modelo selecionado' : 'modelos selecionados'}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Status */}
           <div className="space-y-3">
