@@ -34,9 +34,6 @@ export function CompanyCard({ company, totalEnvironments, totalLocations, onAddE
                 )}
               </Button>
             )}
-            <div className="p-2 bg-primary/20 rounded-lg">
-              <Building2 className="h-6 w-6 text-primary" />
-            </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-lg font-bold">{company.name}</h2>

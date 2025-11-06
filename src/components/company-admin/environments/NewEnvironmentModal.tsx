@@ -458,54 +458,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
             />
           </div>
 
-          {/* Ícone - Apenas para locais */}
-          {environmentType === "location" && (
-            <div className="space-y-2">
-              <Label htmlFor="icon">Ícone do Local</Label>
-              <div className="flex gap-4 items-center">
-                <Select value={icon} onValueChange={setIcon}>
-                  <SelectTrigger id="icon" className="flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {iconOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        <div className="flex items-center gap-2">
-                          <opt.Icon className="h-4 w-4" />
-                          {opt.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedIcon && (
-                  <div className="p-4 bg-green-500/10 rounded-lg">
-                    <selectedIcon.Icon className="h-8 w-8 text-green-600" />
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* Ícone fixo para ambientes */}
-          {environmentType === "environment" && (
-            <div className="space-y-2">
-              <Label>Ícone do Ambiente</Label>
-              <div className="flex gap-4 items-center p-4 border rounded-lg bg-muted/30">
-                <div className="flex items-center gap-2 flex-1">
-                  <Factory className="h-5 w-5 text-orange-500" />
-                  <span className="text-sm font-medium">Ícone Padrão - Ambientes</span>
-                </div>
-                <div className="p-4 bg-orange-500/10 rounded-lg">
-                  <Factory className="h-8 w-8 text-orange-500" />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Todos os ambientes usam o mesmo ícone
-              </p>
-            </div>
-          )}
-
           {/* Descrição */}
           <div className="space-y-2">
             <Label htmlFor="description">Descrição</Label>

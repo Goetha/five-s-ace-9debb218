@@ -128,9 +128,6 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                   )}
                 </Button>
               )}
-              <div className="p-1.5 bg-orange-500/10 rounded">
-                <Factory className="h-4 w-4 text-orange-500" />
-              </div>
               <h3 className="font-semibold text-base">{environment.name}</h3>
               <Badge variant="secondary" className="text-xs bg-orange-500/10 text-orange-700 border-orange-500/30">
                 Ambiente
@@ -187,19 +184,18 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
               <Card key={location.id} className="hover:shadow-sm transition-shadow border-green-500/20">
                 <CardContent className="p-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1">
-                      <LocationIcon className="h-4 w-4 text-green-600" />
-                      <span className="font-medium text-sm">{location.name}</span>
-                      <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-500/30">
-                        Local
-                      </Badge>
-                      <Badge variant={isLocationActive ? "default" : "secondary"} className="text-xs">
-                        {isLocationActive ? "Ativo" : "Inativo"}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {location.audits_count} aud
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="font-medium text-sm">{location.name}</span>
+                    <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-500/30">
+                      Local
+                    </Badge>
+                    <Badge variant={isLocationActive ? "default" : "secondary"} className="text-xs">
+                      {isLocationActive ? "Ativo" : "Inativo"}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {location.audits_count} aud
+                    </span>
+                  </div>
                     <div className="flex items-center gap-1">
                       <Button 
                         variant="ghost" 
