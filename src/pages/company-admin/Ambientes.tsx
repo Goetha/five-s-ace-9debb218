@@ -27,6 +27,7 @@ export default function Ambientes() {
   const [newLocationParentId, setNewLocationParentId] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [allExpanded, setAllExpanded] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -191,11 +192,13 @@ export default function Ambientes() {
               totalEnvironments={totalEnvironments}
               totalLocations={totalLocations}
               onAddEnvironment={() => setIsNewModalOpen(true)}
+              isExpanded={allExpanded}
+              onToggleExpand={() => setAllExpanded(!allExpanded)}
             />
           )}
 
           {/* Ambientes (nível 1) e seus Locais (nível 2) */}
-          {environmentsList.map((env) => (
+          {allExpanded && environmentsList.map((env) => (
             <EnvironmentCard
               key={env.id}
               environment={env}

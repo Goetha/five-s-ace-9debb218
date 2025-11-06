@@ -36,6 +36,8 @@ import {
   BarChart3,
   Calendar,
   Trash2,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -65,6 +67,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
   const isActive = environment.status === "active";
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(true);
   const { toast } = useToast();
 
   const handleDelete = async (envId: string, envName: string) => {
@@ -110,6 +113,21 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
         <CardContent className="p-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-1 flex-wrap">
+              {/* Botão de Expandir/Colapsar */}
+              {locations.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="h-6 w-6 p-0"
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
               <div className="p-1.5 bg-orange-500/10 rounded">
                 <Factory className="h-4 w-4 text-orange-500" />
               </div>
@@ -159,7 +177,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
       </Card>
 
       {/* Locais (nível 2) - Verde - SUPER COMPACTOS */}
-      {locations.length > 0 && (
+      {locations.length > 0 && isExpanded && (
         <div className="ml-4 space-y-1 border-l border-green-500/30 pl-2">
           {locations.map((location) => {
             const LocationIcon = iconMap[location.icon] || Eye;
