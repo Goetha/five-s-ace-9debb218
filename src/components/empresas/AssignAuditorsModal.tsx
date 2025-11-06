@@ -84,40 +84,64 @@ export function AssignAuditorsModal({
     
     setIsSubmitting(true);
     try {
-      // For each auditor, update their company links
-      for (const auditorId of selectedAuditorIds) {
-        const auditor = existingAuditors.find(a => a.id === auditorId);
-        if (!auditor) continue;
-        
-        // Check if already linked
-        const isAlreadyLinked = auditor.linked_companies.some(c => c.id === company.id);
-        if (isAlreadyLinked) continue;
-        
-        // Add company to auditor's links
-        await supabase.functions.invoke('update-auditor-companies', {
-          body: {
-            userId: auditorId,
-            companyIds: [company.id],
-            addCompanies: true,
-          },
-        });
-      }
-
-      // Remove unselected auditors
+      // Build a list of all auditors that need updates
       const previouslyLinkedIds = existingAuditors
         .filter(a => a.linked_companies.some(c => c.id === company.id))
         .map(a => a.id);
       
+      // Auditors to add this company to
+      const toAdd = selectedAuditorIds.filter(id => !previouslyLinkedIds.includes(id));
+      
+      // Auditors to remove this company from
       const toRemove = previouslyLinkedIds.filter(id => !selectedAuditorIds.includes(id));
       
-      for (const auditorId of toRemove) {
+      // For auditors that need to be added
+      for (const auditorId of toAdd) {
+        const auditor = existingAuditors.find(a => a.id === auditorId);
+        if (!auditor) continue;
+        
+        // Get all company IDs this auditor should have (existing + new one)
+        const allCompanyIds = [
+          ...auditor.linked_companies.map(c => c.id),
+          company.id
+        ];
+        
         await supabase.functions.invoke('update-auditor-companies', {
           body: {
-            userId: auditorId,
-            companyIds: [company.id],
-            addCompanies: false,
+            auditor_id: auditorId,
+            company_ids: allCompanyIds,
           },
         });
+      }
+
+      // For auditors that need to be removed
+      for (const auditorId of toRemove) {
+        const auditor = existingAuditors.find(a => a.id === auditorId);
+        if (!auditor) continue;
+        
+        // Get all company IDs except the one being removed
+        const remainingCompanyIds = auditor.linked_companies
+          .map(c => c.id)
+          .filter(id => id !== company.id);
+        
+        // If no companies remain, we still need to pass at least an empty array
+        // but the edge function requires at least one, so we'll skip if empty
+        if (remainingCompanyIds.length > 0) {
+          await supabase.functions.invoke('update-auditor-companies', {
+            body: {
+              auditor_id: auditorId,
+              company_ids: remainingCompanyIds,
+            },
+          });
+        } else {
+          // If no companies left, delete all links
+          const { error } = await supabase
+            .from('user_companies')
+            .delete()
+            .eq('user_id', auditorId);
+            
+          if (error) console.error('Error removing all companies:', error);
+        }
       }
 
       toast({
