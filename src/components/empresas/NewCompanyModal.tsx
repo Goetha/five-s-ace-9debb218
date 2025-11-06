@@ -109,34 +109,55 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
       const companyId = await onSave(data);
       console.log('📝 Empresa criada com ID:', companyId);
 
-      // Send webhook notification via Edge Function with all information
-      const webhookPayload = {
-        companyName: data.name,
-        phone: data.phone,
-        email: data.email,
-        timestamp: new Date().toISOString(),
-        hasAuditors: auditors.length > 0,
-        auditors: auditors.length > 0 
-          ? auditors.map(a => ({ name: a.name, email: a.email }))
-          : "Não tem avaliador",
-        auditorsCount: auditors.length,
-      };
+      // ✅ NOVO: Criar admin principal da empresa (company_admin)
+      console.log('👤 Criando admin principal da empresa...');
+      const adminPassword = generateTemporaryPassword();
 
-      console.log('📤 Enviando webhook com dados completos:', webhookPayload);
-
-      const { error: webhookError } = await supabase.functions.invoke('send-company-email', {
-        body: webhookPayload,
+      const { data: adminUser, error: adminError } = await supabase.functions.invoke('create-company-user', {
+        body: {
+          email: data.email,
+          name: `Admin - ${data.name}`,
+          password: adminPassword,
+          role: 'company_admin',
+          companyId: companyId,
+        },
       });
 
-      if (webhookError) {
-        console.warn('⚠️ Erro ao enviar webhook:', webhookError);
-      } else {
-        console.log('✅ Webhook enviado com sucesso');
+      if (adminError) {
+        console.error('❌ Erro ao criar admin da empresa:', adminError);
+        toast({
+          title: "Erro Crítico",
+          description: "Não foi possível criar o admin da empresa.",
+          variant: "destructive",
+        });
+        throw adminError;
       }
 
-      // Create auditors via Edge Function with company ID
+      console.log('✅ Admin principal criado:', data.email);
+
+      // Enviar webhook com credenciais do admin principal
+      console.log('📤 Enviando credenciais do admin principal...');
+      const { error: adminWebhookError } = await supabase.functions.invoke('send-company-email', {
+        body: {
+          adminEmail: data.email,
+          adminName: `Admin - ${data.name}`,
+          temporaryPassword: adminPassword,
+          companyName: data.name,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      if (adminWebhookError) {
+        console.warn('⚠️ Erro ao enviar webhook do admin:', adminWebhookError);
+      } else {
+        console.log('✅ Webhook do admin enviado com sucesso');
+      }
+
+      // Create evaluators as company_admin via Edge Function
+      const evaluatorCredentials: Array<{email: string, password: string, name: string}> = [];
+      
       if (auditors.length > 0 && companyId) {
-        console.log('📤 Criando avaliadores para empresa:', companyId);
+        console.log('📤 Criando avaliadores como company_admin para empresa:', companyId);
         
         for (const auditor of auditors) {
           const temporaryPassword = generateTemporaryPassword();
@@ -146,8 +167,8 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
               email: auditor.email,
               name: auditor.name,
               password: temporaryPassword,
-              role: 'auditor',
-              companyId: companyId, // Pass company ID here!
+              role: 'company_admin', // ← MUDOU DE 'auditor' PARA 'company_admin'
+              companyId: companyId,
             },
           });
 
@@ -159,16 +180,42 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
               variant: "destructive",
             });
           } else {
-            console.log(`✅ Avaliador ${auditor.name} criado e vinculado à empresa ${companyId}`);
+            console.log(`✅ Avaliador ${auditor.name} criado como company_admin`);
+            evaluatorCredentials.push({
+              email: auditor.email,
+              password: temporaryPassword,
+              name: auditor.name,
+            });
+          }
+        }
+
+        // Enviar webhook com credenciais de cada avaliador
+        for (const evaluator of evaluatorCredentials) {
+          console.log(`📤 Enviando credenciais do avaliador: ${evaluator.name}...`);
+          
+          const { error: evalWebhookError } = await supabase.functions.invoke('send-company-email', {
+            body: {
+              adminEmail: evaluator.email,
+              adminName: evaluator.name,
+              temporaryPassword: evaluator.password,
+              companyName: data.name,
+              timestamp: new Date().toISOString(),
+            },
+          });
+
+          if (evalWebhookError) {
+            console.warn(`⚠️ Erro ao enviar webhook do avaliador ${evaluator.name}:`, evalWebhookError);
+          } else {
+            console.log(`✅ Webhook do avaliador ${evaluator.name} enviado`);
           }
         }
       }
       
       toast({
-        title: "Empresa criada com sucesso!",
+        title: "Empresa criada com sucesso! 🎉",
         description: auditors.length > 0 
-          ? `Empresa e ${auditors.length} avaliador(es) criados e vinculados.`
-          : "Os dados da empresa foram salvos.",
+          ? `Admin principal e ${auditors.length} avaliador(es) criados como company_admin. Emails enviados!`
+          : "Admin principal criado! Email enviado com as credenciais.",
       });
       
       reset();
