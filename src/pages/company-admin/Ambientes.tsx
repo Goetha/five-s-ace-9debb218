@@ -3,7 +3,7 @@ import { CompanyAdminLayout } from "@/components/company-admin/CompanyAdminLayou
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, CheckCircle, Factory, MapPin, Plus } from "lucide-react";
+import { Building2, Factory, MapPin, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { EnvironmentCard } from "@/components/company-admin/environments/EnvironmentCard";
 import { CompanyCard } from "@/components/company-admin/environments/CompanyCard";
@@ -24,7 +24,8 @@ export default function Ambientes() {
   const {
     user,
     linkedCompanies,
-    activeCompanyId
+    activeCompanyId,
+    setActiveCompanyId
   } = useAuth();
   const {
     toast
@@ -142,6 +143,28 @@ export default function Ambientes() {
 
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row gap-3">
+          {/* Company Selector - only show if multiple companies */}
+          {linkedCompanies.length > 1 && (
+            <Select value={activeCompanyId || undefined} onValueChange={(value) => {
+              if (value) {
+                setActiveCompanyId(value);
+                localStorage.setItem('activeCompanyId', value);
+              }
+            }}>
+              <SelectTrigger className="w-full sm:w-[280px]">
+                <Building2 className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Selecione a empresa" />
+              </SelectTrigger>
+              <SelectContent>
+                {linkedCompanies.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          
           <Input placeholder="Buscar ambientes..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="flex-1" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
@@ -153,7 +176,6 @@ export default function Ambientes() {
               <SelectItem value="inactive">Inativos</SelectItem>
             </SelectContent>
           </Select>
-          
         </div>
 
         {/* Environments Hierarchy - ESPAÇAMENTO REDUZIDO */}
