@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -20,6 +20,9 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Separator } from "@/components/ui/separator";
 import { generateTemporaryPassword } from "@/lib/passwordGenerator";
+import { Auditor } from "@/types/auditor";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface AuditorData {
   id: string;
@@ -45,6 +48,9 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
   const [auditors, setAuditors] = useState<AuditorData[]>([]);
   const [auditorName, setAuditorName] = useState("");
   const [auditorEmail, setAuditorEmail] = useState("");
+  const [existingAuditors, setExistingAuditors] = useState<Auditor[]>([]);
+  const [selectedExistingAuditorIds, setSelectedExistingAuditorIds] = useState<string[]>([]);
+  const [loadingAuditors, setLoadingAuditors] = useState(false);
 
   const {
     register,
@@ -65,9 +71,42 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
 
   const phone = watch("phone");
 
+  // Load existing auditors when modal opens
+  useEffect(() => {
+    if (open) {
+      loadExistingAuditors();
+    }
+  }, [open]);
+
+  const loadExistingAuditors = async () => {
+    setLoadingAuditors(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('list-all-auditors');
+      if (error) throw error;
+      setExistingAuditors(data.auditors || []);
+    } catch (error) {
+      console.error('Error loading auditors:', error);
+      toast({
+        title: "Erro ao carregar avaliadores",
+        description: "Não foi possível carregar a lista de avaliadores existentes.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingAuditors(false);
+    }
+  };
+
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhone(e.target.value);
     setValue("phone", formatted, { shouldValidate: true });
+  };
+
+  const handleToggleExistingAuditor = (auditorId: string) => {
+    setSelectedExistingAuditorIds(prev => 
+      prev.includes(auditorId) 
+        ? prev.filter(id => id !== auditorId)
+        : [...prev, auditorId]
+    );
   };
 
   const handleAddAuditor = () => {
@@ -236,15 +275,42 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
         }
       }
       
+      // Link existing selected auditors to the company
+      if (selectedExistingAuditorIds.length > 0) {
+        console.log('🔗 Vinculando avaliadores existentes à empresa:', selectedExistingAuditorIds);
+        
+        const { error: linkError } = await supabase.functions.invoke('update-auditor-companies', {
+          body: {
+            userId: selectedExistingAuditorIds[0], // Edge function expects single userId
+            companyIds: [companyId],
+            addCompanies: true,
+          },
+        });
+
+        // For multiple auditors, call the function multiple times
+        for (const auditorId of selectedExistingAuditorIds.slice(1)) {
+          await supabase.functions.invoke('update-auditor-companies', {
+            body: {
+              userId: auditorId,
+              companyIds: [companyId],
+              addCompanies: true,
+            },
+          });
+        }
+      }
+
+      const totalAuditors = auditors.length + selectedExistingAuditorIds.length;
+      
       toast({
         title: "Empresa criada com sucesso! 🎉",
-        description: auditors.length > 0 
-          ? `Admin principal e ${auditors.length} avaliador(es) criados como company_admin. Emails enviados!`
+        description: totalAuditors > 0 
+          ? `Admin principal criado! ${auditors.length} novo(s) avaliador(es) e ${selectedExistingAuditorIds.length} avaliador(es) existente(s) vinculados.`
           : "Admin principal criado! Email enviado com as credenciais.",
       });
       
       reset();
       setAuditors([]);
+      setSelectedExistingAuditorIds([]);
       setShowAuditorForm(false);
       onOpenChange(false);
       
@@ -333,6 +399,60 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
               
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">Avaliadores (Opcional)</h3>
+              </div>
+
+              {/* Existing Auditors Selection */}
+              {loadingAuditors ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : existingAuditors.length > 0 ? (
+                <div className="mb-6">
+                  <Label className="text-sm font-medium mb-3 block">
+                    Selecionar Avaliadores Existentes
+                  </Label>
+                  <ScrollArea className="h-[200px] border rounded-md p-4">
+                    <div className="space-y-3">
+                      {existingAuditors.map((auditor) => (
+                        <div
+                          key={auditor.id}
+                          className="flex items-start space-x-3 p-2 hover:bg-muted/50 rounded-md transition-colors"
+                        >
+                          <Checkbox
+                            id={`auditor-${auditor.id}`}
+                            checked={selectedExistingAuditorIds.includes(auditor.id)}
+                            onCheckedChange={() => handleToggleExistingAuditor(auditor.id)}
+                            disabled={isSubmitting}
+                          />
+                          <div className="flex-1 space-y-1">
+                            <label
+                              htmlFor={`auditor-${auditor.id}`}
+                              className="text-sm font-medium leading-none cursor-pointer"
+                            >
+                              {auditor.name}
+                            </label>
+                            <p className="text-xs text-muted-foreground">
+                              {auditor.email}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {auditor.linked_companies.length} empresa(s) vinculada(s)
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                  {selectedExistingAuditorIds.length > 0 && (
+                    <p className="text-sm text-primary mt-2">
+                      {selectedExistingAuditorIds.length} avaliador(es) selecionado(s)
+                    </p>
+                  )}
+                </div>
+              ) : null}
+
+              {/* Add New Auditor Button */}
+              <div className="flex items-center justify-between mb-4">
+                <Label className="text-sm font-medium">Criar Novos Avaliadores</Label>
                 <Button
                   type="button"
                   variant="outline"
@@ -341,7 +461,7 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
                   disabled={isSubmitting}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Avaliador
+                  Adicionar Novo
                 </Button>
               </div>
 
