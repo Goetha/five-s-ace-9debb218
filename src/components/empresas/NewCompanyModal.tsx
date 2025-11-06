@@ -105,6 +105,29 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
     setIsSubmitting(true);
     
     try {
+      // ✅ Validation: Prevent using IFA Admin email for company
+      console.log('🔍 Verificando se o email pertence a um IFA Admin...');
+      const { data: ifaAdmins } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'ifa_admin');
+
+      if (ifaAdmins && ifaAdmins.length > 0) {
+        for (const admin of ifaAdmins) {
+          const { data: { user } } = await supabase.auth.admin.getUserById(admin.user_id);
+          
+          if (user?.email === data.email) {
+            toast({
+              title: "❌ Email não permitido",
+              description: "Este email já é usado pelo Administrador IFA. Use outro email para a empresa.",
+              variant: "destructive",
+            });
+            setIsSubmitting(false);
+            return;
+          }
+        }
+      }
+
       // Create company first to get the ID
       const companyId = await onSave(data);
       console.log('📝 Empresa criada com ID:', companyId);
