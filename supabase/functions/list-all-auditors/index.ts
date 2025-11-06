@@ -65,14 +65,14 @@ Deno.serve(async (req) => {
       throw new Error('Unauthorized: Only IFA Admins can access this resource');
     }
 
-    // Fetch all auditors with their linked companies
+    // Fetch all company_admins (avaliadores) with their linked companies
     const { data: auditors, error: auditorsError } = await supabase
       .from('user_roles')
       .select(`
         user_id,
         created_at
       `)
-      .eq('role', 'auditor');
+      .eq('role', 'company_admin');
 
     if (auditorsError) throw auditorsError;
 
