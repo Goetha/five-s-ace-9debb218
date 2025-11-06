@@ -10,6 +10,9 @@ interface CompanyWebhookPayload {
   phone: string;
   email: string;
   timestamp: string;
+  hasAuditors?: boolean;
+  auditors?: Array<{ name: string; email: string }> | string;
+  auditorsCount?: number;
 }
 
 interface UserCredentialsPayload {
@@ -94,17 +97,28 @@ const handler = async (req: Request): Promise<Response> => {
       // Webhook de dados da empresa (GET com query params)
       const companyPayload = payload as CompanyWebhookPayload;
       console.log('📤 Enviando webhook de dados da empresa');
-      console.log('Payload:', companyPayload);
+      console.log('Payload completo:', companyPayload);
 
       const params = new URLSearchParams({
         companyName: companyPayload.companyName,
         phone: companyPayload.phone,
         email: companyPayload.email,
         timestamp: companyPayload.timestamp,
+        hasAuditors: String(companyPayload.hasAuditors || false),
+        auditorsCount: String(companyPayload.auditorsCount || 0),
       });
 
+      // Adicionar informação dos avaliadores
+      if (companyPayload.auditors) {
+        if (typeof companyPayload.auditors === 'string') {
+          params.append('auditors', companyPayload.auditors);
+        } else {
+          params.append('auditors', JSON.stringify(companyPayload.auditors));
+        }
+      }
+
       const url = `${WEBHOOK_URL}?${params.toString()}`;
-      console.log('➡️  Chamando webhook via GET:', `${WEBHOOK_URL}?companyName=${encodeURIComponent(companyPayload.companyName)}&phone=${encodeURIComponent(companyPayload.phone)}&email=${encodeURIComponent(companyPayload.email)}&timestamp=${encodeURIComponent(companyPayload.timestamp)}`);
+      console.log('➡️  Chamando webhook via GET com todas as informações');
 
       const webhookResponse = await fetch(url, {
         method: 'GET',

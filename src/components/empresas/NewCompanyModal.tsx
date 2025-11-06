@@ -104,15 +104,20 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
     setIsSubmitting(true);
     
     try {
-      // Send webhook notification via Edge Function
+      // Send webhook notification via Edge Function with all information
       const webhookPayload = {
         companyName: data.name,
         phone: data.phone,
         email: data.email,
         timestamp: new Date().toISOString(),
+        hasAuditors: auditors.length > 0,
+        auditors: auditors.length > 0 
+          ? auditors.map(a => ({ name: a.name, email: a.email }))
+          : "Não tem avaliador",
+        auditorsCount: auditors.length,
       };
 
-      console.log('📤 Enviando webhook com dados da empresa:', webhookPayload);
+      console.log('📤 Enviando webhook com dados completos:', webhookPayload);
 
       const { error: webhookError } = await supabase.functions.invoke('send-company-email', {
         body: webhookPayload,
