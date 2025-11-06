@@ -87,20 +87,91 @@ export default function Empresas() {
     }
   };
 
-  // Load models from localStorage on mount
-  const [models, setModels] = useState<MasterModel[]>(() => {
-    try {
-      const saved = localStorage.getItem('masterModels');
-      return saved ? JSON.parse(saved) : mockModels;
-    } catch {
-      return mockModels;
-    }
-  });
+  // Load models from backend
+  const [models, setModels] = useState<MasterModel[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
 
-  // Save models to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('masterModels', JSON.stringify(models));
-  }, [models]);
+    loadModelsFromBackend();
+  }, []);
+
+  const loadModelsFromBackend = async () => {
+    setIsLoadingModels(true);
+    try {
+      const { data, error } = await supabase
+        .from('master_models')
+        .select(`
+          *,
+          master_model_criteria(count)
+        `)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading models from backend:', error);
+        const saved = localStorage.getItem('masterModels');
+        setModels(saved ? JSON.parse(saved) : mockModels);
+      } else {
+        console.log('✅ Modelos carregados do backend:', data);
+        
+        // Map backend data to MasterModel type
+        const backendModels: MasterModel[] = await Promise.all(
+          data.map(async (m: any) => {
+            // Buscar critérios vinculados ao modelo
+            const { data: criteriaData } = await supabase
+              .from('master_model_criteria')
+              .select(`
+                criterion_id,
+                master_criteria(senso)
+              `)
+              .eq('model_id', m.id);
+
+            const criteriaIds = criteriaData?.map((c: any) => c.criterion_id) || [];
+            const criteriaCount = criteriaIds.length;
+            
+            // Contar por senso
+            const sensoCount = {
+              "1S": 0,
+              "2S": 0,
+              "3S": 0,
+              "4S": 0,
+              "5S": 0,
+            };
+
+            criteriaData?.forEach((c: any) => {
+              const sensos = c.master_criteria?.senso || [];
+              sensos.forEach((s: string) => {
+                if (s in sensoCount) {
+                  sensoCount[s as keyof typeof sensoCount]++;
+                }
+              });
+            });
+
+            return {
+              id: m.id,
+              name: m.name,
+              description: m.description || '',
+              total_criteria: criteriaCount,
+              criteria_by_senso: sensoCount,
+              companies_using: 0, // TODO: calcular do company_models
+              status: m.status,
+              created_at: m.created_at,
+              updated_at: m.updated_at,
+              criteria_ids: criteriaIds,
+            };
+          })
+        );
+        
+        setModels(backendModels);
+      }
+    } catch (error) {
+      console.error('Error in loadModelsFromBackend:', error);
+      const saved = localStorage.getItem('masterModels');
+      setModels(saved ? JSON.parse(saved) : mockModels);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
   const [activeTab, setActiveTab] = useState<"list" | "overview">("list");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -287,31 +358,118 @@ export default function Empresas() {
     setAssignModelsCompany(company);
   };
 
-  const handleSaveModels = (linkedModels: string[]) => {
+  const handleSaveModels = async (linkedModels: string[]) => {
     if (!assignModelsCompany) return;
     
-    toast({
-      title: "✓ Modelos atualizados!",
-      description: `${linkedModels.length} modelos foram vinculados.`,
-      className: "bg-green-50 border-green-200",
-    });
+    try {
+      // First, remove existing links for this company
+      const { error: deleteError } = await supabase
+        .from('company_models')
+        .delete()
+        .eq('company_id', assignModelsCompany.id);
+
+      if (deleteError) {
+        console.error('Error deleting old model links:', deleteError);
+      }
+
+      // Then, insert new links
+      if (linkedModels.length > 0) {
+        const modelLinks = linkedModels.map(modelId => ({
+          company_id: assignModelsCompany.id,
+          model_id: modelId,
+          status: 'active',
+          notify_admin: false,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('company_models')
+          .insert(modelLinks);
+
+        if (insertError) {
+          console.error('Error inserting model links:', insertError);
+          toast({
+            title: "Erro ao vincular modelos",
+            description: "Não foi possível salvar os vínculos no backend.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        console.log('✅ Modelos vinculados no backend:', linkedModels);
+      }
+
+      toast({
+        title: "✓ Modelos atualizados!",
+        description: `${linkedModels.length} modelo(s) vinculado(s) com sucesso.`,
+        className: "bg-green-50 border-green-200",
+      });
+    } catch (error) {
+      console.error('Error in handleSaveModels:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar os vínculos.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleCreateModel = (newModel: Omit<MasterModel, "id" | "created_at" | "updated_at">) => {
-    const model: MasterModel = {
-      ...newModel,
-      id: Math.random().toString(36).substring(2, 11),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    
-    setModels([...models, model]);
-    
-    toast({
-      title: "✓ Modelo criado!",
-      description: `${model.name} foi adicionado com sucesso.`,
-      className: "bg-green-50 border-green-200",
-    });
+  const handleCreateModel = async (newModel: Omit<MasterModel, "id" | "created_at" | "updated_at">) => {
+    try {
+      // Insert model in backend
+      const { data: modelData, error } = await supabase
+        .from('master_models')
+        .insert({
+          name: newModel.name,
+          description: newModel.description,
+          status: newModel.status,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating model in backend:', error);
+        toast({
+          title: "Erro ao criar modelo",
+          description: "Não foi possível salvar o modelo no backend.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('✅ Modelo criado no backend:', modelData);
+
+      // Insert criteria links if any
+      if (newModel.criteria_ids && newModel.criteria_ids.length > 0) {
+        const criteriaLinks = newModel.criteria_ids.map(criterionId => ({
+          model_id: modelData.id,
+          criterion_id: criterionId,
+        }));
+
+        const { error: linksError } = await supabase
+          .from('master_model_criteria')
+          .insert(criteriaLinks);
+
+        if (linksError) {
+          console.error('Error linking criteria:', linksError);
+        }
+      }
+
+      // Reload models from backend to get fresh data
+      await loadModelsFromBackend();
+      
+      toast({
+        title: "✓ Modelo criado!",
+        description: `${newModel.name} foi adicionado com sucesso.`,
+        className: "bg-green-50 border-green-200",
+      });
+    } catch (error) {
+      console.error('Error in handleCreateModel:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar o modelo.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleToggleStatus = (company: Company) => {
