@@ -27,19 +27,65 @@ import { mockModels } from "@/data/mockModels";
 import { Company, CompanyFormData } from "@/types/company";
 import { MasterModel } from "@/types/model";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Empresas() {
   const { toast } = useToast();
   
-  // Load companies from localStorage on mount
-  const [companies, setCompanies] = useState<Company[]>(() => {
+  // Load companies from backend on mount (fallback to localStorage if backend fails)
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
+
+  // Load companies from backend
+  useEffect(() => {
+    loadCompaniesFromBackend();
+  }, []);
+
+  const loadCompaniesFromBackend = async () => {
+    setIsLoadingCompanies(true);
     try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading companies from backend:', error);
+        // Fallback to localStorage
+        const saved = localStorage.getItem('companies');
+        setCompanies(saved ? JSON.parse(saved) : mockCompanies);
+      } else {
+        console.log('✅ Empresas carregadas do backend:', data);
+        // Map backend data to Company type
+        const backendCompanies: Company[] = data.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          cnpj: c.cnpj || '-',
+          logo: null,
+          admin: {
+            name: '-',
+            email: c.email || '-',
+          },
+          total_users: 1,
+          created_at: c.created_at,
+          last_activity: null,
+          status: c.status,
+          address: c.address || '-',
+          city: c.city,
+          state: c.state,
+          phone: c.phone || '-',
+          email: c.email,
+        }));
+        setCompanies(backendCompanies);
+      }
+    } catch (error) {
+      console.error('Error in loadCompaniesFromBackend:', error);
       const saved = localStorage.getItem('companies');
-      return saved ? JSON.parse(saved) : mockCompanies;
-    } catch {
-      return mockCompanies;
+      setCompanies(saved ? JSON.parse(saved) : mockCompanies);
+    } finally {
+      setIsLoadingCompanies(false);
     }
-  });
+  };
 
   // Load models from localStorage on mount
   const [models, setModels] = useState<MasterModel[]>(() => {
@@ -50,11 +96,6 @@ export default function Empresas() {
       return mockModels;
     }
   });
-
-  // Save companies to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('companies', JSON.stringify(companies));
-  }, [companies]);
 
   // Save models to localStorage whenever they change
   useEffect(() => {
@@ -121,35 +162,67 @@ export default function Empresas() {
   };
 
   const handleSaveNewCompany = async (data: CompanyFormData) => {
-    const newCompany: Company = {
-      id: String(companies.length + 1).padStart(3, '0'),
-      name: data.name,
-      cnpj: '-',
-      logo: null,
-      admin: {
-        name: data.adminName,
-        email: data.adminEmail,
-        temporaryPassword: data.temporaryPassword,
-      },
-      total_users: 1,
-      created_at: new Date().toISOString(),
-      last_activity: null,
-      status: 'active',
-      address: '-',
-      phone: data.phone,
-      email: data.email,
-    };
+    try {
+      // First, insert the company in the backend
+      const { data: newCompanyData, error } = await supabase
+        .from('companies')
+        .insert({
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          status: 'active',
+        })
+        .select()
+        .single();
 
-    setCompanies([newCompany, ...companies]);
-    
-    toast({
-      title: "✓ Empresa cadastrada com sucesso!",
-      description: `${data.name} foi criada. Credenciais enviadas para ${data.adminEmail}`,
-      className: "bg-green-50 border-green-200",
-    });
+      if (error) {
+        console.error('Error creating company in backend:', error);
+        toast({
+          title: "Erro ao criar empresa",
+          description: "Não foi possível salvar a empresa no backend. Tente novamente.",
+          variant: "destructive",
+        });
+        throw error;
+      }
 
-    // Return company ID so modal can create auditors with correct company link
-    return newCompany.id;
+      console.log('✅ Empresa criada no backend:', newCompanyData);
+
+      // Build the local Company object with backend ID
+      const newCompany: Company = {
+        id: newCompanyData.id, // Use backend UUID
+        name: data.name,
+        cnpj: '-',
+        logo: null,
+        admin: {
+          name: data.adminName,
+          email: data.adminEmail,
+          temporaryPassword: data.temporaryPassword,
+        },
+        total_users: 1,
+        created_at: newCompanyData.created_at,
+        last_activity: null,
+        status: 'active',
+        address: '-',
+        phone: data.phone,
+        email: data.email,
+      };
+
+      // Add to local state (will be persisted in backend already)
+      setCompanies([newCompany, ...companies]);
+      
+      toast({
+        title: "✓ Empresa cadastrada com sucesso!",
+        description: `${data.name} foi criada. Credenciais enviadas para ${data.adminEmail}`,
+        className: "bg-green-50 border-green-200",
+      });
+
+      // Return backend company ID for auditor linking
+      return newCompanyData.id;
+    } catch (error) {
+      console.error('Error in handleSaveNewCompany:', error);
+      // Don't add to local state if backend failed
+      throw error;
+    }
   };
 
   const handleView = (company: Company) => {
@@ -160,27 +233,54 @@ export default function Empresas() {
     setEditCompany(company);
   };
 
-  const handleSaveEdit = (data: CompanyFormData) => {
+  const handleSaveEdit = async (data: CompanyFormData) => {
     if (!editCompany) return;
     
-    setCompanies(companies.map(c => 
-      c.id === editCompany.id ? {
-        ...c,
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
-        admin: {
-          name: data.adminName,
-          email: data.adminEmail,
-        }
-      } : c
-    ));
-    
-    toast({
-      title: "✓ Empresa atualizada com sucesso!",
-      description: `${data.name} foi atualizada`,
-      className: "bg-green-50 border-green-200",
-    });
+    try {
+      // Update in backend
+      const { error } = await supabase
+        .from('companies')
+        .update({
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+        })
+        .eq('id', editCompany.id);
+
+      if (error) {
+        console.error('Error updating company in backend:', error);
+        toast({
+          title: "Erro ao atualizar",
+          description: "Não foi possível atualizar a empresa no backend.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('✅ Empresa atualizada no backend');
+
+      // Update local state
+      setCompanies(companies.map(c => 
+        c.id === editCompany.id ? {
+          ...c,
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          admin: {
+            name: data.adminName,
+            email: data.adminEmail,
+          }
+        } : c
+      ));
+      
+      toast({
+        title: "✓ Empresa atualizada com sucesso!",
+        description: `${data.name} foi atualizada`,
+        className: "bg-green-50 border-green-200",
+      });
+    } catch (error) {
+      console.error('Error in handleSaveEdit:', error);
+    }
   };
 
   const handleAssignModels = (company: Company) => {

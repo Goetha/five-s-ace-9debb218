@@ -14,7 +14,6 @@ import { Auditor } from "@/types/auditor";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { mockCompanies } from "@/data/mockCompanies";
 interface EditAuditorCompaniesModalProps {
   auditor: Auditor | null;
   open: boolean;
@@ -62,30 +61,25 @@ export function EditAuditorCompaniesModal({
         .order('name');
 
       if (error) {
-        console.warn('Warn loading companies from backend:', error);
+        console.error('Error loading companies from backend:', error);
+        toast({
+          title: "Erro ao carregar empresas",
+          description: "Não foi possível carregar a lista de empresas do backend.",
+          variant: "destructive",
+        });
+        setCompanies([]);
+        return;
       }
 
-      const backendCompanies = (data || []) as { id: string; name: string; status: string }[];
-      if (backendCompanies.length > 0) {
-        setCompanies(backendCompanies);
-      } else {
-        // Fallback to local mock companies to keep the UX working while backend has no rows
-        const activeMocks = mockCompanies
-          .filter((c) => c.status === 'active')
-          .map((c) => ({ id: c.id, name: c.name, status: c.status }));
-        console.log('⚠️ Usando empresas locais (mock) como fallback:', activeMocks);
-        setCompanies(activeMocks);
-      }
+      console.log('✅ Empresas carregadas do backend:', data);
+      setCompanies(data || []);
     } catch (error) {
       console.error('Error loading companies:', error);
-      // Final fallback to mocks
-      const activeMocks = mockCompanies
-        .filter((c) => c.status === 'active')
-        .map((c) => ({ id: c.id, name: c.name, status: c.status }));
-      setCompanies(activeMocks);
+      setCompanies([]);
       toast({
-        title: "Aviso",
-        description: "Carregando empresas locais devido a indisponibilidade do backend.",
+        title: "Erro",
+        description: "Não foi possível carregar empresas.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
