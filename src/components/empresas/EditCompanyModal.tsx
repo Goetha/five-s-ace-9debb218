@@ -60,62 +60,25 @@ export function EditCompanyModal({ company, open, onOpenChange, onSave }: EditCo
   const fetchLinkedAuditors = async (companyId: string) => {
     setIsLoadingAuditors(true);
     try {
-      // Fetch users linked to this company via user_companies
-      const { data: userCompanies, error: ucError } = await supabase
-        .from('user_companies')
-        .select('user_id')
-        .eq('company_id', companyId);
+      // Call list-all-auditors edge function to get all auditors with their linked companies
+      const { data, error } = await supabase.functions.invoke('list-all-auditors');
 
-      if (ucError) throw ucError;
-
-      if (!userCompanies || userCompanies.length === 0) {
+      if (error) {
+        console.error('Error calling list-all-auditors:', error);
         setLinkedAuditors([]);
         return;
       }
 
-      const userIds = userCompanies.map(uc => uc.user_id);
+      // Filter auditors that are linked to this specific company
+      const auditorsForCompany = data?.auditors?.filter((auditor: any) => 
+        auditor.linked_companies?.some((company: any) => company.id === companyId)
+      ) || [];
 
-      // Fetch user profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Fetch user roles to filter only auditors
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .in('user_id', userIds)
-        .eq('role', 'auditor');
-
-      if (rolesError) throw rolesError;
-
-      const auditorIds = roles?.map(r => r.user_id) || [];
-
-      // Get emails from auth.users via admin API would require edge function
-      // For now, we'll fetch from a local source or show without emails
-      // We need to call the edge function to get emails
-      const { data: auditorEmails, error: emailError } = await supabase.functions.invoke(
-        'list-all-auditors',
-        { body: { companyId } }
-      );
-
-      if (emailError) {
-        console.error('Error fetching auditor emails:', emailError);
-      }
-
-      const auditorsData: LinkedAuditor[] = profiles
-        ?.filter(p => auditorIds.includes(p.id))
-        .map(p => {
-          const auditorEmail = auditorEmails?.auditors?.find((a: any) => a.id === p.id);
-          return {
-            id: p.id,
-            name: p.full_name,
-            email: auditorEmail?.email || 'Email não disponível',
-          };
-        }) || [];
+      const auditorsData: LinkedAuditor[] = auditorsForCompany.map((auditor: any) => ({
+        id: auditor.id,
+        name: auditor.name,
+        email: auditor.email,
+      }));
 
       setLinkedAuditors(auditorsData);
     } catch (error) {
