@@ -495,16 +495,43 @@ export default function Empresas() {
     setDeleteCompany(company);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteCompany) return;
-    
-    setCompanies(companies.filter(c => c.id !== deleteCompany.id));
-    
-    toast({
-      title: "Empresa excluída permanentemente",
-      description: `${deleteCompany.name} foi removida do sistema`,
-      variant: "destructive",
-    });
+    try {
+      // Delete from backend first
+      const { error } = await supabase
+        .from('companies')
+        .delete()
+        .eq('id', deleteCompany.id);
+
+      if (error) {
+        console.error('Error deleting company in backend:', error);
+        toast({
+          title: 'Erro ao excluir',
+          description: 'Não foi possível remover a empresa no backend.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Update local state and notify
+      setCompanies(companies.filter(c => c.id !== deleteCompany.id));
+      toast({
+        title: 'Empresa excluída permanentemente',
+        description: `${deleteCompany.name} foi removida do sistema`,
+        variant: 'destructive',
+      });
+
+      // Clear modal
+      setDeleteCompany(null);
+    } catch (err) {
+      console.error('Error in handleConfirmDelete:', err);
+      toast({
+        title: 'Erro ao excluir',
+        description: 'Tente novamente em instantes.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleSendEmail = () => {
@@ -594,15 +621,44 @@ export default function Empresas() {
                   setSelectedCompanies([]);
                 }}
                 onDelete={() => {
-                  const remaining = companies.filter(c => !selectedCompanies.includes(c.id));
-                  const removedCount = companies.length - remaining.length;
-                  setCompanies(remaining);
-                  toast({
-                    title: "Empresas excluídas",
-                    description: `${removedCount} ${removedCount === 1 ? "empresa foi removida" : "empresas foram removidas"}`,
-                    variant: "destructive",
-                  });
-                  setSelectedCompanies([]);
+                  (async () => {
+                    try {
+                      if (selectedCompanies.length === 0) return;
+
+                      // Delete in backend
+                      const { error } = await supabase
+                        .from('companies')
+                        .delete()
+                        .in('id', selectedCompanies);
+
+                      if (error) {
+                        console.error('Error deleting companies in backend:', error);
+                        toast({
+                          title: 'Erro ao excluir',
+                          description: 'Não foi possível remover algumas empresas no backend.',
+                          variant: 'destructive',
+                        });
+                        return;
+                      }
+
+                      const remaining = companies.filter(c => !selectedCompanies.includes(c.id));
+                      const removedCount = companies.length - remaining.length;
+                      setCompanies(remaining);
+                      toast({
+                        title: 'Empresas excluídas',
+                        description: `${removedCount} ${removedCount === 1 ? 'empresa foi removida' : 'empresas foram removidas'}`,
+                        variant: 'destructive',
+                      });
+                      setSelectedCompanies([]);
+                    } catch (err) {
+                      console.error('Error in bulk delete:', err);
+                      toast({
+                        title: 'Erro ao excluir',
+                        description: 'Tente novamente em instantes.',
+                        variant: 'destructive',
+                      });
+                    }
+                  })();
                 }}
               />
             </div>
