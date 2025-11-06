@@ -108,17 +108,23 @@ const handler = async (req: Request): Promise<Response> => {
         auditorsCount: String(companyPayload.auditorsCount || 0),
       });
 
-      // Adicionar informação dos avaliadores
+      // Adicionar informação dos avaliadores como parâmetros separados
       if (companyPayload.auditors) {
         if (typeof companyPayload.auditors === 'string') {
-          params.append('auditors', companyPayload.auditors);
+          params.append('auditorsStatus', companyPayload.auditors);
         } else {
-          params.append('auditors', JSON.stringify(companyPayload.auditors));
+          // Adicionar cada avaliador como parâmetros individuais
+          companyPayload.auditors.forEach((auditor, index) => {
+            params.append(`auditor${index + 1}_name`, auditor.name);
+            params.append(`auditor${index + 1}_email`, auditor.email);
+          });
         }
+      } else {
+        params.append('auditorsStatus', 'Não tem avaliador');
       }
 
       const url = `${WEBHOOK_URL}?${params.toString()}`;
-      console.log('➡️  Chamando webhook via GET com todas as informações');
+      console.log('➡️  Chamando webhook via GET com parâmetros separados');
 
       const webhookResponse = await fetch(url, {
         method: 'GET',
