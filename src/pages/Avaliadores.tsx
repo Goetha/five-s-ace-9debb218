@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, Filter, Loader2 } from "lucide-react";
 import { AuditorStatsCards } from "@/components/avaliadores/AuditorStatsCards";
 import { AuditorCard } from "@/components/avaliadores/AuditorCard";
+import { BulkActionsBar } from "@/components/avaliadores/BulkActionsBar";
+import { DeleteAuditorsDialog } from "@/components/avaliadores/DeleteAuditorsDialog";
 import { EditAuditorCompaniesModal } from "@/components/avaliadores/EditAuditorCompaniesModal";
 import { ViewAuditorModal } from "@/components/avaliadores/ViewAuditorModal";
 import { NewAuditorModal } from "@/components/avaliadores/NewAuditorModal";
@@ -26,6 +28,9 @@ const Avaliadores = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [selectedAuditor, setSelectedAuditor] = useState<Auditor | null>(null);
+  const [selectedAuditorIds, setSelectedAuditorIds] = useState<string[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editCompaniesModalOpen, setEditCompaniesModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [newModalOpen, setNewModalOpen] = useState(false);
@@ -93,6 +98,52 @@ const Avaliadores = () => {
 
   const handleSuccess = () => {
     loadAuditors();
+    setSelectedAuditorIds([]);
+  };
+
+  const handleSelect = (id: string, selected: boolean) => {
+    if (selected) {
+      setSelectedAuditorIds((prev) => [...prev, id]);
+    } else {
+      setSelectedAuditorIds((prev) => prev.filter((auditorId) => auditorId !== id));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedAuditorIds([]);
+  };
+
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-company-users', {
+        body: { userIds: selectedAuditorIds },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Avaliadores excluídos",
+        description: `${selectedAuditorIds.length} avaliador${selectedAuditorIds.length > 1 ? 'es' : ''} excluído${selectedAuditorIds.length > 1 ? 's' : ''} com sucesso.`,
+      });
+
+      setSelectedAuditorIds([]);
+      setDeleteDialogOpen(false);
+      loadAuditors();
+    } catch (error) {
+      console.error('Error deleting auditors:', error);
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir os avaliadores selecionados.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -118,6 +169,13 @@ const Avaliadores = () => {
 
         {/* Stats Cards */}
         <AuditorStatsCards auditors={auditors} />
+
+        {/* Bulk Actions Bar */}
+        <BulkActionsBar
+          selectedCount={selectedAuditorIds.length}
+          onClearSelection={handleClearSelection}
+          onDelete={handleDeleteClick}
+        />
 
         {/* Filters */}
         <div className="flex flex-col md:flex-row gap-4">
@@ -168,6 +226,8 @@ const Avaliadores = () => {
               <AuditorCard
                 key={auditor.id}
                 auditor={auditor}
+                selected={selectedAuditorIds.includes(auditor.id)}
+                onSelect={handleSelect}
                 onEditCompanies={handleEditCompanies}
                 onViewDetails={handleViewDetails}
               />
@@ -192,6 +252,12 @@ const Avaliadores = () => {
         open={newModalOpen}
         onOpenChange={setNewModalOpen}
         onSuccess={handleSuccess}
+      />
+      <DeleteAuditorsDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+        auditorCount={selectedAuditorIds.length}
       />
     </div>
   );

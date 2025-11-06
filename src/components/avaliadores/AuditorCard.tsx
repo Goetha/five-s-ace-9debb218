@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Building2, 
   Mail, 
@@ -23,17 +24,23 @@ import { ptBR } from "date-fns/locale";
 
 interface AuditorCardProps {
   auditor: Auditor;
+  selected: boolean;
+  onSelect: (id: string, selected: boolean) => void;
   onEditCompanies: (auditor: Auditor) => void;
   onViewDetails: (auditor: Auditor) => void;
 }
 
-export function AuditorCard({ auditor, onEditCompanies, onViewDetails }: AuditorCardProps) {
+export function AuditorCard({ auditor, selected, onSelect, onEditCompanies, onViewDetails }: AuditorCardProps) {
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <Card className={`hover:shadow-lg transition-all ${selected ? 'ring-2 ring-primary' : ''}`}>
       <CardContent className="p-6">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
+            <Checkbox
+              checked={selected}
+              onCheckedChange={(checked) => onSelect(auditor.id, checked as boolean)}
+            />
             <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center">
               <span className="text-lg font-bold text-orange-500">
                 {auditor.name.substring(0, 2).toUpperCase()}
