@@ -50,11 +50,10 @@ const sensoColors = {
 };
 
 export default function Criterios() {
-  const { user } = useAuth();
+  const { user, activeCompanyId, linkedCompanies } = useAuth();
   const { toast } = useToast();
   const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [companyId, setCompanyId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sensoFilter, setSensoFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -65,34 +64,15 @@ export default function Criterios() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedCriterion, setSelectedCriterion] = useState<Criterion | null>(null);
 
-  // Buscar company_id do usuário
-  useEffect(() => {
-    const fetchCompanyId = async () => {
-      if (!user?.id) return;
-
-      const { data, error } = await supabase
-        .from('user_companies')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!error && data) {
-        setCompanyId(data.company_id);
-      }
-    };
-
-    fetchCompanyId();
-  }, [user]);
-
   const fetchCriteria = async () => {
-    if (!companyId) return;
+    if (!activeCompanyId) return;
 
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('company_criteria')
         .select('*')
-        .eq('company_id', companyId)
+        .eq('company_id', activeCompanyId)
         .order('name');
 
       if (error) throw error;
@@ -132,8 +112,10 @@ export default function Criterios() {
   };
 
   useEffect(() => {
-    fetchCriteria();
-  }, [companyId]);
+    if (user && linkedCompanies.length > 0 && activeCompanyId) {
+      fetchCriteria();
+    }
+  }, [user, activeCompanyId]);
 
   // Filtrar por tab
   let tabFilteredCriteria = criteria;
@@ -495,7 +477,7 @@ export default function Criterios() {
         open={newModalOpen}
         onOpenChange={setNewModalOpen}
         onSuccess={fetchCriteria}
-        companyId={companyId || ''}
+        companyId={activeCompanyId || ''}
       />
 
       <ViewCriterionModal

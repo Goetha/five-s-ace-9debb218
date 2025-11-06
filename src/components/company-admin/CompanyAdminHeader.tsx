@@ -1,4 +1,4 @@
-import { Bell } from "lucide-react";
+import { Bell, Building2 } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -16,6 +16,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -27,7 +34,7 @@ interface CompanyAdminHeaderProps {
 }
 
 export function CompanyAdminHeader({ breadcrumbs }: CompanyAdminHeaderProps) {
-  const { signOut, userProfile } = useAuth();
+  const { signOut, userProfile, linkedCompanies, activeCompanyId, setActiveCompanyId, companyInfo } = useAuth();
   const unreadCount = mockNotifications.filter(n => !n.read).length;
   
   const userName = userProfile?.full_name || 'Usuário';
@@ -55,6 +62,36 @@ export function CompanyAdminHeader({ breadcrumbs }: CompanyAdminHeaderProps) {
           ))}
         </BreadcrumbList>
       </Breadcrumb>
+
+      {/* Company Selector (show if user has multiple companies) */}
+      {linkedCompanies.length > 1 && (
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-muted-foreground hidden lg:block" />
+          <Select 
+            value={activeCompanyId || undefined} 
+            onValueChange={setActiveCompanyId}
+          >
+            <SelectTrigger className="w-[200px] hidden md:flex">
+              <SelectValue placeholder="Selecione empresa" />
+            </SelectTrigger>
+            <SelectContent>
+              {linkedCompanies.map((company) => (
+                <SelectItem key={company.id} value={company.id}>
+                  {company.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      
+      {/* Show current company name if only one company */}
+      {linkedCompanies.length === 1 && companyInfo && (
+        <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+          <Building2 className="h-4 w-4" />
+          <span className="font-medium">{companyInfo.name}</span>
+        </div>
+      )}
 
       {/* Notifications Dropdown */}
       <DropdownMenu>

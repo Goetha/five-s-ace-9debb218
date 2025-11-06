@@ -23,6 +23,9 @@ interface AuthContextType {
   userRole: AppRole | null;
   userProfile: UserProfile | null;
   companyInfo: CompanyInfo | null;
+  linkedCompanies: CompanyInfo[]; // All companies user has access to
+  activeCompanyId: string | null; // Currently selected company
+  setActiveCompanyId: (companyId: string) => void;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string, phone?: string) => Promise<{ error: Error | null }>;
@@ -37,6 +40,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+  const [linkedCompanies, setLinkedCompanies] = useState<CompanyInfo[]>([]);
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -73,25 +78,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Fetch company info (if company_admin or other non-IFA roles)
       if (role !== 'ifa_admin') {
-        const { data: userCompanyData, error: userCompanyError } = await supabase
+        const { data: userCompanies, error: userCompanyError } = await supabase
           .from('user_companies')
           .select('company_id')
-          .eq('user_id', userId)
-          .single();
+          .eq('user_id', userId);
 
         if (userCompanyError) {
-          console.error('Error fetching user company:', userCompanyError);
-        } else if (userCompanyData) {
-          const { data: companyData, error: companyError } = await supabase
+          console.error('Error fetching user companies:', userCompanyError);
+        } else if (userCompanies && userCompanies.length > 0) {
+          const companyIds = userCompanies.map(uc => uc.company_id);
+          
+          const { data: companiesData, error: companiesError } = await supabase
             .from('companies')
             .select('id, name')
-            .eq('id', userCompanyData.company_id)
-            .single();
+            .in('id', companyIds.map(id => id));
 
-          if (companyError) {
-            console.error('Error fetching company info:', companyError);
-          } else {
-            setCompanyInfo(companyData);
+          if (companiesError) {
+            console.error('Error fetching companies info:', companiesError);
+          } else if (companiesData) {
+            setLinkedCompanies(companiesData);
+            
+            // Set active company (first one by default, or restore from localStorage)
+            const savedActiveCompanyId = localStorage.getItem('activeCompanyId');
+            const validSavedId = companiesData.find(c => c.id === savedActiveCompanyId);
+            const defaultCompanyId = validSavedId?.id || companiesData[0]?.id;
+            
+            setActiveCompanyId(defaultCompanyId);
+            setCompanyInfo(companiesData.find(c => c.id === defaultCompanyId) || null);
           }
         }
       }
@@ -99,6 +112,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error in fetchUserData:', error);
     }
   };
+
+  // Update companyInfo when activeCompanyId changes
+  useEffect(() => {
+    if (activeCompanyId) {
+      const company = linkedCompanies.find(c => c.id === activeCompanyId);
+      setCompanyInfo(company || null);
+      localStorage.setItem('activeCompanyId', activeCompanyId);
+    }
+  }, [activeCompanyId, linkedCompanies]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -182,6 +204,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserRole(null);
     setUserProfile(null);
     setCompanyInfo(null);
+    setLinkedCompanies([]);
+    setActiveCompanyId(null);
+    localStorage.removeItem('activeCompanyId');
     navigate('/auth');
   };
 
@@ -192,6 +217,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userRole,
       userProfile,
       companyInfo,
+      linkedCompanies,
+      activeCompanyId,
+      setActiveCompanyId,
       isLoading, 
       signIn, 
       signUp, 

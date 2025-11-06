@@ -22,43 +22,30 @@ export default function Ambientes() {
   const [loading, setLoading] = useState(true);
   const [allExpanded, setAllExpanded] = useState(true);
   const {
-    user
+    user,
+    linkedCompanies,
+    activeCompanyId
   } = useAuth();
   const {
     toast
   } = useToast();
 
-  // Fetch environments from Supabase
   useEffect(() => {
-    if (user) {
+    if (user && linkedCompanies.length > 0 && activeCompanyId) {
       fetchEnvironments();
     }
-  }, [user]);
+  }, [user, activeCompanyId]);
+  
   const fetchEnvironments = async () => {
-    if (!user) return;
+    if (!user || !activeCompanyId) return;
     try {
       setLoading(true);
 
-      // Get user's company ID
-      const {
-        data: companyIdData
-      } = await supabase.rpc('get_user_company_id', {
-        _user_id: user.id
-      });
-      if (!companyIdData) {
-        toast({
-          title: "Empresa não encontrada",
-          description: "Sua conta não está vinculada a uma empresa.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Fetch environments for this company
+      // Fetch environments for the active company
       const {
         data,
         error
-      } = await supabase.from('environments').select('*').eq('company_id', companyIdData as string).order('name');
+      } = await supabase.from('environments').select('*').eq('company_id', activeCompanyId).order('name');
       if (error) {
         console.error("Error fetching environments:", error);
         toast({

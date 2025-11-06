@@ -32,15 +32,15 @@ export default function Usuarios() {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, linkedCompanies, activeCompanyId } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
-      console.log("🔍 Fetching users for user:", user.id);
+    if (user && linkedCompanies.length > 0 && activeCompanyId) {
+      console.log("🔍 Fetching users for company:", activeCompanyId);
       fetchUsers();
     }
-  }, [user]);
+  }, [user, activeCompanyId]);
 
   const fetchUsers = async () => {
     if (!user) {
