@@ -120,13 +120,13 @@ export default function MinhasAuditorias() {
         </div>
 
         {/* Filtros e Busca */}
-        <div className="flex flex-col gap-3 sm:gap-4">
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
             <Button
               variant={filter === 'all' ? 'default' : 'outline'}
               onClick={() => setFilter('all')}
               size="sm"
-              className="whitespace-nowrap"
+              className="whitespace-nowrap snap-start flex-shrink-0"
             >
               Todas ({audits.length})
             </Button>
@@ -134,7 +134,7 @@ export default function MinhasAuditorias() {
               variant={filter === 'in_progress' ? 'default' : 'outline'}
               onClick={() => setFilter('in_progress')}
               size="sm"
-              className="whitespace-nowrap"
+              className="whitespace-nowrap snap-start flex-shrink-0"
             >
               Em Andamento ({audits.filter(a => a.status === 'in_progress').length})
             </Button>
@@ -142,13 +142,13 @@ export default function MinhasAuditorias() {
               variant={filter === 'completed' ? 'default' : 'outline'}
               onClick={() => setFilter('completed')}
               size="sm"
-              className="whitespace-nowrap"
+              className="whitespace-nowrap snap-start flex-shrink-0"
             >
               Concluídas ({audits.filter(a => a.status === 'completed').length})
             </Button>
           </div>
           
-          <div className="relative w-full sm:max-w-sm">
+          <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por empresa..."
