@@ -33,9 +33,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     const currentPath = location.pathname;
     
     // IFA Admin can access: /, /empresas, /avaliadores, /modelos-mestre, /criterios, /auditorias
-    // Block access to company admin and auditor routes
+    // Block access to company admin and auditor routes (except audit details viewing)
     if (userRole === 'ifa_admin') {
-      const isAuditorArea = currentPath === '/auditor' || currentPath.startsWith('/auditor/');
+      const isAuditorArea = currentPath === '/auditor' || 
+                           (currentPath.startsWith('/auditor/') && !currentPath.startsWith('/auditor/auditoria/'));
       if (currentPath.startsWith('/admin-empresa') || isAuditorArea) {
         return <Navigate to="/" replace />;
       }
