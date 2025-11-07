@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Camera, Check, X } from "lucide-react";
+import { Camera, Check, X, Upload, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import type { AuditItem } from "@/types/audit";
 
 interface ChecklistItemProps {
@@ -15,19 +17,89 @@ interface ChecklistItemProps {
 export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [comment, setComment] = useState(item.comment || "");
+  const [photoUrl, setPhotoUrl] = useState(item.photo_url || "");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const handleAnswer = (answer: boolean) => {
-    onAnswerChange(item.id, answer, item.photo_url || undefined, comment);
-    if (!answer) {
-      setShowDetails(true);
-    } else {
-      setShowDetails(false);
-    }
+    onAnswerChange(item.id, answer, photoUrl || undefined, comment);
+    setShowDetails(true);
   };
 
   const handleCommentChange = (value: string) => {
     setComment(value);
-    onAnswerChange(item.id, item.answer!, item.photo_url || undefined, value);
+    onAnswerChange(item.id, item.answer!, photoUrl || undefined, value);
+  };
+
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo de arquivo
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Arquivo inválido",
+        description: "Por favor, selecione uma imagem.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validar tamanho (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Arquivo muito grande",
+        description: "A imagem deve ter no máximo 5MB.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // Gerar nome único para o arquivo
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${item.id}_${Date.now()}.${fileExt}`;
+      const filePath = `audit-items/${fileName}`;
+
+      // Upload para Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('audit-photos')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Obter URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('audit-photos')
+        .getPublicUrl(filePath);
+
+      setPhotoUrl(publicUrl);
+      onAnswerChange(item.id, item.answer!, publicUrl, comment);
+
+      toast({
+        title: "Foto enviada",
+        description: "A evidência foi registrada com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      toast({
+        title: "Erro ao enviar foto",
+        description: "Tente novamente mais tarde.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -73,25 +145,77 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
           </div>
         </div>
 
-        {(showDetails || item.answer === false) && (
+        {showDetails && item.answer !== null && (
           <div className="space-y-3 pt-3 border-t">
             <div>
               <label className="text-sm font-medium mb-2 block">
-                Comentário (opcional)
+                Comentário {item.answer === false ? "(obrigatório)" : "(opcional)"}
               </label>
               <Textarea
                 value={comment}
                 onChange={(e) => handleCommentChange(e.target.value)}
-                placeholder="Adicione observações sobre esta não-conformidade..."
+                placeholder={item.answer === false 
+                  ? "Descreva a não-conformidade encontrada..." 
+                  : "Adicione observações sobre esta conformidade..."
+                }
                 className="min-h-[80px]"
               />
             </div>
 
-            <div>
-              <Button variant="outline" size="sm">
-                <Camera className="h-4 w-4 mr-2" />
-                Adicionar Foto (opcional)
-              </Button>
+            <div className="space-y-2">
+              <label className="text-sm font-medium block text-red-600">
+                <Camera className="h-4 w-4 inline mr-1" />
+                Foto de Evidência (obrigatória)
+              </label>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+
+              {photoUrl ? (
+                <div className="space-y-2">
+                  <img 
+                    src={photoUrl} 
+                    alt="Evidência" 
+                    className="w-full max-h-64 object-cover rounded-lg border"
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handlePhotoClick}
+                    disabled={isUploading}
+                    className="w-full"
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Trocar Foto
+                  </Button>
+                </div>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handlePhotoClick}
+                  disabled={isUploading}
+                  className="w-full border-red-300 hover:border-red-400"
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="h-4 w-4 mr-2" />
+                      Tirar Foto
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         )}
