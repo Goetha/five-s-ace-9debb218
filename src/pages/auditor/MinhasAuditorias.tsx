@@ -1,17 +1,15 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { CompanyAdminLayout } from "@/components/company-admin/CompanyAdminLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { ScoreLevelIndicator, getScoreLevel } from "@/components/modelos/ScoreLevelIndicator";
-import { Calendar, Eye, Loader2, MapPin, Plus } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { Loader2, Plus, Search } from "lucide-react";
 import type { Audit } from "@/types/audit";
+import { CompanyAuditCard } from "@/components/auditorias/CompanyAuditCard";
+import { NewAuditDialog } from "@/components/auditorias/NewAuditDialog";
+import { Input } from "@/components/ui/input";
 
 interface AuditWithLocation extends Audit {
   location_name: string;
@@ -25,12 +23,14 @@ interface CompanyGroup {
 }
 
 export default function MinhasAuditorias() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const [audits, setAudits] = useState<AuditWithLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'in_progress' | 'completed'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     fetchAudits();
@@ -75,8 +75,9 @@ export default function MinhasAuditorias() {
   };
 
   const filteredAudits = audits.filter(audit => {
-    if (filter === 'all') return true;
-    return audit.status === filter;
+    const matchesFilter = filter === 'all' || audit.status === filter;
+    const matchesSearch = audit.company_name.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesFilter && matchesSearch;
   });
 
   // Agrupar auditorias por empresa
@@ -94,16 +95,14 @@ export default function MinhasAuditorias() {
 
   const companyGroups = Array.from(companiesMap.values());
 
-  const getStatusBadge = (status: string) => {
-    if (status === 'completed') {
-      return <Badge className="bg-green-100 text-green-700 border-green-300">Concluída</Badge>;
-    }
-    return <Badge className="bg-blue-100 text-blue-700 border-blue-300">Em Andamento</Badge>;
+  const handleStartNewAudit = (companyId: string, companyName: string) => {
+    setSelectedCompany({ id: companyId, name: companyName });
+    setDialogOpen(true);
   };
 
   if (isLoading) {
     return (
-      <CompanyAdminLayout breadcrumbs={[{ label: "Minhas Auditorias" }]}>
+      <CompanyAdminLayout breadcrumbs={[{ label: "Auditorias" }]}>
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -112,109 +111,86 @@ export default function MinhasAuditorias() {
   }
 
   return (
-    <CompanyAdminLayout breadcrumbs={[{ label: "Minhas Auditorias" }]}>
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Minhas Auditorias</h1>
-            <p className="text-muted-foreground">Gerencie suas avaliações 5S</p>
+    <CompanyAdminLayout breadcrumbs={[{ label: "Auditorias" }]}>
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold">Auditorias</h1>
+          <p className="text-muted-foreground">Gerencie suas avaliações 5S por empresa</p>
+        </div>
+
+        {/* Filtros e Busca */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant={filter === 'all' ? 'default' : 'outline'}
+              onClick={() => setFilter('all')}
+              size="sm"
+            >
+              Todas ({audits.length})
+            </Button>
+            <Button
+              variant={filter === 'in_progress' ? 'default' : 'outline'}
+              onClick={() => setFilter('in_progress')}
+              size="sm"
+            >
+              Em Andamento ({audits.filter(a => a.status === 'in_progress').length})
+            </Button>
+            <Button
+              variant={filter === 'completed' ? 'default' : 'outline'}
+              onClick={() => setFilter('completed')}
+              size="sm"
+            >
+              Concluídas ({audits.filter(a => a.status === 'completed').length})
+            </Button>
           </div>
-          <Button onClick={() => navigate('/auditor/nova-auditoria')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Auditoria
-          </Button>
+          
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por empresa..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
 
-        <div className="flex gap-2">
-          <Button
-            variant={filter === 'all' ? 'default' : 'outline'}
-            onClick={() => setFilter('all')}
-          >
-            Todas ({audits.length})
-          </Button>
-          <Button
-            variant={filter === 'in_progress' ? 'default' : 'outline'}
-            onClick={() => setFilter('in_progress')}
-          >
-            Em Andamento ({audits.filter(a => a.status === 'in_progress').length})
-          </Button>
-          <Button
-            variant={filter === 'completed' ? 'default' : 'outline'}
-            onClick={() => setFilter('completed')}
-          >
-            Concluídas ({audits.filter(a => a.status === 'completed').length})
-          </Button>
-        </div>
-
+        {/* Cards de Empresas */}
         {companyGroups.length === 0 ? (
           <Card className="p-12 text-center">
-            <p className="text-muted-foreground mb-4">Nenhuma auditoria encontrada</p>
-            <Button onClick={() => navigate('/auditor/nova-auditoria')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Criar Primeira Auditoria
-            </Button>
+            <Plus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">Nenhuma auditoria encontrada</h3>
+            <p className="text-muted-foreground mb-4">
+              {searchTerm 
+                ? "Tente ajustar os filtros de busca" 
+                : "Comece criando sua primeira auditoria"}
+            </p>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
             {companyGroups.map((company) => (
-              <Card key={company.company_id} className="p-6">
-                <h2 className="text-xl font-bold mb-4 text-primary">{company.company_name}</h2>
-                <div className="space-y-3">
-                  {company.audits.map((audit) => (
-                    <Card key={audit.id} className="p-4 bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-start gap-3">
-                            <MapPin className="h-5 w-5 text-primary mt-0.5" />
-                            <div className="flex-1">
-                              <h3 className="font-semibold">{audit.location_name}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {format(new Date(audit.started_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                              </p>
-                            </div>
-                            {getStatusBadge(audit.status)}
-                          </div>
-
-                          {audit.status === 'completed' && audit.score !== null && (
-                            <div className="flex items-center gap-4 pl-8">
-                              <div className="flex items-center gap-2">
-                                <span className="text-3xl font-bold">{audit.score.toFixed(1)}</span>
-                                <span className="text-muted-foreground">/10</span>
-                              </div>
-                              <ScoreLevelIndicator level={getScoreLevel(audit.score)} showLabel={false} />
-                            </div>
-                          )}
-
-                          {audit.next_audit_date && (
-                            <div className="flex items-center gap-2 pl-8 text-sm text-muted-foreground">
-                              <Calendar className="h-4 w-4" />
-                              Próxima auditoria: {format(new Date(audit.next_audit_date), "dd/MM/yyyy", { locale: ptBR })}
-                            </div>
-                          )}
-                        </div>
-
-                        <Button
-                          onClick={() => navigate(`/auditor/auditoria/${audit.id}`)}
-                          variant={audit.status === 'in_progress' ? 'default' : 'outline'}
-                        >
-                          {audit.status === 'in_progress' ? (
-                            <>Continuar</>
-                          ) : (
-                            <>
-                              <Eye className="h-4 w-4 mr-2" />
-                              Ver Detalhes
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </Card>
+              <CompanyAuditCard
+                key={company.company_id}
+                companyId={company.company_id}
+                companyName={company.company_name}
+                audits={company.audits}
+                onStartNewAudit={handleStartNewAudit}
+              />
             ))}
           </div>
         )}
       </div>
+
+      {/* Modal de Nova Auditoria */}
+      {selectedCompany && (
+        <NewAuditDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          preSelectedCompanyId={selectedCompany.id}
+          preSelectedCompanyName={selectedCompany.name}
+        />
+      )}
     </CompanyAdminLayout>
   );
 }

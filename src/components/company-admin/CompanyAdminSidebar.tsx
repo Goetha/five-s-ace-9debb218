@@ -18,8 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const menuItems = [
   { title: "Dashboard", url: "/admin-empresa", icon: LayoutDashboard },
   { title: "Ambientes", url: "/admin-empresa/ambientes", icon: Building2 },
-  { title: "Ciclos de Auditoria", url: "/admin-empresa/ciclos", icon: ClipboardCheck },
-  { title: "Minhas Auditorias", url: "/auditor/minhas-auditorias", icon: User },
+  { title: "Auditorias", url: "/auditor/minhas-auditorias", icon: ClipboardCheck },
   { title: "Relatórios", url: "/admin-empresa/relatorios", icon: BarChart3 },
   { title: "Configurações", url: "/admin-empresa/configuracoes", icon: Settings },
 ];
