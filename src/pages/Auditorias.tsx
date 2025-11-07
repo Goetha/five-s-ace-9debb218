@@ -6,30 +6,46 @@ import { Button } from "@/components/ui/button";
 import { Plus, Calendar, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
 import { NewAuditDialog } from "@/components/auditorias/NewAuditDialog";
+import { AuditGroupedList } from "@/components/auditorias/AuditGroupedList";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 interface Company {
   id: string;
   name: string;
 }
-interface Audit {
-  id: string;
+
+interface AuditGroupedData {
   company_id: string;
-  location_id: string;
-  auditor_id: string;
-  status: string;
-  started_at: string;
-  completed_at: string | null;
-  score: number | null;
-  score_level: string | null;
-  next_audit_date: string | null;
-  company_name?: string;
-  location_name?: string;
-  auditor_name?: string;
+  company_name: string;
+  environments: {
+    environment_id: string;
+    environment_name: string;
+    locations: {
+      location_id: string;
+      location_name: string;
+      audits: {
+        id: string;
+        status: string;
+        score: number | null;
+        score_level: string | null;
+        started_at: string;
+        auditor_name?: string;
+      }[];
+    }[];
+  }[];
+}
+
+interface ScheduledAudit {
+  id: string;
+  company_name: string;
+  location_name: string;
+  environment_name: string;
+  auditor_name: string;
+  next_audit_date: string;
 }
 const Auditorias = () => {
   const {
@@ -40,9 +56,12 @@ const Auditorias = () => {
   } = useToast();
   const navigate = useNavigate();
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [audits, setAudits] = useState<Audit[]>([]);
-  const [filteredAudits, setFilteredAudits] = useState<Audit[]>([]);
-  const [scheduledAudits, setScheduledAudits] = useState<Audit[]>([]);
+  const [groupedAudits, setGroupedAudits] = useState<AuditGroupedData[]>([]);
+  const [filteredGroupedAudits, setFilteredGroupedAudits] = useState<AuditGroupedData[]>([]);
+  const [scheduledAudits, setScheduledAudits] = useState<ScheduledAudit[]>([]);
+  const [totalAudits, setTotalAudits] = useState(0);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [inProgressCount, setInProgressCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isNewAuditDialogOpen, setIsNewAuditDialogOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
@@ -57,42 +76,116 @@ const Auditorias = () => {
   }, [userRole]);
   useEffect(() => {
     applyFilters();
-  }, [audits, filterCompany, filterStatus]);
+  }, [groupedAudits, filterCompany, filterStatus]);
   const fetchData = async () => {
     setIsLoading(true);
     try {
       // Buscar empresas
-      const {
-        data: companiesData,
-        error: companiesError
-      } = await supabase.from('companies').select('id, name').eq('status', 'active').order('name');
+      const { data: companiesData, error: companiesError } = await supabase
+        .from('companies')
+        .select('id, name')
+        .eq('status', 'active')
+        .order('name');
+      
       if (companiesError) throw companiesError;
       setCompanies(companiesData || []);
 
-      // Buscar todas as auditorias
-      const {
-        data: auditsData,
-        error: auditsError
-      } = await supabase.from('audits').select('*').order('started_at', {
-        ascending: false
-      });
+      // Buscar auditorias com hierarquia completa
+      const { data: auditsData, error: auditsError } = await supabase
+        .from('audits')
+        .select(`
+          *,
+          companies!audits_company_id_fkey(id, name),
+          environments!audits_location_id_fkey(
+            id,
+            name,
+            parent:environments!environments_parent_id_fkey(
+              id,
+              name
+            )
+          ),
+          profiles!audits_auditor_id_fkey(full_name)
+        `)
+        .order('started_at', { ascending: false });
+
       if (auditsError) throw auditsError;
 
-      // Buscar nomes relacionados
-      const formattedAudits = await Promise.all((auditsData || []).map(async audit => {
-        const [companyRes, locationRes, profileRes] = await Promise.all([supabase.from('companies').select('name').eq('id', audit.company_id).single(), supabase.from('environments').select('name').eq('id', audit.location_id).single(), supabase.from('profiles').select('full_name').eq('id', audit.auditor_id).single()]);
-        return {
-          ...audit,
-          company_name: companyRes.data?.name,
-          location_name: locationRes.data?.name,
-          auditor_name: profileRes.data?.full_name
-        };
-      }));
-      setAudits(formattedAudits);
+      // Processar dados em estrutura hierárquica
+      const grouped: { [key: string]: AuditGroupedData } = {};
+      let total = 0;
+      let completed = 0;
+      let inProgress = 0;
+      const scheduled: ScheduledAudit[] = [];
 
-      // Filtrar auditorias agendadas (completed com next_audit_date no futuro)
-      const scheduled = formattedAudits.filter(audit => audit.status === 'completed' && audit.next_audit_date && new Date(audit.next_audit_date) > new Date());
+      (auditsData || []).forEach((audit: any) => {
+        total++;
+        if (audit.status === 'completed') completed++;
+        if (audit.status === 'in_progress') inProgress++;
+
+        // Auditorias agendadas
+        if (audit.status === 'completed' && audit.next_audit_date && new Date(audit.next_audit_date) > new Date()) {
+          scheduled.push({
+            id: audit.id,
+            company_name: audit.companies?.name || 'N/A',
+            location_name: audit.environments?.name || 'N/A',
+            environment_name: audit.environments?.parent?.name || 'N/A',
+            auditor_name: audit.profiles?.full_name || 'N/A',
+            next_audit_date: audit.next_audit_date
+          });
+        }
+
+        const companyId = audit.company_id;
+        const companyName = audit.companies?.name || 'Sem nome';
+        const environmentId = audit.environments?.parent?.id || 'root';
+        const environmentName = audit.environments?.parent?.name || 'Sem ambiente';
+        const locationId = audit.location_id;
+        const locationName = audit.environments?.name || 'Sem local';
+
+        if (!grouped[companyId]) {
+          grouped[companyId] = {
+            company_id: companyId,
+            company_name: companyName,
+            environments: []
+          };
+        }
+
+        let environment = grouped[companyId].environments.find(e => e.environment_id === environmentId);
+        if (!environment) {
+          environment = {
+            environment_id: environmentId,
+            environment_name: environmentName,
+            locations: []
+          };
+          grouped[companyId].environments.push(environment);
+        }
+
+        let location = environment.locations.find(l => l.location_id === locationId);
+        if (!location) {
+          location = {
+            location_id: locationId,
+            location_name: locationName,
+            audits: []
+          };
+          environment.locations.push(location);
+        }
+
+        location.audits.push({
+          id: audit.id,
+          status: audit.status,
+          score: audit.score,
+          score_level: audit.score_level,
+          started_at: audit.started_at,
+          auditor_name: audit.profiles?.full_name
+        });
+      });
+
+      const groupedArray = Object.values(grouped);
+      setGroupedAudits(groupedArray);
+      setFilteredGroupedAudits(groupedArray);
       setScheduledAudits(scheduled);
+      setTotalAudits(total);
+      setCompletedCount(completed);
+      setInProgressCount(inProgress);
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast({
@@ -105,14 +198,26 @@ const Auditorias = () => {
     }
   };
   const applyFilters = () => {
-    let filtered = [...audits];
+    let filtered = [...groupedAudits];
+    
     if (filterCompany !== "all") {
-      filtered = filtered.filter(audit => audit.company_id === filterCompany);
+      filtered = filtered.filter(group => group.company_id === filterCompany);
     }
+    
     if (filterStatus !== "all") {
-      filtered = filtered.filter(audit => audit.status === filterStatus);
+      filtered = filtered.map(group => ({
+        ...group,
+        environments: group.environments.map(env => ({
+          ...env,
+          locations: env.locations.map(loc => ({
+            ...loc,
+            audits: loc.audits.filter(audit => audit.status === filterStatus)
+          })).filter(loc => loc.audits.length > 0)
+        })).filter(env => env.locations.length > 0)
+      })).filter(group => group.environments.length > 0);
     }
-    setFilteredAudits(filtered);
+    
+    setFilteredGroupedAudits(filtered);
   };
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -152,17 +257,17 @@ const Auditorias = () => {
   };
   const stats = [{
     label: "Total de Auditorias",
-    value: audits.length,
+    value: totalAudits,
     icon: Calendar,
     color: "text-blue-600"
   }, {
     label: "Em Andamento",
-    value: audits.filter(a => a.status === 'in_progress').length,
+    value: inProgressCount,
     icon: Clock,
     color: "text-orange-600"
   }, {
     label: "Concluídas",
-    value: audits.filter(a => a.status === 'completed').length,
+    value: completedCount,
     icon: CheckCircle2,
     color: "text-green-600"
   }, {
@@ -217,16 +322,14 @@ const Auditorias = () => {
               Próximas Auditorias Agendadas
             </h2>
             <div className="space-y-3">
-              {scheduledAudits.map(audit => <div key={audit.id} className="flex items-center justify-between p-3 border border-purple-200 rounded-lg bg-zinc-950">
+              {scheduledAudits.map(audit => <div key={audit.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border border-purple-200 rounded-lg bg-purple-50/50 gap-2">
                   <div>
                     <p className="font-medium">{audit.company_name}</p>
-                    <p className="text-sm text-muted-foreground">{audit.location_name}</p>
+                    <p className="text-sm text-muted-foreground">{audit.environment_name} • {audit.location_name}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left sm:text-right">
                     <p className="text-sm font-medium text-purple-700">
-                      {format(new Date(audit.next_audit_date!), "dd 'de' MMMM 'de' yyyy", {
-                  locale: ptBR
-                })}
+                      {format(new Date(audit.next_audit_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                     </p>
                     <p className="text-xs text-muted-foreground">Auditor: {audit.auditor_name}</p>
                   </div>
@@ -267,35 +370,15 @@ const Auditorias = () => {
               </div>
             </div>
 
-            {/* Lista de Auditorias */}
-            <div className="space-y-3">
-              {isLoading ? <p className="text-center text-muted-foreground py-8">Carregando auditorias...</p> : filteredAudits.length === 0 ? <p className="text-center text-muted-foreground py-8">Nenhuma auditoria encontrada</p> : filteredAudits.map(audit => <div key={audit.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => navigate(`/auditor/auditoria/${audit.id}`)}>
-                    <div className="space-y-1 mb-3 sm:mb-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium">{audit.company_name}</p>
-                        {getStatusBadge(audit.status)}
-                        {audit.score_level && getScoreLevelBadge(audit.score_level)}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {audit.location_name} • Auditor: {audit.auditor_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Iniciada em {format(new Date(audit.started_at), "dd/MM/yyyy 'às' HH:mm", {
-                    locale: ptBR
-                  })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {audit.score !== null && <div className="text-right">
-                          <p className="text-2xl font-bold">{audit.score.toFixed(1)}%</p>
-                          <p className="text-xs text-muted-foreground">Score 5S</p>
-                        </div>}
-                      <Button size="sm" variant="outline">
-                        Ver Detalhes
-                      </Button>
-                    </div>
-                  </div>)}
-            </div>
+            {/* Lista Hierárquica de Auditorias */}
+            {isLoading ? (
+              <p className="text-center text-muted-foreground py-8">Carregando auditorias...</p>
+            ) : (
+              <AuditGroupedList
+                groupedAudits={filteredGroupedAudits}
+                onAuditClick={(auditId) => navigate(`/auditor/auditoria/${auditId}`)}
+              />
+            )}
           </div>
         </Card>
 

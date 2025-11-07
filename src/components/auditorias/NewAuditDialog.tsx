@@ -19,7 +19,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface Environment {
   id: string;
@@ -48,6 +49,8 @@ export function NewAuditDialog({
   const [locations, setLocations] = useState<Environment[]>([]);
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>("");
   const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [criteriaCount, setCriteriaCount] = useState<number>(0);
+  const [isLoadingCriteria, setIsLoadingCriteria] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -109,7 +112,54 @@ export function NewAuditDialog({
     setSelectedEnvironment(value);
     setSelectedLocation("");
     setLocations([]);
+    setCriteriaCount(0);
     fetchLocations(value);
+  };
+
+  const handleLocationChange = async (value: string) => {
+    setSelectedLocation(value);
+    setIsLoadingCriteria(true);
+    
+    try {
+      // Buscar critérios vinculados ao local específico
+      const { data: criteriaLinks, error: criteriaError } = await supabase
+        .from('environment_criteria')
+        .select('criterion_id')
+        .eq('environment_id', value);
+
+      if (criteriaError) throw criteriaError;
+
+      let count = 0;
+
+      // Se o local tem critérios específicos, contar esses
+      if (criteriaLinks && criteriaLinks.length > 0) {
+        const { count: specificCount, error: fetchError } = await supabase
+          .from('company_criteria')
+          .select('*', { count: 'exact', head: true })
+          .in('id', criteriaLinks.map(link => link.criterion_id))
+          .eq('status', 'active');
+
+        if (fetchError) throw fetchError;
+        count = specificCount || 0;
+      } else {
+        // Senão, contar TODOS os critérios ativos da empresa
+        const { count: companyCount, error: fetchError } = await supabase
+          .from('company_criteria')
+          .select('*', { count: 'exact', head: true })
+          .eq('company_id', preSelectedCompanyId)
+          .eq('status', 'active');
+
+        if (fetchError) throw fetchError;
+        count = companyCount || 0;
+      }
+
+      setCriteriaCount(count);
+    } catch (error) {
+      console.error('Error counting criteria:', error);
+      setCriteriaCount(0);
+    } finally {
+      setIsLoadingCriteria(false);
+    }
   };
 
   const handleStartAudit = async () => {
@@ -247,7 +297,7 @@ export function NewAuditDialog({
             <Label htmlFor="location">Local *</Label>
             <Select
               value={selectedLocation}
-              onValueChange={setSelectedLocation}
+              onValueChange={handleLocationChange}
               disabled={!selectedEnvironment || locations.length === 0}
             >
               <SelectTrigger id="location">
@@ -268,6 +318,42 @@ export function NewAuditDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Preview de Critérios */}
+          {selectedLocation && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+              {isLoadingCriteria ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Carregando critérios...
+                </div>
+              ) : criteriaCount > 0 ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <span className="font-medium text-blue-900">
+                      Esta auditoria terá {criteriaCount} {criteriaCount === 1 ? 'critério' : 'critérios'} de avaliação
+                    </span>
+                  </div>
+                  <div className="text-sm text-blue-700 space-y-1">
+                    <p>• Ambiente: {environments.find(e => e.id === selectedEnvironment)?.name}</p>
+                    <p>• Local: {locations.find(l => l.id === selectedLocation)?.name}</p>
+                    <p>• Perguntas: {criteriaCount}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-amber-700">
+                    <AlertCircle className="h-5 w-5" />
+                    <span className="font-medium">Nenhum critério disponível</span>
+                  </div>
+                  <p className="text-sm text-amber-600">
+                    Não há critérios ativos para este local. Entre em contato com o administrador para configurar critérios.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3">
@@ -280,10 +366,10 @@ export function NewAuditDialog({
           </Button>
           <Button
             onClick={handleStartAudit}
-            disabled={!selectedLocation || isCreating}
+            disabled={!selectedLocation || isCreating || criteriaCount === 0}
           >
             {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Iniciar Auditoria
+            {criteriaCount === 0 ? 'Sem critérios disponíveis' : 'Iniciar Auditoria'}
           </Button>
         </div>
       </DialogContent>

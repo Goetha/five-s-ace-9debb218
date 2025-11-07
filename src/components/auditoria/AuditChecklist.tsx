@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ChecklistItem } from "./ChecklistItem";
+import { EmptyAuditWarning } from "@/components/auditorias/EmptyAuditWarning";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save } from "lucide-react";
 import type { AuditItem } from "@/types/audit";
@@ -181,6 +182,10 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
         </div>
       </Card>
     );
+  }
+
+  if (items.length === 0) {
+    return <EmptyAuditWarning auditId={auditId} locationName={locationName} />;
   }
 
   const progress = calculateProgress();

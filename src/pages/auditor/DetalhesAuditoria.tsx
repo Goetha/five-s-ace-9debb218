@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AuditChecklist } from "@/components/auditoria/AuditChecklist";
 import { AuditResult } from "@/components/auditoria/AuditResult";
+import { EmptyAuditWarning } from "@/components/auditorias/EmptyAuditWarning";
 import { cn } from "@/lib/utils";
 import type { Audit, AuditItem } from "@/types/audit";
 
@@ -114,7 +115,7 @@ export default function DetalhesAuditoria() {
     );
   }
 
-  // Se a auditoria está em andamento, mostra o checklist
+  // Se a auditoria está em andamento, mostra o checklist ou warning se vazia
   if (audit.status === 'in_progress') {
     const content = (
       <div className="p-3 sm:p-6 max-w-4xl mx-auto space-y-3 sm:space-y-6">
@@ -123,13 +124,17 @@ export default function DetalhesAuditoria() {
           Voltar
         </Button>
 
-        <AuditChecklist auditId={audit.id} onCompleted={() => {
-          toast({
-            title: "Auditoria concluída!",
-            description: "Os dados foram salvos com sucesso."
-          });
-          navigate(backLink);
-        }} />
+        {items.length === 0 ? (
+          <EmptyAuditWarning auditId={audit.id} locationName={audit.location_name} />
+        ) : (
+          <AuditChecklist auditId={audit.id} onCompleted={() => {
+            toast({
+              title: "Auditoria concluída!",
+              description: "Os dados foram salvos com sucesso."
+            });
+            navigate(backLink);
+          }} />
+        )}
       </div>
     );
     
