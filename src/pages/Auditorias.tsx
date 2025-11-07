@@ -90,23 +90,26 @@ const Auditorias = () => {
       if (companiesError) throw companiesError;
       setCompanies(companiesData || []);
 
-      // Buscar auditorias com hierarquia completa
+      // Buscar auditorias
       const { data: auditsData, error: auditsError } = await supabase
         .from('audits')
         .select(`
           *,
           companies!audits_company_id_fkey(id, name),
-          environments!audits_location_id_fkey(
-            id,
-            name,
-            parent:environments!environments_parent_id_fkey(
-              id,
-              name
-            )
-          ),
+          environments!audits_location_id_fkey(id, name, parent_id),
           profiles!audits_auditor_id_fkey(full_name)
         `)
         .order('started_at', { ascending: false });
+
+
+      // Buscar todos os environments para fazer o join manual
+      const { data: allEnvironments, error: envError } = await supabase
+        .from('environments')
+        .select('id, name, parent_id');
+
+      if (envError) throw envError;
+
+      const envMap = new Map(allEnvironments?.map(e => [e.id, e]) || []);
 
       if (auditsError) throw auditsError;
 
@@ -122,24 +125,27 @@ const Auditorias = () => {
         if (audit.status === 'completed') completed++;
         if (audit.status === 'in_progress') inProgress++;
 
+        const locationEnv = audit.environments;
+        const parentEnv = locationEnv?.parent_id ? envMap.get(locationEnv.parent_id) : null;
+
         // Auditorias agendadas
         if (audit.status === 'completed' && audit.next_audit_date && new Date(audit.next_audit_date) > new Date()) {
           scheduled.push({
             id: audit.id,
             company_name: audit.companies?.name || 'N/A',
-            location_name: audit.environments?.name || 'N/A',
-            environment_name: audit.environments?.parent?.name || 'N/A',
+            location_name: locationEnv?.name || 'N/A',
+            environment_name: parentEnv?.name || 'N/A',
             auditor_name: audit.profiles?.full_name || 'N/A',
             next_audit_date: audit.next_audit_date
           });
         }
-
+        
         const companyId = audit.company_id;
         const companyName = audit.companies?.name || 'Sem nome';
-        const environmentId = audit.environments?.parent?.id || 'root';
-        const environmentName = audit.environments?.parent?.name || 'Sem ambiente';
+        const environmentId = parentEnv?.id || 'root';
+        const environmentName = parentEnv?.name || 'Sem ambiente';
         const locationId = audit.location_id;
-        const locationName = audit.environments?.name || 'Sem local';
+        const locationName = locationEnv?.name || 'Sem local';
 
         if (!grouped[companyId]) {
           grouped[companyId] = {
@@ -149,27 +155,27 @@ const Auditorias = () => {
           };
         }
 
-        let environment = grouped[companyId].environments.find(e => e.environment_id === environmentId);
-        if (!environment) {
-          environment = {
+        let env = grouped[companyId].environments.find(e => e.environment_id === environmentId);
+        if (!env) {
+          env = {
             environment_id: environmentId,
             environment_name: environmentName,
             locations: []
           };
-          grouped[companyId].environments.push(environment);
+          grouped[companyId].environments.push(env);
         }
 
-        let location = environment.locations.find(l => l.location_id === locationId);
-        if (!location) {
-          location = {
+        let loc = env.locations.find(l => l.location_id === locationId);
+        if (!loc) {
+          loc = {
             location_id: locationId,
             location_name: locationName,
             audits: []
           };
-          environment.locations.push(location);
+          env.locations.push(loc);
         }
 
-        location.audits.push({
+        loc.audits.push({
           id: audit.id,
           status: audit.status,
           score: audit.score,
