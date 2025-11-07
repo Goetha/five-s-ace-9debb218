@@ -117,25 +117,17 @@ export default function Empresas() {
           .maybeSingle();
 
         if (!roleError && roleData) {
-          // This user is a company admin, fetch their profile
+          // This user is a company admin, fetch their profile with email
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
-            .select('full_name')
+            .select('full_name, email')
             .eq('id', uc.user_id)
             .maybeSingle();
 
           if (!profileError && profileData) {
-            // Fetch email from auth.users via admin API (not accessible via RLS)
-            // For now, we'll use a workaround: store email in a way we can access it
-            // Since we can't access auth.users directly, we'll fetch it via edge function
-            // or use the email from raw_user_meta_data stored in profiles
-            
-            // Try to get user email via Supabase auth
-            const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(uc.user_id);
-            
             return {
               name: profileData.full_name || '-',
-              email: user?.email || '-',
+              email: profileData.email || '-',
             };
           }
         }
