@@ -129,16 +129,19 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
       setCompanyId(fetchedCompanyId);
 
-      // Fetch Ambientes (nível 1) - environments que têm company_id como parent
+      // Fetch all environments for this company
       const { data: allEnvs } = await supabase
         .from('environments')
-        .select('id, name, parent_id')
+        .select('id, name, parent_id, company_id')
         .eq('company_id', fetchedCompanyId)
         .eq('status', 'active')
         .order('name');
 
-      const company = allEnvs?.find(e => e.parent_id === null);
-      const environments = allEnvs?.filter(e => e.parent_id === company?.id) || [];
+      // Find the root environment (parent_id = NULL) - this is the company's main environment
+      const rootEnv = allEnvs?.find(e => e.parent_id === null);
+      
+      // Environments are those with parent_id = root environment id
+      const environments = allEnvs?.filter(e => e.parent_id === rootEnv?.id) || [];
 
       setAllEnvironments(allEnvs || []);
       setAvailableEnvironments(environments);
@@ -254,9 +257,19 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
       if (isEditing && editingEnvironment) {
         // Update existing environment/location
-        const finalParentId = environmentType === "environment" 
-          ? (propsCompanyId || companyIdData as string)
-          : selectedParentId;
+        let finalParentId = selectedParentId;
+        
+        if (environmentType === "environment") {
+          // For environments, find the root environment of the company
+          const { data: rootEnv } = await supabase
+            .from('environments')
+            .select('id')
+            .eq('company_id', companyIdData as string)
+            .is('parent_id', null)
+            .single();
+          
+          finalParentId = rootEnv?.id || null;
+        }
 
         const { error } = await supabase
           .from('environments')
@@ -309,9 +322,19 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         });
       } else {
         // Insert new environment/location
-        const finalParentId = environmentType === "environment" 
-          ? (propsCompanyId || companyIdData as string)
-          : selectedParentId;
+        let finalParentId = selectedParentId;
+        
+        if (environmentType === "environment") {
+          // For environments, find the root environment of the company
+          const { data: rootEnv } = await supabase
+            .from('environments')
+            .select('id')
+            .eq('company_id', companyIdData as string)
+            .is('parent_id', null)
+            .single();
+          
+          finalParentId = rootEnv?.id || null;
+        }
 
         const { data: newEnv, error } = await supabase
           .from('environments')
