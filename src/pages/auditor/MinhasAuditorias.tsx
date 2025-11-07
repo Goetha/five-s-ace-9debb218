@@ -15,6 +15,13 @@ import type { Audit } from "@/types/audit";
 
 interface AuditWithLocation extends Audit {
   location_name: string;
+  company_name: string;
+}
+
+interface CompanyGroup {
+  company_id: string;
+  company_name: string;
+  audits: AuditWithLocation[];
 }
 
 export default function MinhasAuditorias() {
@@ -37,7 +44,8 @@ export default function MinhasAuditorias() {
         .from('audits')
         .select(`
           *,
-          environments!audits_location_id_fkey(name)
+          environments!audits_location_id_fkey(name),
+          companies!audits_company_id_fkey(name)
         `)
         .eq('auditor_id', user.id)
         .order('created_at', { ascending: false });
@@ -49,7 +57,8 @@ export default function MinhasAuditorias() {
         ...audit,
         status: audit.status as 'in_progress' | 'completed',
         score_level: audit.score_level as 'low' | 'medium' | 'high' | null,
-        location_name: audit.environments.name
+        location_name: audit.environments.name,
+        company_name: audit.companies.name
       }));
 
       setAudits(auditsWithLocation);
@@ -69,6 +78,21 @@ export default function MinhasAuditorias() {
     if (filter === 'all') return true;
     return audit.status === filter;
   });
+
+  // Agrupar auditorias por empresa
+  const companiesMap = new Map<string, CompanyGroup>();
+  filteredAudits.forEach(audit => {
+    if (!companiesMap.has(audit.company_id)) {
+      companiesMap.set(audit.company_id, {
+        company_id: audit.company_id,
+        company_name: audit.company_name,
+        audits: []
+      });
+    }
+    companiesMap.get(audit.company_id)!.audits.push(audit);
+  });
+
+  const companyGroups = Array.from(companiesMap.values());
 
   const getStatusBadge = (status: string) => {
     if (status === 'completed') {
@@ -122,7 +146,7 @@ export default function MinhasAuditorias() {
           </Button>
         </div>
 
-        {filteredAudits.length === 0 ? (
+        {companyGroups.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground mb-4">Nenhuma auditoria encontrada</p>
             <Button onClick={() => navigate('/auditor/nova-auditoria')}>
@@ -131,53 +155,60 @@ export default function MinhasAuditorias() {
             </Button>
           </Card>
         ) : (
-          <div className="grid gap-4">
-            {filteredAudits.map((audit) => (
-              <Card key={audit.id} className="p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <MapPin className="h-5 w-5 text-primary mt-0.5" />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{audit.location_name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(audit.started_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                        </p>
-                      </div>
-                      {getStatusBadge(audit.status)}
-                    </div>
+          <div className="space-y-6">
+            {companyGroups.map((company) => (
+              <Card key={company.company_id} className="p-6">
+                <h2 className="text-xl font-bold mb-4 text-primary">{company.company_name}</h2>
+                <div className="space-y-3">
+                  {company.audits.map((audit) => (
+                    <Card key={audit.id} className="p-4 bg-muted/30 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-start gap-3">
+                            <MapPin className="h-5 w-5 text-primary mt-0.5" />
+                            <div className="flex-1">
+                              <h3 className="font-semibold">{audit.location_name}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(audit.started_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                              </p>
+                            </div>
+                            {getStatusBadge(audit.status)}
+                          </div>
 
-                    {audit.status === 'completed' && audit.score !== null && (
-                      <div className="flex items-center gap-4 pl-8">
-                        <div className="flex items-center gap-2">
-                          <span className="text-3xl font-bold">{audit.score.toFixed(1)}</span>
-                          <span className="text-muted-foreground">/10</span>
+                          {audit.status === 'completed' && audit.score !== null && (
+                            <div className="flex items-center gap-4 pl-8">
+                              <div className="flex items-center gap-2">
+                                <span className="text-3xl font-bold">{audit.score.toFixed(1)}</span>
+                                <span className="text-muted-foreground">/10</span>
+                              </div>
+                              <ScoreLevelIndicator level={getScoreLevel(audit.score)} showLabel={false} />
+                            </div>
+                          )}
+
+                          {audit.next_audit_date && (
+                            <div className="flex items-center gap-2 pl-8 text-sm text-muted-foreground">
+                              <Calendar className="h-4 w-4" />
+                              Próxima auditoria: {format(new Date(audit.next_audit_date), "dd/MM/yyyy", { locale: ptBR })}
+                            </div>
+                          )}
                         </div>
-                        <ScoreLevelIndicator level={getScoreLevel(audit.score)} showLabel={false} />
-                      </div>
-                    )}
 
-                    {audit.next_audit_date && (
-                      <div className="flex items-center gap-2 pl-8 text-sm text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
-                        Próxima auditoria: {format(new Date(audit.next_audit_date), "dd/MM/yyyy", { locale: ptBR })}
+                        <Button
+                          onClick={() => navigate(`/auditor/auditoria/${audit.id}`)}
+                          variant={audit.status === 'in_progress' ? 'default' : 'outline'}
+                        >
+                          {audit.status === 'in_progress' ? (
+                            <>Continuar</>
+                          ) : (
+                            <>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Ver Detalhes
+                            </>
+                          )}
+                        </Button>
                       </div>
-                    )}
-                  </div>
-
-                  <Button
-                    onClick={() => navigate(`/auditor/auditoria/${audit.id}`)}
-                    variant={audit.status === 'in_progress' ? 'default' : 'outline'}
-                  >
-                    {audit.status === 'in_progress' ? (
-                      <>Continuar</>
-                    ) : (
-                      <>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Ver Detalhes
-                      </>
-                    )}
-                  </Button>
+                    </Card>
+                  ))}
                 </div>
               </Card>
             ))}
