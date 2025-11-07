@@ -13,36 +13,34 @@ import { ptBR } from "date-fns/locale";
 import { AuditChecklist } from "@/components/auditoria/AuditChecklist";
 import { AuditResult } from "@/components/auditoria/AuditResult";
 import type { Audit, AuditItem } from "@/types/audit";
-
 interface AuditWithLocation extends Audit {
   location_name: string;
 }
-
 export default function DetalhesAuditoria() {
-  const { id } = useParams();
+  const {
+    id
+  } = useParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const [audit, setAudit] = useState<AuditWithLocation | null>(null);
   const [items, setItems] = useState<AuditItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
   useEffect(() => {
     if (id) {
       fetchAuditDetails();
     }
   }, [id]);
-
   const fetchAuditDetails = async () => {
     try {
-      const { data: auditData, error: auditError } = await supabase
-        .from('audits')
-        .select(`
+      const {
+        data: auditData,
+        error: auditError
+      } = await supabase.from('audits').select(`
           *,
           environments!audits_location_id_fkey(name)
-        `)
-        .eq('id', id)
-        .single();
-
+        `).eq('id', id).single();
       if (auditError) throw auditError;
 
       // Type cast to ensure TypeScript compatibility
@@ -54,13 +52,10 @@ export default function DetalhesAuditoria() {
         location_name: auditData.environments.name
       };
       setAudit(auditWithLocation);
-
-      const { data: itemsData, error: itemsError } = await supabase
-        .from('audit_items')
-        .select('*')
-        .eq('audit_id', id)
-        .order('created_at');
-
+      const {
+        data: itemsData,
+        error: itemsError
+      } = await supabase.from('audit_items').select('*').eq('audit_id', id).order('created_at');
       if (itemsError) throw itemsError;
       setItems(itemsData || []);
     } catch (error) {
@@ -74,81 +69,68 @@ export default function DetalhesAuditoria() {
       setIsLoading(false);
     }
   };
-
   if (isLoading || !audit) {
-    return (
-      <CompanyAdminLayout breadcrumbs={[
-        { label: "Minhas Auditorias", href: "/auditor/minhas-auditorias" },
-        { label: "Detalhes" }
-      ]}>
+    return <CompanyAdminLayout breadcrumbs={[{
+      label: "Minhas Auditorias",
+      href: "/auditor/minhas-auditorias"
+    }, {
+      label: "Detalhes"
+    }]}>
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </CompanyAdminLayout>
-    );
+      </CompanyAdminLayout>;
   }
-
   if (isLoading || !audit) {
-    return (
-      <CompanyAdminLayout breadcrumbs={[
-        { label: "Minhas Auditorias", href: "/auditor/minhas-auditorias" },
-        { label: "Detalhes" }
-      ]}>
+    return <CompanyAdminLayout breadcrumbs={[{
+      label: "Minhas Auditorias",
+      href: "/auditor/minhas-auditorias"
+    }, {
+      label: "Detalhes"
+    }]}>
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </CompanyAdminLayout>
-    );
+      </CompanyAdminLayout>;
   }
 
   // Se a auditoria está em andamento, mostra o checklist
   if (audit.status === 'in_progress') {
-    return (
-      <CompanyAdminLayout breadcrumbs={[
-        { label: "Minhas Auditorias", href: "/auditor/minhas-auditorias" },
-        { label: audit.location_name }
-      ]}>
+    return <CompanyAdminLayout breadcrumbs={[{
+      label: "Minhas Auditorias",
+      href: "/auditor/minhas-auditorias"
+    }, {
+      label: audit.location_name
+    }]}>
         <div className="p-6 max-w-4xl mx-auto space-y-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/auditor/minhas-auditorias')}
-            className="mb-4"
-          >
+          <Button variant="ghost" onClick={() => navigate('/auditor/minhas-auditorias')} className="mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>
 
-          <AuditChecklist
-            auditId={audit.id}
-            onCompleted={() => {
-              toast({
-                title: "Auditoria concluída!",
-                description: "Os dados foram salvos com sucesso."
-              });
-              navigate('/auditor/minhas-auditorias');
-            }}
-          />
+          <AuditChecklist auditId={audit.id} onCompleted={() => {
+          toast({
+            title: "Auditoria concluída!",
+            description: "Os dados foram salvos com sucesso."
+          });
+          navigate('/auditor/minhas-auditorias');
+        }} />
         </div>
-      </CompanyAdminLayout>
-    );
+      </CompanyAdminLayout>;
   }
 
   // Se a auditoria está concluída, mostra os detalhes
   const scoreLevel = audit.score ? getScoreLevel(audit.score) : 'low';
   const yesItems = items.filter(item => item.answer === true);
   const noItems = items.filter(item => item.answer === false);
-
-  return (
-    <CompanyAdminLayout breadcrumbs={[
-      { label: "Minhas Auditorias", href: "/auditor/minhas-auditorias" },
-      { label: "Detalhes" }
-    ]}>
+  return <CompanyAdminLayout breadcrumbs={[{
+    label: "Minhas Auditorias",
+    href: "/auditor/minhas-auditorias"
+  }, {
+    label: "Detalhes"
+  }]}>
       <div className="p-6 max-w-4xl mx-auto space-y-6">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/auditor/minhas-auditorias')}
-          className="mb-4"
-        >
+        <Button variant="ghost" onClick={() => navigate('/auditor/minhas-auditorias')} className="mb-4">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Voltar
         </Button>
@@ -162,20 +144,17 @@ export default function DetalhesAuditoria() {
                   <h1 className="text-2xl font-bold">{audit.location_name}</h1>
                 </div>
                 <p className="text-muted-foreground">
-                  {format(new Date(audit.started_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  {format(new Date(audit.started_at), "dd/MM/yyyy 'às' HH:mm", {
+                  locale: ptBR
+                })}
                 </p>
               </div>
-              <Badge className={
-                audit.status === 'completed' 
-                  ? "bg-green-100 text-green-700 border-green-300"
-                  : "bg-blue-100 text-blue-700 border-blue-300"
-              }>
+              <Badge className={audit.status === 'completed' ? "bg-green-100 text-green-700 border-green-300" : "bg-blue-100 text-blue-700 border-blue-300"}>
                 {audit.status === 'completed' ? 'Concluída' : 'Em Andamento'}
               </Badge>
             </div>
 
-            {audit.status === 'completed' && (
-              <>
+            {audit.status === 'completed' && <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-4 bg-green-50 rounded-lg">
                     <div className="flex items-center justify-center gap-2 text-green-600 mb-1">
@@ -203,75 +182,59 @@ export default function DetalhesAuditoria() {
                     <ScoreLevelIndicator level={scoreLevel} />
                   </div>
                 </div>
-              </>
-            )}
+              </>}
 
-            {audit.next_audit_date && (
-              <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg text-sm">
+            {audit.next_audit_date && <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg text-sm">
                 <Calendar className="h-4 w-4 text-blue-600" />
                 <span className="text-blue-900">
-                  Próxima auditoria agendada para: {format(new Date(audit.next_audit_date), "dd/MM/yyyy", { locale: ptBR })}
+                  Próxima auditoria agendada para: {format(new Date(audit.next_audit_date), "dd/MM/yyyy", {
+                locale: ptBR
+              })}
                 </span>
-              </div>
-            )}
+              </div>}
 
-            {audit.observations && (
-              <div className="space-y-2">
+            {audit.observations && <div className="space-y-2">
                 <h3 className="font-semibold">Observações Gerais</h3>
                 <p className="text-muted-foreground">{audit.observations}</p>
-              </div>
-            )}
+              </div>}
           </div>
         </Card>
 
-        {audit.status === 'completed' && (
-          <Card className="p-6">
+        {audit.status === 'completed' && <Card className="p-6">
             <h2 className="text-xl font-bold mb-4">Respostas Detalhadas</h2>
             <div className="space-y-4">
-              {yesItems.length > 0 && (
-                <div className="space-y-2">
+              {yesItems.length > 0 && <div className="space-y-2">
                   <h3 className="font-semibold text-green-600 flex items-center gap-2">
                     <Check className="h-4 w-4" />
                     Conformidades ({yesItems.length})
                   </h3>
                   <div className="space-y-2">
-                    {yesItems.map((item, index) => (
-                      <div key={item.id} className="p-3 bg-green-50 rounded-lg">
+                    {yesItems.map((item, index) => <div key={item.id} className="p-3 rounded-lg bg-gray-900">
                         <p className="text-sm">
                           <span className="font-medium">Pergunta {index + 1}:</span> {item.question}
                         </p>
-                      </div>
-                    ))}
+                      </div>)}
                   </div>
-                </div>
-              )}
+                </div>}
 
-              {noItems.length > 0 && (
-                <div className="space-y-2">
+              {noItems.length > 0 && <div className="space-y-2">
                   <h3 className="font-semibold text-red-600 flex items-center gap-2">
                     <X className="h-4 w-4" />
                     Não-Conformidades ({noItems.length})
                   </h3>
                   <div className="space-y-3">
-                    {noItems.map((item, index) => (
-                      <div key={item.id} className="p-4 bg-red-50 rounded-lg space-y-2">
+                    {noItems.map((item, index) => <div key={item.id} className="p-4 bg-red-50 rounded-lg space-y-2">
                         <p className="text-sm">
                           <span className="font-medium">Pergunta {index + 1}:</span> {item.question}
                         </p>
-                        {item.comment && (
-                          <p className="text-sm text-muted-foreground pl-4 border-l-2 border-red-300">
+                        {item.comment && <p className="text-sm text-muted-foreground pl-4 border-l-2 border-red-300">
                             {item.comment}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                          </p>}
+                      </div>)}
                   </div>
-                </div>
-              )}
+                </div>}
             </div>
-          </Card>
-        )}
+          </Card>}
       </div>
-    </CompanyAdminLayout>
-  );
+    </CompanyAdminLayout>;
 }
