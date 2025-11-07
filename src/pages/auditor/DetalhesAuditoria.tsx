@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AuditChecklist } from "@/components/auditoria/AuditChecklist";
 import { AuditResult } from "@/components/auditoria/AuditResult";
+import { cn } from "@/lib/utils";
 import type { Audit, AuditItem } from "@/types/audit";
 interface AuditWithLocation extends Audit {
   location_name: string;
@@ -102,9 +103,9 @@ export default function DetalhesAuditoria() {
     }, {
       label: audit.location_name
     }]}>
-        <div className="p-6 max-w-4xl mx-auto space-y-6">
-          <Button variant="ghost" onClick={() => navigate('/auditor/minhas-auditorias')} className="mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+        <div className="p-3 sm:p-6 max-w-4xl mx-auto space-y-3 sm:space-y-6">
+          <Button variant="ghost" onClick={() => navigate('/auditor/minhas-auditorias')} className="mb-2 sm:mb-4 text-xs sm:text-sm">
+            <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
             Voltar
           </Button>
 
@@ -129,27 +130,30 @@ export default function DetalhesAuditoria() {
   }, {
     label: "Detalhes"
   }]}>
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
-        <Button variant="ghost" onClick={() => navigate('/auditor/minhas-auditorias')} className="mb-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
+      <div className="p-3 sm:p-6 max-w-4xl mx-auto space-y-3 sm:space-y-6">
+        <Button variant="ghost" onClick={() => navigate('/auditor/minhas-auditorias')} className="mb-2 sm:mb-4 text-xs sm:text-sm">
+          <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
           Voltar
         </Button>
 
-        <Card className="p-6">
-          <div className="space-y-6">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
+        <Card className="p-3 sm:p-6">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex items-start justify-between gap-2">
+              <div className="space-y-1 min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  <h1 className="text-2xl font-bold">{audit.location_name}</h1>
+                  <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+                  <h1 className="text-lg sm:text-2xl font-bold truncate">{audit.location_name}</h1>
                 </div>
-                <p className="text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {format(new Date(audit.started_at), "dd/MM/yyyy 'às' HH:mm", {
                   locale: ptBR
                 })}
                 </p>
               </div>
-              <Badge className={audit.status === 'completed' ? "bg-green-100 text-green-700 border-green-300" : "bg-blue-100 text-blue-700 border-blue-300"}>
+              <Badge className={cn(
+                "flex-shrink-0 text-xs",
+                audit.status === 'completed' ? "bg-green-100 text-green-700 border-green-300" : "bg-blue-100 text-blue-700 border-blue-300"
+              )}>
                 {audit.status === 'completed' ? 'Concluída' : 'Em Andamento'}
               </Badge>
             </div>

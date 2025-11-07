@@ -104,42 +104,42 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
 
   return (
     <Card className={cn(
-      "p-4 transition-colors",
+      "p-3 sm:p-4 transition-colors",
       item.answer === true && "bg-success/10 border-success/30 dark:bg-success/20",
       item.answer === false && "bg-destructive/10 border-destructive/30 dark:bg-destructive/20"
     )}>
       <div className="space-y-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <p className="font-medium mb-1 text-foreground">
-              <span className="text-muted-foreground mr-2">Pergunta {index + 1}:</span>
+        <div className="flex flex-col gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-xs sm:text-sm text-foreground">
+              <span className="text-muted-foreground mr-1">Pergunta {index + 1}:</span>
               {item.question}
             </p>
           </div>
 
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2 w-full">
             <Button
               variant={item.answer === true ? "default" : "outline"}
-              size="lg"
+              size="sm"
               onClick={() => handleAnswer(true)}
               className={cn(
-                "min-w-[80px]",
+                "flex-1 text-xs sm:text-sm",
                 item.answer === true && "bg-success hover:bg-success/90"
               )}
             >
-              <Check className="h-5 w-5 mr-1" />
+              <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
               Sim
             </Button>
             <Button
               variant={item.answer === false ? "default" : "outline"}
-              size="lg"
+              size="sm"
               onClick={() => handleAnswer(false)}
               className={cn(
-                "min-w-[80px]",
+                "flex-1 text-xs sm:text-sm",
                 item.answer === false && "bg-destructive hover:bg-destructive/90"
               )}
             >
-              <X className="h-5 w-5 mr-1" />
+              <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
               Não
             </Button>
           </div>
@@ -148,7 +148,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
         {showDetails && item.answer !== null && (
           <div className="space-y-3 pt-3 border-t">
             <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">
+              <label className="text-xs sm:text-sm font-medium mb-2 block text-foreground">
                 Comentário {item.answer === false ? "(obrigatório)" : "(opcional)"}
               </label>
               <Textarea
@@ -158,13 +158,13 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
                   ? "Descreva a não-conformidade encontrada..." 
                   : "Adicione observações sobre esta conformidade..."
                 }
-                className="min-h-[80px] bg-background text-foreground"
+                className="min-h-[60px] sm:min-h-[80px] bg-background text-foreground text-xs sm:text-sm"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium block text-red-600">
-                <Camera className="h-4 w-4 inline mr-1" />
+              <label className="text-xs sm:text-sm font-medium block text-red-600">
+                <Camera className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" />
                 Foto de Evidência (obrigatória)
               </label>
               
@@ -182,16 +182,16 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
                   <img 
                     src={photoUrl} 
                     alt="Evidência" 
-                    className="w-full max-h-64 object-cover rounded-lg border"
+                    className="w-full max-h-48 sm:max-h-64 object-cover rounded-lg border"
                   />
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={handlePhotoClick}
                     disabled={isUploading}
-                    className="w-full"
+                    className="w-full text-xs"
                   >
-                    <Camera className="h-4 w-4 mr-2" />
+                    <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                     Trocar Foto
                   </Button>
                 </div>
@@ -201,16 +201,16 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
                   size="sm"
                   onClick={handlePhotoClick}
                   disabled={isUploading}
-                  className="w-full border-red-300 hover:border-red-400"
+                  className="w-full border-red-300 hover:border-red-400 text-xs"
                 >
                   {isUploading ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-2 animate-spin" />
                       Enviando...
                     </>
                   ) : (
                     <>
-                      <Camera className="h-4 w-4 mr-2" />
+                      <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                       Tirar Foto
                     </>
                   )}

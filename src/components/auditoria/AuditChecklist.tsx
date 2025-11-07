@@ -187,16 +187,16 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
   const answered = items.filter(item => item.answer !== null).length;
 
   return (
-    <div className="space-y-6">
-      <Card className="p-6">
-        <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-6">
+      <Card className="p-3 sm:p-6">
+        <div className="space-y-3 sm:space-y-4">
           <div>
-            <h2 className="text-2xl font-bold">Avalie o Nível de Gestão 5S</h2>
-            <p className="text-muted-foreground">Local: {locationName}</p>
+            <h2 className="text-lg sm:text-2xl font-bold">Avalie o Nível de Gestão 5S</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Local: {locationName}</p>
           </div>
 
           <div className="space-y-2">
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-xs sm:text-sm">
               <span className="text-muted-foreground">Progresso</span>
               <span className="font-medium">{answered} de {items.length}</span>
             </div>
@@ -205,7 +205,7 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
         </div>
       </Card>
 
-      <div className="space-y-3">
+      <div className="space-y-2 sm:space-y-3">
         {items.map((item, index) => (
           <ChecklistItem
             key={item.id}
@@ -216,28 +216,28 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
         ))}
       </div>
 
-      <Card className="p-6">
-        <div className="flex gap-3">
+      <Card className="p-3 sm:p-6">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <Button
             variant="outline"
             onClick={handleSaveDraft}
             disabled={isSaving}
-            className="flex-1"
+            className="flex-1 text-xs sm:text-sm"
           >
             {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin mr-2" />
             ) : (
-              <Save className="h-4 w-4 mr-2" />
+              <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
             )}
             Salvar Rascunho
           </Button>
           <Button
             onClick={handleComplete}
             disabled={isSaving || progress < 100}
-            className="flex-1"
+            className="flex-1 text-xs sm:text-sm"
           >
             {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin mr-2" />
             ) : null}
             Finalizar Auditoria
           </Button>
