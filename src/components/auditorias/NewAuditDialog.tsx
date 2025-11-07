@@ -131,7 +131,7 @@ export function NewAuditDialog({
 
       if (auditError) throw auditError;
 
-      // Buscar critérios vinculados ao local
+      // Buscar critérios vinculados ao local específico
       const { data: criteriaLinks, error: criteriaError } = await supabase
         .from('environment_criteria')
         .select('criterion_id')
@@ -139,17 +139,34 @@ export function NewAuditDialog({
 
       if (criteriaError) throw criteriaError;
 
-      if (!criteriaLinks || criteriaLinks.length === 0) {
-        throw new Error('Nenhum critério vinculado a este local');
+      let criteria;
+
+      // Se o local tem critérios específicos, usar esses
+      if (criteriaLinks && criteriaLinks.length > 0) {
+        const { data: specificCriteria, error: fetchError } = await supabase
+          .from('company_criteria')
+          .select('id, name')
+          .in('id', criteriaLinks.map(link => link.criterion_id))
+          .eq('status', 'active');
+
+        if (fetchError) throw fetchError;
+        criteria = specificCriteria;
+      } else {
+        // Senão, buscar TODOS os critérios ativos da empresa
+        const { data: companyCriteria, error: fetchError } = await supabase
+          .from('company_criteria')
+          .select('id, name')
+          .eq('company_id', preSelectedCompanyId)
+          .eq('status', 'active');
+
+        if (fetchError) throw fetchError;
+        criteria = companyCriteria;
       }
 
-      // Buscar detalhes dos critérios
-      const { data: criteria, error: fetchError } = await supabase
-        .from('company_criteria')
-        .select('id, name')
-        .in('id', criteriaLinks.map(link => link.criterion_id));
-
-      if (fetchError) throw fetchError;
+      // Validar se há critérios disponíveis
+      if (!criteria || criteria.length === 0) {
+        throw new Error('Nenhum critério ativo disponível para esta empresa. Entre em contato com o administrador.');
+      }
 
       // Criar itens de auditoria
       const auditItems = criteria.map(criterion => ({
