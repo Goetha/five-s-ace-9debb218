@@ -57,26 +57,32 @@ export default function Empresas() {
         setCompanies(saved ? JSON.parse(saved) : mockCompanies);
       } else {
         console.log('✅ Empresas carregadas do backend:', data);
-        // Map backend data to Company type
-        const backendCompanies: Company[] = data.map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          cnpj: c.cnpj || '-',
-          logo: null,
-          admin: {
-            name: '-',
-            email: c.email || '-',
-          },
-          total_users: 1,
-          created_at: c.created_at,
-          last_activity: null,
-          status: c.status,
-          address: c.address || '-',
-          city: c.city,
-          state: c.state,
-          phone: c.phone || '-',
-          email: c.email,
-        }));
+        
+        // For each company, fetch the actual company admin user
+        const backendCompanies: Company[] = await Promise.all(
+          data.map(async (c: any) => {
+            // Fetch company admin for this company
+            const adminData = await fetchCompanyAdmin(c.id);
+            
+            return {
+              id: c.id,
+              name: c.name,
+              cnpj: c.cnpj || '-',
+              logo: null,
+              admin: adminData,
+              total_users: 1,
+              created_at: c.created_at,
+              last_activity: null,
+              status: c.status,
+              address: c.address || '-',
+              city: c.city,
+              state: c.state,
+              phone: c.phone || '-',
+              email: c.email, // Contact email of the company
+            };
+          })
+        );
+        
         setCompanies(backendCompanies);
       }
     } catch (error) {
@@ -85,6 +91,60 @@ export default function Empresas() {
       setCompanies(saved ? JSON.parse(saved) : mockCompanies);
     } finally {
       setIsLoadingCompanies(false);
+    }
+  };
+
+  // Helper function to fetch the company admin user
+  const fetchCompanyAdmin = async (companyId: string): Promise<{ name: string; email: string }> => {
+    try {
+      // Find users linked to this company
+      const { data: userCompanies, error: ucError } = await supabase
+        .from('user_companies')
+        .select('user_id')
+        .eq('company_id', companyId);
+
+      if (ucError || !userCompanies || userCompanies.length === 0) {
+        return { name: '-', email: '-' };
+      }
+
+      // Check which of these users has company_admin role
+      for (const uc of userCompanies) {
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', uc.user_id)
+          .eq('role', 'company_admin')
+          .maybeSingle();
+
+        if (!roleError && roleData) {
+          // This user is a company admin, fetch their profile
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', uc.user_id)
+            .maybeSingle();
+
+          if (!profileError && profileData) {
+            // Fetch email from auth.users via admin API (not accessible via RLS)
+            // For now, we'll use a workaround: store email in a way we can access it
+            // Since we can't access auth.users directly, we'll fetch it via edge function
+            // or use the email from raw_user_meta_data stored in profiles
+            
+            // Try to get user email via Supabase auth
+            const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(uc.user_id);
+            
+            return {
+              name: profileData.full_name || '-',
+              email: user?.email || '-',
+            };
+          }
+        }
+      }
+
+      return { name: '-', email: '-' };
+    } catch (error) {
+      console.error('Error fetching company admin:', error);
+      return { name: '-', email: '-' };
     }
   };
 
