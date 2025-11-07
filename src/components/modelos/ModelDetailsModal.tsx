@@ -126,43 +126,46 @@ export default function ModelDetailsModal({ open, onOpenChange, model }: ModelDe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Detalhes do Modelo</DialogTitle>
-          <DialogDescription>Informações completas do modelo mestre selecionado</DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">Detalhes do Modelo</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">Informações completas do modelo mestre selecionado</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Header */}
-          <div className="space-y-1">
-            <div className="flex items-start justify-between gap-4">
-              <h3 className="text-xl font-semibold text-foreground">{model.name}</h3>
-              <Badge variant={model.status === "active" ? "default" : "secondary"}>
+          <div className="space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
+              <h3 className="text-lg sm:text-xl font-semibold text-foreground break-words">{model.name}</h3>
+              <Badge variant={model.status === "active" ? "default" : "secondary"} className="w-fit">
                 {model.status === "active" ? "Ativo" : "Inativo"}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">{model.description}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">{model.description}</p>
           </div>
 
           {/* Meta */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 gap-2 sm:gap-3 text-xs sm:text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4" /> Criado em {formatDate(model.created_at)}
+              <Calendar className="h-4 w-4 flex-shrink-0" /> 
+              <span className="break-words">Criado em {formatDate(model.created_at)}</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <RefreshCw className="h-4 w-4" /> Atualizado {getTimeAgo(model.updated_at)}
+              <RefreshCw className="h-4 w-4 flex-shrink-0" /> 
+              <span className="break-words">Atualizado {getTimeAgo(model.updated_at)}</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Building className="h-4 w-4" /> {model.companies_using} empresas usando
+              <Building className="h-4 w-4 flex-shrink-0" /> 
+              <span className="break-words">{model.companies_using} empresas usando</span>
             </div>
           </div>
 
           {/* Distribuição por senso */}
           <div>
-            <p className="text-sm font-medium text-muted-foreground mb-2">Distribuição por Senso</p>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-2">Distribuição por Senso</p>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {Object.entries(model.criteria_by_senso).map(([senso, count]) => (
-                <Badge key={senso} variant="outline" className={sensoColors[senso]}>
+                <Badge key={senso} variant="outline" className={`${sensoColors[senso]} text-xs`}>
                   {senso}: {count}
                 </Badge>
               ))}
@@ -172,26 +175,26 @@ export default function ModelDetailsModal({ open, onOpenChange, model }: ModelDe
           {/* Empresas vinculadas */}
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Building className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-medium text-muted-foreground">
+              <Building className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">
                 Empresas vinculadas ({companies.length})
               </p>
             </div>
-            <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+            <div className="border rounded-lg divide-y max-h-40 sm:max-h-48 overflow-y-auto">
               {isLoadingCompanies ? (
-                <div className="p-3 space-y-2">
-                  <Skeleton className="h-5 w-full" />
-                  <Skeleton className="h-5 w-3/4" />
+                <div className="p-2 sm:p-3 space-y-2">
+                  <Skeleton className="h-4 sm:h-5 w-full" />
+                  <Skeleton className="h-4 sm:h-5 w-3/4" />
                 </div>
               ) : companies.length > 0 ? (
                 companies.map((company) => (
-                  <div key={company.id} className="p-3">
-                    <p className="text-sm font-medium">{company.name}</p>
+                  <div key={company.id} className="p-2 sm:p-3">
+                    <p className="text-xs sm:text-sm font-medium break-words">{company.name}</p>
                   </div>
                 ))
               ) : (
-                <div className="p-4 text-center">
-                  <p className="text-sm text-[hsl(var(--muted-foreground))] [&:not(:where(a))]:text-[hsl(var(--muted-foreground))]">
+                <div className="p-3 sm:p-4 text-center">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Nenhuma empresa vinculada.
                   </p>
                 </div>
@@ -202,35 +205,35 @@ export default function ModelDetailsModal({ open, onOpenChange, model }: ModelDe
           {/* Lista de critérios */}
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Tags className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-medium text-muted-foreground">
+              <Tags className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">
                 Critérios deste modelo ({model.total_criteria})
               </p>
             </div>
-            <div className="border rounded-lg divide-y max-h-64 overflow-y-auto">
+            <div className="border rounded-lg divide-y max-h-48 sm:max-h-64 overflow-y-auto">
               {isLoadingCriteria ? (
-                <div className="p-3 space-y-2">
-                  <Skeleton className="h-5 w-full" />
-                  <Skeleton className="h-5 w-full" />
-                  <Skeleton className="h-5 w-3/4" />
+                <div className="p-2 sm:p-3 space-y-2">
+                  <Skeleton className="h-4 sm:h-5 w-full" />
+                  <Skeleton className="h-4 sm:h-5 w-full" />
+                  <Skeleton className="h-4 sm:h-5 w-3/4" />
                 </div>
               ) : criteria.length > 0 ? (
                 criteria.map((c) => (
-                  <div key={c.id} className="p-3 flex items-center justify-between">
+                  <div key={c.id} className="p-2 sm:p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{c.name}</p>
-                      <p className="text-xs text-muted-foreground">{c.scoring_type}</p>
+                      <p className="text-xs sm:text-sm font-medium break-words">{c.name}</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">{c.scoring_type}</p>
                     </div>
-                    <div className="flex flex-wrap gap-1 ml-2">
+                    <div className="flex flex-wrap gap-1">
                       {c.senso.map((s) => (
-                        <Badge key={s} variant="outline" className={sensoColors[s]}>{s}</Badge>
+                        <Badge key={s} variant="outline" className={`${sensoColors[s]} text-[10px] sm:text-xs`}>{s}</Badge>
                       ))}
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="p-4 text-center">
-                  <p className="text-sm text-[hsl(var(--muted-foreground))] [&:not(:where(a))]:text-[hsl(var(--muted-foreground))]">
+                <div className="p-3 sm:p-4 text-center">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     Nenhum critério vinculado.
                   </p>
                 </div>
@@ -239,8 +242,8 @@ export default function ModelDetailsModal({ open, onOpenChange, model }: ModelDe
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">Fechar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
