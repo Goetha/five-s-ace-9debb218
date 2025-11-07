@@ -10,6 +10,8 @@ import { ScoreLevelIndicator, getScoreLevel } from "@/components/modelos/ScoreLe
 import { ArrowLeft, Calendar, Check, Loader2, MapPin, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AuditChecklist } from "@/components/auditoria/AuditChecklist";
+import { AuditResult } from "@/components/auditoria/AuditResult";
 import type { Audit, AuditItem } from "@/types/audit";
 
 interface AuditWithLocation extends Audit {
@@ -86,6 +88,52 @@ export default function DetalhesAuditoria() {
     );
   }
 
+  if (isLoading || !audit) {
+    return (
+      <CompanyAdminLayout breadcrumbs={[
+        { label: "Minhas Auditorias", href: "/auditor/minhas-auditorias" },
+        { label: "Detalhes" }
+      ]}>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </CompanyAdminLayout>
+    );
+  }
+
+  // Se a auditoria está em andamento, mostra o checklist
+  if (audit.status === 'in_progress') {
+    return (
+      <CompanyAdminLayout breadcrumbs={[
+        { label: "Minhas Auditorias", href: "/auditor/minhas-auditorias" },
+        { label: audit.location_name }
+      ]}>
+        <div className="p-6 max-w-4xl mx-auto space-y-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/auditor/minhas-auditorias')}
+            className="mb-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+
+          <AuditChecklist
+            auditId={audit.id}
+            onCompleted={() => {
+              toast({
+                title: "Auditoria concluída!",
+                description: "Os dados foram salvos com sucesso."
+              });
+              navigate('/auditor/minhas-auditorias');
+            }}
+          />
+        </div>
+      </CompanyAdminLayout>
+    );
+  }
+
+  // Se a auditoria está concluída, mostra os detalhes
   const scoreLevel = audit.score ? getScoreLevel(audit.score) : 'low';
   const yesItems = items.filter(item => item.answer === true);
   const noItems = items.filter(item => item.answer === false);
