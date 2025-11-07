@@ -33,7 +33,6 @@ import {
   Eye,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { NewUserModal } from "../users/NewUserModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Environment } from "@/types/environment";
@@ -69,7 +68,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
   const [description, setDescription] = useState("");
   const [selectedParentId, setSelectedParentId] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
-  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [availableEnvironments, setAvailableEnvironments] = useState<any[]>([]);
   const [availableModels, setAvailableModels] = useState<any[]>([]);
@@ -612,16 +610,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           </div>
         </form>
       </DialogContent>
-      
-      {/* Modal de Criar Usuário */}
-      <NewUserModal 
-        open={isUserModalOpen}
-        onOpenChange={setIsUserModalOpen}
-        onSuccess={() => {
-          setIsUserModalOpen(false);
-          fetchData();
-        }}
-      />
     </Dialog>
   );
 }
