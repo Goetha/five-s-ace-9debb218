@@ -5,8 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Building2, MapPin } from "lucide-react";
+import { Building2, MapPin, Building } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+interface Company {
+  id: string;
+  name: string;
+}
 
 interface Environment {
   id: string;
@@ -15,12 +20,14 @@ interface Environment {
 }
 
 interface LocationSelectorProps {
-  onLocationSelected: (locationId: string) => void;
+  onLocationSelected: (locationId: string, companyId: string) => void;
 }
 
 export function LocationSelector({ onLocationSelected }: LocationSelectorProps) {
-  const { companyInfo } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState<string>("");
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [locations, setLocations] = useState<Environment[]>([]);
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>("");
@@ -28,8 +35,19 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchEnvironments();
-  }, [companyInfo]);
+    fetchUserCompanies();
+  }, [user]);
+
+  useEffect(() => {
+    if (selectedCompany) {
+      fetchEnvironments(selectedCompany);
+    } else {
+      setEnvironments([]);
+      setLocations([]);
+      setSelectedEnvironment("");
+      setSelectedLocation("");
+    }
+  }, [selectedCompany]);
 
   useEffect(() => {
     if (selectedEnvironment) {
@@ -40,14 +58,54 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
     }
   }, [selectedEnvironment]);
 
-  const fetchEnvironments = async () => {
-    if (!companyInfo) return;
+  const fetchUserCompanies = async () => {
+    if (!user) return;
 
+    try {
+      // Buscar empresas vinculadas ao usuário
+      const { data: userCompanies, error: ucError } = await supabase
+        .from('user_companies')
+        .select('company_id')
+        .eq('user_id', user.id);
+
+      if (ucError) throw ucError;
+
+      const companyIds = userCompanies.map(uc => uc.company_id);
+
+      // Buscar detalhes das empresas
+      const { data: companiesData, error: companiesError } = await supabase
+        .from('companies')
+        .select('id, name')
+        .in('id', companyIds)
+        .eq('status', 'active')
+        .order('name');
+
+      if (companiesError) throw companiesError;
+
+      setCompanies(companiesData || []);
+      
+      // Se tiver apenas uma empresa, seleciona automaticamente
+      if (companiesData && companiesData.length === 1) {
+        setSelectedCompany(companiesData[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+      toast({
+        title: "Erro ao carregar empresas",
+        description: "Tente novamente mais tarde.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchEnvironments = async (companyId: string) => {
     try {
       const { data, error } = await supabase
         .from('environments')
         .select('id, name, parent_id')
-        .eq('company_id', companyInfo.id)
+        .eq('company_id', companyId)
         .eq('status', 'active')
         .is('parent_id', null)
         .order('name');
@@ -61,8 +119,6 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
         description: "Tente novamente mais tarde.",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -88,8 +144,8 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
   };
 
   const handleStartAudit = () => {
-    if (selectedLocation) {
-      onLocationSelected(selectedLocation);
+    if (selectedLocation && selectedCompany) {
+      onLocationSelected(selectedLocation, selectedCompany);
     }
   };
 
@@ -112,14 +168,45 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
         </div>
 
         <div className="space-y-4">
+          {companies.length > 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="company" className="flex items-center gap-2">
+                <Building className="h-4 w-4" />
+                Empresa
+              </Label>
+              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                <SelectTrigger id="company">
+                  <SelectValue placeholder="Selecione uma empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="environment" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               Ambiente
             </Label>
-            <Select value={selectedEnvironment} onValueChange={setSelectedEnvironment}>
+            <Select 
+              value={selectedEnvironment} 
+              onValueChange={setSelectedEnvironment}
+              disabled={!selectedCompany || environments.length === 0}
+            >
               <SelectTrigger id="environment">
-                <SelectValue placeholder="Selecione um ambiente" />
+                <SelectValue placeholder={
+                  !selectedCompany 
+                    ? "Primeiro selecione uma empresa" 
+                    : environments.length === 0 
+                    ? "Nenhum ambiente disponível"
+                    : "Selecione um ambiente"
+                } />
               </SelectTrigger>
               <SelectContent>
                 {environments.map((env) => (

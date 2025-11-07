@@ -20,8 +20,8 @@ export default function NovaAuditoria() {
   const [auditId, setAuditId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  const handleLocationSelected = async (locationId: string) => {
-    if (!companyInfo || !user) return;
+  const handleLocationSelected = async (locationId: string, companyId: string) => {
+    if (!user) return;
     
     setIsCreating(true);
     try {
@@ -29,7 +29,7 @@ export default function NovaAuditoria() {
       const { data: audit, error } = await supabase
         .from('audits')
         .insert({
-          company_id: companyInfo.id,
+          company_id: companyId,
           location_id: locationId,
           auditor_id: user.id,
           status: 'in_progress'
@@ -43,7 +43,7 @@ export default function NovaAuditoria() {
       const { data: criteria, error: criteriaError } = await supabase
         .from('company_criteria')
         .select('id, name, description')
-        .eq('company_id', companyInfo.id)
+        .eq('company_id', companyId)
         .eq('status', 'active');
 
       if (criteriaError) throw criteriaError;
