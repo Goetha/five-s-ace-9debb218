@@ -26,7 +26,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (userRole) {
     const currentPath = location.pathname;
     
-    // IFA Admin should access IFA admin routes (/, /criterios, /empresas, /modelos-mestre)
+    // IFA Admin can access: /, /empresas, /avaliadores, /modelos-mestre, /criterios, /auditorias
+    // Block access to company admin and auditor routes
     if (userRole === 'ifa_admin') {
       if (currentPath.startsWith('/admin-empresa') || currentPath.startsWith('/auditor')) {
         return <Navigate to="/" replace />;
@@ -37,6 +38,13 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     if (userRole === 'company_admin') {
       if (!currentPath.startsWith('/admin-empresa') && !currentPath.startsWith('/auditor')) {
         return <Navigate to="/admin-empresa" replace />;
+      }
+    }
+    
+    // Auditor can only access auditor routes (/auditor/*)
+    if (userRole === 'auditor') {
+      if (!currentPath.startsWith('/auditor')) {
+        return <Navigate to="/auditor/minhas-auditorias" replace />;
       }
     }
   }
