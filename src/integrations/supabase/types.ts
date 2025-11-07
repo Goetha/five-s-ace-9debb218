@@ -14,6 +14,126 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_items: {
+        Row: {
+          answer: boolean | null
+          audit_id: string
+          comment: string | null
+          created_at: string
+          criterion_id: string
+          id: string
+          photo_url: string | null
+          question: string
+        }
+        Insert: {
+          answer?: boolean | null
+          audit_id: string
+          comment?: string | null
+          created_at?: string
+          criterion_id: string
+          id?: string
+          photo_url?: string | null
+          question: string
+        }
+        Update: {
+          answer?: boolean | null
+          audit_id?: string
+          comment?: string | null
+          created_at?: string
+          criterion_id?: string
+          id?: string
+          photo_url?: string | null
+          question?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_items_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "audits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_items_criterion_id_fkey"
+            columns: ["criterion_id"]
+            isOneToOne: false
+            referencedRelation: "company_criteria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audits: {
+        Row: {
+          auditor_id: string
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          location_id: string
+          next_audit_date: string | null
+          observations: string | null
+          score: number | null
+          score_level: string | null
+          started_at: string | null
+          status: string
+          total_no: number
+          total_questions: number
+          total_yes: number
+          updated_at: string
+        }
+        Insert: {
+          auditor_id: string
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          location_id: string
+          next_audit_date?: string | null
+          observations?: string | null
+          score?: number | null
+          score_level?: string | null
+          started_at?: string | null
+          status?: string
+          total_no?: number
+          total_questions?: number
+          total_yes?: number
+          updated_at?: string
+        }
+        Update: {
+          auditor_id?: string
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          location_id?: string
+          next_audit_date?: string | null
+          observations?: string | null
+          score?: number | null
+          score_level?: string | null
+          started_at?: string | null
+          status?: string
+          total_no?: number
+          total_questions?: number
+          total_yes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audits_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audits_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "environments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
