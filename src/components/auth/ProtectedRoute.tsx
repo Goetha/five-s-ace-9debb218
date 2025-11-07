@@ -28,14 +28,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     
     // IFA Admin should access IFA admin routes (/, /criterios, /empresas, /modelos-mestre)
     if (userRole === 'ifa_admin') {
-      if (currentPath.startsWith('/admin-empresa')) {
+      if (currentPath.startsWith('/admin-empresa') || currentPath.startsWith('/auditor')) {
         return <Navigate to="/" replace />;
       }
     }
     
-    // Company Admin should access company admin routes (/admin-empresa/*)
+    // Company Admin can access both company admin routes (/admin-empresa/*) and auditor routes (/auditor/*)
     if (userRole === 'company_admin') {
-      if (!currentPath.startsWith('/admin-empresa')) {
+      if (!currentPath.startsWith('/admin-empresa') && !currentPath.startsWith('/auditor')) {
         return <Navigate to="/admin-empresa" replace />;
       }
     }
