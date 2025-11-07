@@ -204,10 +204,10 @@ export function NewAuditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px]" aria-describedby="new-audit-description">
         <DialogHeader>
           <DialogTitle>Nova Auditoria</DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="new-audit-description">
             Selecione o ambiente e local para iniciar a auditoria
           </DialogDescription>
         </DialogHeader>
