@@ -100,31 +100,84 @@ const Auditorias = () => {
 
       // Buscar dados relacionados em paralelo
       const [environmentsRes, profilesRes] = await Promise.all([
-        supabase.from('environments').select('id, name, parent_id'),
+        supabase.from('environments').select('id, name, parent_id, company_id'),
         supabase.from('profiles').select('id, full_name')
       ]);
 
       if (environmentsRes.error) throw environmentsRes.error;
       if (profilesRes.error) throw profilesRes.error;
 
+      const envs = environmentsRes.data || [];
+      
       // Criar mapas para lookup rápido
       const companiesMap = new Map(companiesData?.map(c => [c.id, c]) || []);
-      const envMap = new Map(environmentsRes.data?.map(e => [e.id, e]) || []);
+      const envMap = new Map(envs.map(e => [e.id, e]));
       const profilesMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
 
-      // Processar dados em estrutura hierárquica
+      // Índice de filhos por parent_id
+      const childrenByParent = new Map<string, any[]>();
+      for (const e of envs) {
+        if (!e.parent_id) continue;
+        const arr = childrenByParent.get(e.parent_id) || [];
+        arr.push(e);
+        childrenByParent.set(e.parent_id, arr);
+      }
+
+      // Raiz por empresa (parent_id null)
+      const rootByCompany = new Map<string, any>();
+      for (const e of envs) {
+        if (e.parent_id === null && e.company_id) {
+          rootByCompany.set(e.company_id, e);
+        }
+      }
+
+      // 1) Inicializar hierarquia completa por empresa
       const grouped: { [key: string]: AuditGroupedData } = {};
+      for (const company of companiesData || []) {
+        grouped[company.id] = {
+          company_id: company.id,
+          company_name: company.name,
+          environments: []
+        };
+
+        const root = rootByCompany.get(company.id);
+        const secondLevel = root ? (childrenByParent.get(root.id) || []) : [];
+
+        // Ordenar por nome
+        secondLevel.sort((a: any, b: any) => a.name.localeCompare(b.name));
+
+        for (const env of secondLevel) {
+          const envGroup = {
+            environment_id: env.id,
+            environment_name: env.name,
+            locations: [] as any[]
+          };
+
+          const locations = (childrenByParent.get(env.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
+          for (const loc of locations) {
+            envGroup.locations.push({
+              location_id: loc.id,
+              location_name: loc.name,
+              audits: []
+            });
+          }
+
+          grouped[company.id].environments.push(envGroup);
+        }
+      }
+
+      // Métricas
       let total = 0;
       let completed = 0;
       let inProgress = 0;
       const scheduled: ScheduledAudit[] = [];
 
-      (auditsData || []).forEach((audit: any) => {
+      // 2) Preencher auditorias nas estruturas existentes
+      for (const audit of (auditsData || [])) {
         total++;
         if (audit.status === 'completed') completed++;
         if (audit.status === 'in_progress') inProgress++;
 
-        // Buscar dados relacionados dos mapas
         const company = companiesMap.get(audit.company_id);
         const locationEnv = envMap.get(audit.location_id);
         const parentEnv = locationEnv?.parent_id ? envMap.get(locationEnv.parent_id) : null;
@@ -141,51 +194,50 @@ const Auditorias = () => {
             next_audit_date: audit.next_audit_date
           });
         }
-        
-        const companyId = audit.company_id;
-        const companyName = company?.name || 'Sem nome';
-        const environmentId = parentEnv?.id || 'root';
-        const environmentName = parentEnv?.name || 'Sem ambiente';
-        const locationId = audit.location_id;
-        const locationName = locationEnv?.name || 'Sem local';
 
-        if (!grouped[companyId]) {
-          grouped[companyId] = {
-            company_id: companyId,
-            company_name: companyName,
-            environments: []
-          };
-        }
+        // Garantir que a empresa existe no grouped
+        const companyGroup = grouped[audit.company_id] || (grouped[audit.company_id] = {
+          company_id: audit.company_id,
+          company_name: company?.name || 'Sem nome',
+          environments: []
+        });
 
-        let env = grouped[companyId].environments.find(e => e.environment_id === environmentId);
-        if (!env) {
-          env = {
-            environment_id: environmentId,
-            environment_name: environmentName,
+        // Garantir existência do ambiente (andar)
+        let envGroup = parentEnv
+          ? companyGroup.environments.find(e => e.environment_id === parentEnv.id)
+          : undefined;
+
+        if (!envGroup && parentEnv) {
+          envGroup = {
+            environment_id: parentEnv.id,
+            environment_name: parentEnv.name || 'Sem ambiente',
             locations: []
           };
-          grouped[companyId].environments.push(env);
+          companyGroup.environments.push(envGroup);
         }
 
-        let loc = env.locations.find(l => l.location_id === locationId);
-        if (!loc) {
-          loc = {
-            location_id: locationId,
-            location_name: locationName,
-            audits: []
-          };
-          env.locations.push(loc);
-        }
+        // Garantir existência do local
+        if (locationEnv) {
+          let locGroup = envGroup?.locations.find(l => l.location_id === locationEnv.id);
+          if (!locGroup) {
+            locGroup = {
+              location_id: locationEnv.id,
+              location_name: locationEnv.name || 'Sem local',
+              audits: []
+            };
+            envGroup?.locations.push(locGroup);
+          }
 
-        loc.audits.push({
-          id: audit.id,
-          status: audit.status,
-          score: audit.score,
-          score_level: audit.score_level,
-          started_at: audit.started_at,
-          auditor_name: auditor?.full_name
-        });
-      });
+          locGroup?.audits.push({
+            id: audit.id,
+            status: audit.status,
+            score: audit.score,
+            score_level: audit.score_level,
+            started_at: audit.started_at,
+            auditor_name: auditor?.full_name
+          });
+        }
+      }
 
       const groupedArray = Object.values(grouped);
       setGroupedAudits(groupedArray);

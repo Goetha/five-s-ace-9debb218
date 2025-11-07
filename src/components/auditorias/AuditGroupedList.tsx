@@ -165,36 +165,42 @@ export function AuditGroupedList({ groupedAudits, onAuditClick }: AuditGroupedLi
                                 </span>
                               </div>
                               
-                              <div className="ml-8 space-y-2">
-                                {location.audits.map((audit) => (
-                                  <div
-                                    key={audit.id}
-                                    className="p-3 bg-muted/30 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/50 transition-all cursor-pointer"
-                                    onClick={() => onAuditClick(audit.id)}
-                                  >
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="space-y-1 flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          {getStatusBadge(audit.status)}
-                                          {audit.score_level && getScoreLevelBadge(audit.score_level)}
+                              {location.audits.length === 0 ? (
+                                <div className="ml-8 text-xs text-muted-foreground italic py-2">
+                                  Sem auditorias neste local
+                                </div>
+                              ) : (
+                                <div className="ml-8 space-y-2">
+                                  {location.audits.map((audit) => (
+                                    <div
+                                      key={audit.id}
+                                      className="p-3 bg-muted/30 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/50 transition-all cursor-pointer"
+                                      onClick={() => onAuditClick(audit.id)}
+                                    >
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="space-y-1 flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            {getStatusBadge(audit.status)}
+                                            {audit.score_level && getScoreLevelBadge(audit.score_level)}
+                                          </div>
+                                          <p className="text-xs text-muted-foreground">
+                                            Auditor: {audit.auditor_name || 'N/A'}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {format(new Date(audit.started_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                          </p>
                                         </div>
-                                        <p className="text-xs text-muted-foreground">
-                                          Auditor: {audit.auditor_name || 'N/A'}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                          {format(new Date(audit.started_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                                        </p>
+                                        {audit.score !== null && (
+                                          <div className="text-right flex-shrink-0">
+                                            <p className="text-xl font-bold">{audit.score.toFixed(1)}%</p>
+                                            <p className="text-xs text-muted-foreground">Score</p>
+                                          </div>
+                                        )}
                                       </div>
-                                      {audit.score !== null && (
-                                        <div className="text-right flex-shrink-0">
-                                          <p className="text-xl font-bold">{audit.score.toFixed(1)}%</p>
-                                          <p className="text-xs text-muted-foreground">Score</p>
-                                        </div>
-                                      )}
                                     </div>
-                                  </div>
-                                ))}
-                              </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
