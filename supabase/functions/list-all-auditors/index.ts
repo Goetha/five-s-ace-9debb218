@@ -65,33 +65,22 @@ Deno.serve(async (req) => {
       throw new Error('Unauthorized: Only IFA Admins can access this resource');
     }
 
-    // Fetch all company_admins EXCLUDING ifa_admins
-    // This prevents IFA Admins from appearing in the auditors list
-    const { data: ifaAdmins } = await supabase
-      .from('user_roles')
-      .select('user_id')
-      .eq('role', 'ifa_admin');
-
-    const ifaAdminIds = ifaAdmins?.map(r => r.user_id) || [];
-
+    // Fetch all users with 'auditor' role
+    // This ensures only auditors appear in the list
     const { data: auditors, error: auditorsError } = await supabase
       .from('user_roles')
       .select(`
         user_id,
         created_at
       `)
-      .eq('role', 'company_admin');
+      .eq('role', 'auditor');
 
     if (auditorsError) throw auditorsError;
 
-    // Build result array - exclude IFA Admins
+    // Build result array
     const result: Auditor[] = [];
 
     for (const auditor of auditors || []) {
-      // Skip if this user is also an IFA Admin
-      if (ifaAdminIds.includes(auditor.user_id)) {
-        continue;
-      }
       // Get profile data
       const { data: profile } = await supabase
         .from('profiles')
