@@ -9,6 +9,8 @@ import Index from "./pages/Index";
 import Empresas from "./pages/Empresas";
 import Avaliadores from "./pages/Avaliadores";
 import ModelosMestre from "./pages/ModelosMestre";
+import BibliotecaCriterios from "./pages/BibliotecaCriterios";
+import Auditorias from "./pages/Auditorias";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import CompanyAdminDashboard from "./pages/company-admin/Dashboard";
@@ -35,6 +37,8 @@ const App = () => (
             <Route path="/empresas" element={<ProtectedRoute><Empresas /></ProtectedRoute>} />
             <Route path="/avaliadores" element={<ProtectedRoute><Avaliadores /></ProtectedRoute>} />
             <Route path="/modelos-mestre" element={<ProtectedRoute><ModelosMestre /></ProtectedRoute>} />
+            <Route path="/criterios" element={<ProtectedRoute><BibliotecaCriterios /></ProtectedRoute>} />
+            <Route path="/auditorias" element={<ProtectedRoute><Auditorias /></ProtectedRoute>} />
             
             {/* Company Admin Routes */}
             <Route path="/admin-empresa" element={<ProtectedRoute><CompanyAdminDashboard /></ProtectedRoute>} />
