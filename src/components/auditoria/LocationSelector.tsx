@@ -40,7 +40,7 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
 
   useEffect(() => {
     if (selectedCompany) {
-      fetchEnvironments(selectedCompany);
+      fetchEnvironmentsAndSkipRoot(selectedCompany);
     } else {
       setEnvironments([]);
       setLocations([]);
@@ -100,14 +100,26 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
     }
   };
 
-  const fetchEnvironments = async (companyId: string) => {
+  const fetchEnvironmentsAndSkipRoot = async (companyId: string) => {
     try {
+      // Primeiro busca o ambiente raiz (parent_id = null)
+      const { data: rootEnv, error: rootError } = await supabase
+        .from('environments')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('status', 'active')
+        .is('parent_id', null)
+        .single();
+
+      if (rootError) throw rootError;
+
+      // Agora busca os ambientes filhos do root (os ambientes reais)
       const { data, error } = await supabase
         .from('environments')
         .select('id, name, parent_id')
         .eq('company_id', companyId)
         .eq('status', 'active')
-        .is('parent_id', null)
+        .eq('parent_id', rootEnv.id)
         .order('name');
 
       if (error) throw error;
