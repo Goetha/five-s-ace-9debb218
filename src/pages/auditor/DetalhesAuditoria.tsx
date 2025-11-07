@@ -43,8 +43,12 @@ export default function DetalhesAuditoria() {
 
       if (auditError) throw auditError;
 
+      // Type cast to ensure TypeScript compatibility
+      const typedAudit = auditData as any;
       const auditWithLocation = {
-        ...auditData,
+        ...typedAudit,
+        status: typedAudit.status as 'in_progress' | 'completed',
+        score_level: typedAudit.score_level as 'low' | 'medium' | 'high' | null,
         location_name: auditData.environments.name
       };
       setAudit(auditWithLocation);

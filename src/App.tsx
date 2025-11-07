@@ -13,6 +13,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import CompanyAdminDashboard from "./pages/company-admin/Dashboard";
 import Ambientes from "./pages/company-admin/Ambientes";
+import Ciclos from "./pages/company-admin/Ciclos";
 import NovaAuditoria from "./pages/auditor/NovaAuditoria";
 import MinhasAuditorias from "./pages/auditor/MinhasAuditorias";
 import DetalhesAuditoria from "./pages/auditor/DetalhesAuditoria";
@@ -38,6 +39,7 @@ const App = () => (
             {/* Company Admin Routes */}
             <Route path="/admin-empresa" element={<ProtectedRoute><CompanyAdminDashboard /></ProtectedRoute>} />
             <Route path="/admin-empresa/ambientes" element={<ProtectedRoute><Ambientes /></ProtectedRoute>} />
+            <Route path="/admin-empresa/ciclos" element={<ProtectedRoute><Ciclos /></ProtectedRoute>} />
             
             {/* Auditor Routes */}
             <Route path="/auditor/nova-auditoria" element={<ProtectedRoute><NovaAuditoria /></ProtectedRoute>} />

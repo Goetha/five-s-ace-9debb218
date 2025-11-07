@@ -44,7 +44,13 @@ export function AuditResult({ auditId, onNewAudit, onViewDetails }: AuditResultP
 
       if (error) throw error;
       
-      setAudit(data);
+      // Type cast to ensure TypeScript compatibility
+      const auditData = data as any;
+      setAudit({
+        ...auditData,
+        status: auditData.status as 'in_progress' | 'completed',
+        score_level: auditData.score_level as 'low' | 'medium' | 'high' | null
+      });
       setLocationName(data.environments.name);
       setObservations(data.observations || "");
       setNextAuditDate(data.next_audit_date || "");

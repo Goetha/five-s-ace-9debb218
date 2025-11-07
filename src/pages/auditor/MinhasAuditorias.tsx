@@ -44,8 +44,11 @@ export default function MinhasAuditorias() {
 
       if (error) throw error;
 
-      const auditsWithLocation = data.map(audit => ({
+      // Type cast to ensure TypeScript compatibility
+      const auditsWithLocation = data.map((audit: any) => ({
         ...audit,
+        status: audit.status as 'in_progress' | 'completed',
+        score_level: audit.score_level as 'low' | 'medium' | 'high' | null,
         location_name: audit.environments.name
       }));
 
