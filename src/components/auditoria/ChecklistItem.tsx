@@ -111,7 +111,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <p className="font-medium mb-1">
+            <p className="font-medium mb-1 text-foreground">
               <span className="text-muted-foreground mr-2">Pergunta {index + 1}:</span>
               {item.question}
             </p>
@@ -148,7 +148,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
         {showDetails && item.answer !== null && (
           <div className="space-y-3 pt-3 border-t">
             <div>
-              <label className="text-sm font-medium mb-2 block">
+              <label className="text-sm font-medium mb-2 block text-foreground">
                 Comentário {item.answer === false ? "(obrigatório)" : "(opcional)"}
               </label>
               <Textarea
@@ -158,7 +158,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
                   ? "Descreva a não-conformidade encontrada..." 
                   : "Adicione observações sobre esta conformidade..."
                 }
-                className="min-h-[80px]"
+                className="min-h-[80px] bg-background text-foreground"
               />
             </div>
 
