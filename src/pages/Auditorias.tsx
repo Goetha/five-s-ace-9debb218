@@ -90,28 +90,27 @@ const Auditorias = () => {
       if (companiesError) throw companiesError;
       setCompanies(companiesData || []);
 
-      // Buscar auditorias
+      // Buscar auditorias (sem joins complexos)
       const { data: auditsData, error: auditsError } = await supabase
         .from('audits')
-        .select(`
-          *,
-          companies!audits_company_id_fkey(id, name),
-          environments!audits_location_id_fkey(id, name, parent_id),
-          profiles!audits_auditor_id_fkey(full_name)
-        `)
+        .select('*')
         .order('started_at', { ascending: false });
 
-
-      // Buscar todos os environments para fazer o join manual
-      const { data: allEnvironments, error: envError } = await supabase
-        .from('environments')
-        .select('id, name, parent_id');
-
-      if (envError) throw envError;
-
-      const envMap = new Map(allEnvironments?.map(e => [e.id, e]) || []);
-
       if (auditsError) throw auditsError;
+
+      // Buscar dados relacionados em paralelo
+      const [environmentsRes, profilesRes] = await Promise.all([
+        supabase.from('environments').select('id, name, parent_id'),
+        supabase.from('profiles').select('id, full_name')
+      ]);
+
+      if (environmentsRes.error) throw environmentsRes.error;
+      if (profilesRes.error) throw profilesRes.error;
+
+      // Criar mapas para lookup rápido
+      const companiesMap = new Map(companiesData?.map(c => [c.id, c]) || []);
+      const envMap = new Map(environmentsRes.data?.map(e => [e.id, e]) || []);
+      const profilesMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
 
       // Processar dados em estrutura hierárquica
       const grouped: { [key: string]: AuditGroupedData } = {};
@@ -125,23 +124,26 @@ const Auditorias = () => {
         if (audit.status === 'completed') completed++;
         if (audit.status === 'in_progress') inProgress++;
 
-        const locationEnv = audit.environments;
+        // Buscar dados relacionados dos mapas
+        const company = companiesMap.get(audit.company_id);
+        const locationEnv = envMap.get(audit.location_id);
         const parentEnv = locationEnv?.parent_id ? envMap.get(locationEnv.parent_id) : null;
+        const auditor = profilesMap.get(audit.auditor_id);
 
         // Auditorias agendadas
         if (audit.status === 'completed' && audit.next_audit_date && new Date(audit.next_audit_date) > new Date()) {
           scheduled.push({
             id: audit.id,
-            company_name: audit.companies?.name || 'N/A',
+            company_name: company?.name || 'N/A',
             location_name: locationEnv?.name || 'N/A',
             environment_name: parentEnv?.name || 'N/A',
-            auditor_name: audit.profiles?.full_name || 'N/A',
+            auditor_name: auditor?.full_name || 'N/A',
             next_audit_date: audit.next_audit_date
           });
         }
         
         const companyId = audit.company_id;
-        const companyName = audit.companies?.name || 'Sem nome';
+        const companyName = company?.name || 'Sem nome';
         const environmentId = parentEnv?.id || 'root';
         const environmentName = parentEnv?.name || 'Sem ambiente';
         const locationId = audit.location_id;
@@ -181,7 +183,7 @@ const Auditorias = () => {
           score: audit.score,
           score_level: audit.score_level,
           started_at: audit.started_at,
-          auditor_name: audit.profiles?.full_name
+          auditor_name: auditor?.full_name
         });
       });
 
