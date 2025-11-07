@@ -35,8 +35,16 @@ export function CompanyAdminHeader({ breadcrumbs }: CompanyAdminHeaderProps) {
 
   return (
     <header className="h-16 border-b bg-background flex items-center px-4 gap-4 sticky top-0 z-10">
-      <SidebarTrigger />
+      <SidebarTrigger className="hidden md:flex" />
       
+      {/* Mobile: Show page title */}
+      <div className="flex-1 md:hidden">
+        <h1 className="text-lg font-semibold truncate">
+          {breadcrumbs[breadcrumbs.length - 1]?.label}
+        </h1>
+      </div>
+      
+      {/* Desktop: Show breadcrumbs */}
       <Breadcrumb className="flex-1 hidden md:block">
         <BreadcrumbList>
           {breadcrumbs.map((crumb, index) => (

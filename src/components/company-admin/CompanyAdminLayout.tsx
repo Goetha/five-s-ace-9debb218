@@ -1,6 +1,7 @@
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { CompanyAdminSidebar } from "./CompanyAdminSidebar";
 import { CompanyAdminHeader } from "./CompanyAdminHeader";
+import { MobileBottomNav } from "./MobileBottomNav";
 
 interface CompanyAdminLayoutProps {
   children: React.ReactNode;
@@ -11,14 +12,21 @@ export function CompanyAdminLayout({ children, breadcrumbs }: CompanyAdminLayout
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <CompanyAdminSidebar />
+        {/* Desktop Sidebar - hidden on mobile */}
+        <div className="hidden md:block">
+          <CompanyAdminSidebar />
+        </div>
+        
         <div className="flex-1 flex flex-col">
           <CompanyAdminHeader breadcrumbs={breadcrumbs} />
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto pb-16 md:pb-0">
             {children}
           </main>
         </div>
       </div>
+      
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav />
     </SidebarProvider>
   );
 }

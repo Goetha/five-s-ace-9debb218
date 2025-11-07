@@ -112,20 +112,21 @@ export default function MinhasAuditorias() {
 
   return (
     <CompanyAdminLayout breadcrumbs={[{ label: "Auditorias" }]}>
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">Auditorias</h1>
-          <p className="text-muted-foreground">Gerencie suas avaliações 5S por empresa</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Auditorias</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Gerencie suas avaliações 5S por empresa</p>
         </div>
 
         {/* Filtros e Busca */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
             <Button
               variant={filter === 'all' ? 'default' : 'outline'}
               onClick={() => setFilter('all')}
               size="sm"
+              className="whitespace-nowrap"
             >
               Todas ({audits.length})
             </Button>
@@ -133,6 +134,7 @@ export default function MinhasAuditorias() {
               variant={filter === 'in_progress' ? 'default' : 'outline'}
               onClick={() => setFilter('in_progress')}
               size="sm"
+              className="whitespace-nowrap"
             >
               Em Andamento ({audits.filter(a => a.status === 'in_progress').length})
             </Button>
@@ -140,12 +142,13 @@ export default function MinhasAuditorias() {
               variant={filter === 'completed' ? 'default' : 'outline'}
               onClick={() => setFilter('completed')}
               size="sm"
+              className="whitespace-nowrap"
             >
               Concluídas ({audits.filter(a => a.status === 'completed').length})
             </Button>
           </div>
           
-          <div className="relative flex-1 max-w-sm">
+          <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por empresa..."
@@ -158,17 +161,17 @@ export default function MinhasAuditorias() {
 
         {/* Cards de Empresas */}
         {companyGroups.length === 0 ? (
-          <Card className="p-12 text-center">
-            <Plus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">Nenhuma auditoria encontrada</h3>
-            <p className="text-muted-foreground mb-4">
+          <Card className="p-8 sm:p-12 text-center">
+            <Plus className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-base sm:text-lg font-semibold mb-2">Nenhuma auditoria encontrada</h3>
+            <p className="text-sm sm:text-base text-muted-foreground mb-4">
               {searchTerm 
                 ? "Tente ajustar os filtros de busca" 
                 : "Comece criando sua primeira auditoria"}
             </p>
           </Card>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
             {companyGroups.map((company) => (
               <CompanyAuditCard
                 key={company.company_id}
