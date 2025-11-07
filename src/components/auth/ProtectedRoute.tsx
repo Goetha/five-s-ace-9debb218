@@ -9,6 +9,12 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, userRole, isLoading } = useAuth();
   const location = useLocation();
+  
+  // Debug (non-sensitive): track route + role to diagnose redirects
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.debug('[ProtectedRoute]', { path: location.pathname, role: userRole });
+  }
 
   if (isLoading) {
     return (
@@ -29,7 +35,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     // IFA Admin can access: /, /empresas, /avaliadores, /modelos-mestre, /criterios, /auditorias
     // Block access to company admin and auditor routes
     if (userRole === 'ifa_admin') {
-      if (currentPath.startsWith('/admin-empresa') || currentPath.startsWith('/auditor')) {
+      const isAuditorArea = currentPath === '/auditor' || currentPath.startsWith('/auditor/');
+      if (currentPath.startsWith('/admin-empresa') || isAuditorArea) {
         return <Navigate to="/" replace />;
       }
     }
