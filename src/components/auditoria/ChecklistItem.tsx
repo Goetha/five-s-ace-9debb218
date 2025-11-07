@@ -105,8 +105,8 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
   return (
     <Card className={cn(
       "p-4 transition-colors",
-      item.answer === true && "bg-green-50 border-green-200",
-      item.answer === false && "bg-red-50 border-red-200"
+      item.answer === true && "bg-success/10 border-success/30 dark:bg-success/20",
+      item.answer === false && "bg-destructive/10 border-destructive/30 dark:bg-destructive/20"
     )}>
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
@@ -124,7 +124,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
               onClick={() => handleAnswer(true)}
               className={cn(
                 "min-w-[80px]",
-                item.answer === true && "bg-green-600 hover:bg-green-700"
+                item.answer === true && "bg-success hover:bg-success/90"
               )}
             >
               <Check className="h-5 w-5 mr-1" />
@@ -136,7 +136,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
               onClick={() => handleAnswer(false)}
               className={cn(
                 "min-w-[80px]",
-                item.answer === false && "bg-red-600 hover:bg-red-700"
+                item.answer === false && "bg-destructive hover:bg-destructive/90"
               )}
             >
               <X className="h-5 w-5 mr-1" />
