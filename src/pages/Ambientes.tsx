@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,6 +12,7 @@ import { NewEnvironmentModal } from "@/components/company-admin/environments/New
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import Header from "@/components/layout/Header";
 import type { Environment } from "@/types/environment";
 
 export default function Ambientes() {
@@ -128,11 +131,24 @@ export default function Ambientes() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="p-6 space-y-3 max-w-7xl mx-auto">
-        {/* Header */}
+      <Header />
+      
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Link to="/" className="hover:text-primary transition-colors">
+            Dashboard
+          </Link>
+          <ChevronRight className="h-4 w-4" />
+          <span className="text-foreground font-medium">
+            Ambientes e Locais
+          </span>
+        </nav>
+
+        {/* Page Header */}
         <div>
-          <h1 className="text-3xl font-bold">Ambientes e Locais</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Ambientes e Locais</h1>
+          <p className="text-muted-foreground">
             Gerencie ambientes e locais de todas as empresas do sistema
           </p>
         </div>
@@ -277,9 +293,9 @@ export default function Ambientes() {
             )}
           </div>
         )}
-      </div>
+      </main>
 
-      <NewEnvironmentModal 
+      <NewEnvironmentModal
         open={isNewModalOpen}
         onOpenChange={open => {
           setIsNewModalOpen(open);
