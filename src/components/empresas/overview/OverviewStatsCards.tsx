@@ -49,7 +49,7 @@ export const OverviewStatsCards = ({ companies }: OverviewStatsCardsProps) => {
       suffix: "/10",
       icon: Target,
       color: getScoreColor(averageScore),
-      bgColor: "bg-purple-50",
+      bgColor: "bg-blue-50",
     },
     {
       label: "Auditorias Concluídas",

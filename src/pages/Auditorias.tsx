@@ -334,7 +334,7 @@ const Auditorias = () => {
     label: "Agendadas",
     value: scheduledAudits.length,
     icon: AlertCircle,
-    color: "text-purple-600"
+    color: "text-blue-600"
   }];
   if (userRole !== 'ifa_admin') {
     return <div className="min-h-screen bg-background">
@@ -378,17 +378,17 @@ const Auditorias = () => {
         {/* Auditorias Agendadas */}
         {scheduledAudits.length > 0 && <Card className="p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-purple-600" />
+              <Calendar className="h-5 w-5 text-blue-600" />
               Próximas Auditorias Agendadas
             </h2>
             <div className="space-y-3">
-              {scheduledAudits.map(audit => <div key={audit.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border border-purple-200 rounded-lg bg-purple-50/50 gap-2">
+              {scheduledAudits.map(audit => <div key={audit.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border border-blue-200 rounded-lg bg-blue-50/50 gap-2">
                   <div>
                     <p className="font-medium">{audit.company_name}</p>
                     <p className="text-sm text-muted-foreground">{audit.environment_name} • {audit.location_name}</p>
                   </div>
                   <div className="text-left sm:text-right">
-                    <p className="text-sm font-medium text-purple-700">
+                    <p className="text-sm font-medium text-blue-700">
                       {format(new Date(audit.next_audit_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                     </p>
                     <p className="text-xs text-muted-foreground">Auditor: {audit.auditor_name}</p>

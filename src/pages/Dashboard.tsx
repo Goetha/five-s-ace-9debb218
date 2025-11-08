@@ -137,8 +137,8 @@ const Dashboard = () => {
 
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
-                <ClipboardList className="h-6 w-6 text-purple-500" />
+              <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
+                <ClipboardList className="h-6 w-6 text-blue-500" />
               </div>
               <CardTitle>Modelos Mestre</CardTitle>
               <CardDescription>
@@ -261,7 +261,7 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="flex items-start gap-4 text-sm">
-                <div className="w-2 h-2 mt-2 rounded-full bg-purple-500" />
+                <div className="w-2 h-2 mt-2 rounded-full bg-blue-500" />
                 <div className="flex-1">
                   <p className="font-medium">Modelo criado</p>
                   <p className="text-muted-foreground">5S Industrial Completo - há 1 dia</p>
