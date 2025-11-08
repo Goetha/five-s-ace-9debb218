@@ -182,46 +182,63 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
       setAvailableModels(modelsWithCount.filter(Boolean));
 
-      // If editing, fetch linked models (via criteria) - independent queries (sem dependência de FK)
+      // If editing, fetch linked models (via criteria) - query simplificada e direta
       if (editingEnvironment) {
-        console.log('🔍 Carregando vínculos do ambiente:', editingEnvironment.id);
+        console.log('🔍 Carregando modelos do ambiente:', editingEnvironment.id, editingEnvironment.name);
 
-        // 1) Buscar critérios vinculados ao ambiente
-        const { data: envLinks, error: envLinksError } = await supabase
-          .from('environment_criteria')
-          .select('criterion_id')
-          .eq('environment_id', editingEnvironment.id);
+        try {
+          // 1) Buscar TODOS os critérios vinculados ao ambiente
+          const { data: envCriteria, error: envError } = await supabase
+            .from('environment_criteria')
+            .select('criterion_id')
+            .eq('environment_id', editingEnvironment.id);
 
-        if (envLinksError) {
-          console.error('❌ Erro ao buscar environment_criteria:', envLinksError);
-          setSelectedModelIds([]);
-        } else if (!envLinks || envLinks.length === 0) {
-          console.log('⚠️ Ambiente sem critérios vinculados');
-          setSelectedModelIds([]);
-        } else {
-          const criterionIds = envLinks.map((l: any) => l.criterion_id);
-          console.log('📋 Critérios vinculados:', criterionIds.length);
-
-          // 2) Buscar os critérios da empresa e mapear para origin_model_id
-          const { data: companyCriteria, error: ccError } = await supabase
-            .from('company_criteria')
-            .select('id, origin_model_id, status')
-            .eq('company_id', fetchedCompanyId as string)
-            .in('id', criterionIds);
-
-          if (ccError) {
-            console.error('❌ Erro ao buscar company_criteria:', ccError);
+          if (envError) {
+            console.error('❌ Erro ao buscar environment_criteria:', envError);
             setSelectedModelIds([]);
-          } else {
-            const modelIds = Array.from(new Set(
-              (companyCriteria || [])
-                .map((c: any) => c.origin_model_id)
-                .filter((id: string | null) => !!id)
-            ));
-            console.log('✅ Modelos vinculados identificados:', modelIds);
-            setSelectedModelIds(modelIds as string[]);
+            return;
           }
+
+          if (!envCriteria || envCriteria.length === 0) {
+            console.log('⚠️ Nenhum critério vinculado a este ambiente');
+            setSelectedModelIds([]);
+            return;
+          }
+
+          const criterionIds = envCriteria.map((ec: any) => ec.criterion_id);
+          console.log(`📋 ${criterionIds.length} critérios vinculados ao ambiente`);
+
+          // 2) Buscar os dados dos critérios para identificar origin_model_id
+          const { data: criteria, error: criteriaError } = await supabase
+            .from('company_criteria')
+            .select('id, origin_model_id')
+            .in('id', criterionIds)
+            .eq('company_id', fetchedCompanyId as string);
+
+          if (criteriaError) {
+            console.error('❌ Erro ao buscar company_criteria:', criteriaError);
+            setSelectedModelIds([]);
+            return;
+          }
+
+          // 3) Extrair IDs únicos dos modelos
+          const modelIds = Array.from(
+            new Set(
+              (criteria || [])
+                .map((c: any) => c.origin_model_id)
+                .filter((id: any) => id != null)
+            )
+          ) as string[];
+
+          console.log(`✅ ${modelIds.length} modelos identificados:`, modelIds);
+          setSelectedModelIds(modelIds);
+        } catch (error) {
+          console.error('❌ Erro inesperado ao carregar modelos:', error);
+          setSelectedModelIds([]);
         }
+      } else {
+        // Reset quando não está editando
+        setSelectedModelIds([]);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
