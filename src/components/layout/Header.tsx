@@ -45,6 +45,7 @@ const Header = () => {
     { path: '/avaliadores', label: 'Avaliadores' },
     { path: '/modelos-mestre', label: 'Modelos Mestre' },
     { path: '/criterios', label: 'Biblioteca de Critérios' },
+    { path: '/ambientes', label: 'Ambientes' },
     { path: '/auditorias', label: 'Auditorias' },
   ];
 
@@ -152,6 +153,16 @@ const Header = () => {
               }`}
             >
               Critérios
+            </Link>
+            <Link
+              to="/ambientes"
+              className={`text-sm font-medium transition-colors ${
+                isActive("/ambientes") 
+                  ? "text-primary border-b-2 border-primary pb-1" 
+                  : "text-foreground hover:text-primary"
+              }`}
+            >
+              Ambientes
             </Link>
             <Link
               to="/auditorias"

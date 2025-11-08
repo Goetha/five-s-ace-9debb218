@@ -11,10 +11,11 @@ import Avaliadores from "./pages/Avaliadores";
 import ModelosMestre from "./pages/ModelosMestre";
 import BibliotecaCriterios from "./pages/BibliotecaCriterios";
 import Auditorias from "./pages/Auditorias";
+import Ambientes from "./pages/Ambientes";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import CompanyAdminDashboard from "./pages/company-admin/Dashboard";
-import Ambientes from "./pages/company-admin/Ambientes";
+import CompanyAdminAmbientes from "./pages/company-admin/Ambientes";
 import Ciclos from "./pages/company-admin/Ciclos";
 import NovaAuditoria from "./pages/auditor/NovaAuditoria";
 import MinhasAuditorias from "./pages/auditor/MinhasAuditorias";
@@ -39,10 +40,11 @@ const App = () => (
             <Route path="/modelos-mestre" element={<ProtectedRoute><ModelosMestre /></ProtectedRoute>} />
             <Route path="/criterios" element={<ProtectedRoute><BibliotecaCriterios /></ProtectedRoute>} />
             <Route path="/auditorias" element={<ProtectedRoute><Auditorias /></ProtectedRoute>} />
+            <Route path="/ambientes" element={<ProtectedRoute><Ambientes /></ProtectedRoute>} />
             
             {/* Company Admin Routes */}
             <Route path="/admin-empresa" element={<ProtectedRoute><CompanyAdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin-empresa/ambientes" element={<ProtectedRoute><Ambientes /></ProtectedRoute>} />
+            <Route path="/admin-empresa/ambientes" element={<ProtectedRoute><CompanyAdminAmbientes /></ProtectedRoute>} />
             <Route path="/admin-empresa/ciclos" element={<ProtectedRoute><Ciclos /></ProtectedRoute>} />
             
             {/* Auditor Routes */}
