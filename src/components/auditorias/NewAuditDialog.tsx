@@ -120,6 +120,11 @@ export function NewAuditDialog({
     setSelectedLocation(value);
     setIsLoadingCriteria(true);
     
+    console.log('🔍 handleLocationChange - Iniciando busca de critérios');
+    console.log('📍 Location ID:', value);
+    console.log('🏢 Company ID:', preSelectedCompanyId);
+    console.log('📝 Company ID type:', typeof preSelectedCompanyId);
+    
     try {
       // Buscar critérios vinculados ao local específico
       const { data: criteriaLinks, error: criteriaError } = await supabase
@@ -127,35 +132,57 @@ export function NewAuditDialog({
         .select('criterion_id')
         .eq('environment_id', value);
 
-      if (criteriaError) throw criteriaError;
+      console.log('🔗 Critérios vinculados ao local:', criteriaLinks);
+      if (criteriaError) {
+        console.error('❌ Erro ao buscar critérios vinculados:', criteriaError);
+        throw criteriaError;
+      }
 
       let count = 0;
 
       // Se o local tem critérios específicos, contar esses
       if (criteriaLinks && criteriaLinks.length > 0) {
+        console.log('✅ Local tem critérios específicos vinculados');
         const { count: specificCount, error: fetchError } = await supabase
           .from('company_criteria')
           .select('*', { count: 'exact', head: true })
           .in('id', criteriaLinks.map(link => link.criterion_id))
           .eq('status', 'active');
 
-        if (fetchError) throw fetchError;
+        console.log('📊 Contagem de critérios específicos:', specificCount);
+        if (fetchError) {
+          console.error('❌ Erro ao contar critérios específicos:', fetchError);
+          throw fetchError;
+        }
         count = specificCount || 0;
       } else {
         // Senão, contar TODOS os critérios ativos da empresa
-        const { count: companyCount, error: fetchError } = await supabase
+        console.log('📦 Nenhum critério específico, buscando TODOS da empresa');
+        const { count: companyCount, error: fetchError, data: debugData } = await supabase
           .from('company_criteria')
-          .select('*', { count: 'exact', head: true })
+          .select('*', { count: 'exact', head: false })
           .eq('company_id', preSelectedCompanyId)
           .eq('status', 'active');
 
-        if (fetchError) throw fetchError;
+        console.log('📊 Contagem total de critérios da empresa:', companyCount);
+        console.log('📄 Dados retornados (debug):', debugData);
+        
+        if (fetchError) {
+          console.error('❌ Erro ao contar critérios da empresa:', fetchError);
+          throw fetchError;
+        }
         count = companyCount || 0;
       }
 
+      console.log('✅ Total de critérios encontrados:', count);
       setCriteriaCount(count);
     } catch (error) {
-      console.error('Error counting criteria:', error);
+      console.error('❌ Error counting criteria:', error);
+      toast({
+        title: "Erro ao carregar critérios",
+        description: "Não foi possível carregar os critérios. Tente novamente.",
+        variant: "destructive"
+      });
       setCriteriaCount(0);
     } finally {
       setIsLoadingCriteria(false);
@@ -342,14 +369,28 @@ export function NewAuditDialog({
                   </div>
                 </>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-center gap-2 text-amber-700">
                     <AlertCircle className="h-5 w-5" />
                     <span className="font-medium">Nenhum critério disponível</span>
                   </div>
                   <p className="text-sm text-amber-600">
-                    Não há critérios ativos para este local. Entre em contato com o administrador para configurar critérios.
+                    Não há critérios ativos configurados para este local ou empresa.
                   </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleLocationChange(selectedLocation)}
+                      className="text-xs"
+                    >
+                      <Loader2 className="h-3 w-3 mr-1" />
+                      Recarregar
+                    </Button>
+                    <p className="text-xs text-muted-foreground self-center">
+                      Verifique se há modelos vinculados à empresa
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
