@@ -1,8 +1,7 @@
 import { Eye, Edit, Link2, MoreVertical, Building, Mail, Users, UserPlus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Company } from "@/types/company";
-import { formatDate, formatDateTime, getTimeAgo } from "@/lib/formatters";
+import { formatDate } from "@/lib/formatters";
 
 interface CompanyCardsProps {
   companies: Company[];
@@ -63,7 +62,7 @@ export function CompanyCards({
       </div>
 
       {/* Cards Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {companies.map((company) => (
           <Card
             key={company.id}
@@ -71,106 +70,79 @@ export function CompanyCards({
               selectedCompanies.includes(company.id) ? 'ring-2 ring-primary' : ''
             }`}
           >
-            <CardHeader className="pb-3">
+            <CardContent className="p-6 space-y-4">
+              {/* Header with Checkbox and Menu */}
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 flex-1">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
                   <Checkbox
                     checked={selectedCompanies.includes(company.id)}
                     onCheckedChange={() => onSelectionChange(company.id)}
                     aria-label={`Selecionar ${company.name}`}
                     className="mt-1"
                   />
-                  <Avatar className="h-12 w-12">
+                  <Avatar className="h-12 w-12 flex-shrink-0">
                     <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">
                       {company.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-lg text-foreground truncate">
+                    <h3 className="font-semibold text-base text-foreground truncate mb-1">
                       {company.name}
                     </h3>
-                    <p className="text-xs text-muted-foreground">ID: {company.id}</p>
-                    <p className="text-xs text-muted-foreground">{company.cnpj}</p>
+                    <p className="text-xs text-muted-foreground truncate">{company.cnpj}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant={company.status === 'active' ? 'default' : 'secondary'}
-                    className={
-                      company.status === 'active'
-                        ? 'bg-success/10 text-success hover:bg-success/10'
-                        : 'bg-muted text-muted-foreground hover:bg-muted'
-                    }
-                  >
-                    {company.status === 'active' ? '🟢 Ativo' : '🔴 Inativo'}
-                  </Badge>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onAssignAuditors(company)}>
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Atribuir Avaliador
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onAssignAuditors(company)}>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Atribuir Avaliador
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            </CardHeader>
 
-            <CardContent className="space-y-4 pt-0">
-              {/* Admin Info */}
-              <div className="flex items-start gap-2 p-3 bg-muted/30 rounded-lg">
-                <Mail className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              {/* Contact Info */}
+              <div className="flex items-center gap-2 text-sm">
+                <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-muted-foreground truncate">{company.admin.email}</span>
+              </div>
+
+              {/* Responsible */}
+              <div className="flex items-center gap-2 text-sm">
+                <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground mb-0.5">Admin Principal</p>
-                  <p className="text-sm font-medium text-foreground truncate">{company.admin.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{company.admin.email}</p>
+                  <span className="text-muted-foreground text-xs block">Responsável</span>
+                  <span className="text-foreground font-medium truncate block">{company.admin.name}</span>
                 </div>
               </div>
 
-              {/* Stats Grid */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center p-3 bg-muted/30 rounded-lg">
-                  <Users className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                  <p className="text-lg font-semibold text-foreground">{company.total_users}</p>
-                  <p className="text-xs text-muted-foreground">Usuários</p>
-                </div>
-                <div className="text-center p-3 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Cadastro</p>
-                  <p className="text-sm font-medium text-foreground">{formatDate(company.created_at)}</p>
-                  <p className="text-xs text-muted-foreground">{getTimeAgo(company.created_at)}</p>
-                </div>
-                <div className="text-center p-3 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Atividade</p>
-                  {company.last_activity ? (
-                    <>
-                      <p className="text-sm font-medium text-foreground">
-                        {formatDateTime(company.last_activity).split(' ')[0]}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDateTime(company.last_activity).split(' ')[1]}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Nunca acessou</p>
-                  )}
-                </div>
+              {/* Stats */}
+              <div className="flex items-center gap-2 text-sm">
+                <Building className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-muted-foreground">{company.total_users} usuário{company.total_users !== 1 ? 's' : ''}</span>
+              </div>
+
+              {/* Creation Date */}
+              <div className="text-xs text-muted-foreground">
+                Criado em {formatDate(company.created_at)}
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-2 pt-2">
+              <div className="flex flex-col sm:flex-row gap-2 pt-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => onView(company)}
                   className="flex-1"
                 >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Visualizar
+                  <Eye className="h-3 w-3 mr-1" />
+                  Ver Detalhes
                 </Button>
                 <Button
                   variant="outline"
@@ -178,19 +150,21 @@ export function CompanyCards({
                   onClick={() => onEdit(company)}
                   className="flex-1"
                 >
-                  <Edit className="h-4 w-4 mr-2" />
+                  <Edit className="h-3 w-3 mr-1" />
                   Editar
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onAssignModels(company)}
-                  className="flex-1"
-                >
-                  <Link2 className="h-4 w-4 mr-2" />
-                  Modelos
-                </Button>
               </div>
+
+              {/* Link Models Button */}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => onAssignModels(company)}
+                className="w-full bg-warning hover:bg-warning/90 text-warning-foreground"
+              >
+                <Link2 className="h-3 w-3 mr-1" />
+                Vincular
+              </Button>
             </CardContent>
           </Card>
         ))}
