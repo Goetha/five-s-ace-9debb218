@@ -110,14 +110,16 @@ export function CompanyCards({
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-muted-foreground truncate">{company.admin.email}</span>
+                  <span className="text-muted-foreground truncate">{company.email || '-'}</span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <div>
                     <span className="text-muted-foreground text-xs">Responsável</span>
-                    <p className="text-foreground font-medium">{company.admin.name}</p>
+                    <p className="text-foreground font-medium">
+                      {company.assigned_auditor?.name || 'Nenhum avaliador atribuído'}
+                    </p>
                   </div>
                 </div>
 

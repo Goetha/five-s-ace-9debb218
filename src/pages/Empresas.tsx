@@ -58,11 +58,13 @@ export default function Empresas() {
       } else {
         console.log('✅ Empresas carregadas do backend:', data);
         
-        // For each company, fetch the actual company admin user
+        // For each company, fetch the actual company admin user and assigned auditor
         const backendCompanies: Company[] = await Promise.all(
           data.map(async (c: any) => {
             // Fetch company admin for this company
             const adminData = await fetchCompanyAdmin(c.id);
+            // Fetch assigned auditor for this company
+            const auditorData = await fetchAssignedAuditor(c.id);
             
             return {
               id: c.id,
@@ -79,6 +81,7 @@ export default function Empresas() {
               state: c.state,
               phone: c.phone || '-',
               email: c.email, // Contact email of the company
+              assigned_auditor: auditorData,
             };
           })
         );
@@ -137,6 +140,51 @@ export default function Empresas() {
     } catch (error) {
       console.error('Error fetching company admin:', error);
       return { name: '-', email: '-' };
+    }
+  };
+
+  // Helper function to fetch the assigned auditor for a company
+  const fetchAssignedAuditor = async (companyId: string): Promise<{ name: string; email: string } | null> => {
+    try {
+      const { data: userCompanies, error: ucError } = await supabase
+        .from('user_companies')
+        .select('user_id')
+        .eq('company_id', companyId);
+
+      if (ucError || !userCompanies || userCompanies.length === 0) {
+        return null;
+      }
+
+      // Check which of these users has auditor role
+      for (const uc of userCompanies) {
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', uc.user_id)
+          .eq('role', 'auditor')
+          .maybeSingle();
+
+        if (!roleError && roleData) {
+          // This user is an auditor, fetch their profile
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', uc.user_id)
+            .maybeSingle();
+
+          if (!profileError && profileData) {
+            return {
+              name: profileData.full_name || '-',
+              email: profileData.email || '-',
+            };
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error fetching assigned auditor:', error);
+      return null;
     }
   };
 

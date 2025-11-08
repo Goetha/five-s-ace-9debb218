@@ -42,6 +42,10 @@ export interface Company {
   cep?: string;
   phone: string;
   email?: string;
+  assigned_auditor?: {
+    name: string;
+    email: string;
+  } | null;
   fiveSData?: Company5SData; // Dados de 5S
 }
 
