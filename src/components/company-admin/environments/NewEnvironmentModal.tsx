@@ -182,38 +182,45 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
       setAvailableModels(modelsWithCount.filter(Boolean));
 
-      // If editing, fetch linked models (via criteria)
+      // If editing, fetch linked models (via criteria) - independent queries (sem dependência de FK)
       if (editingEnvironment) {
-        console.log('🔍 Carregando modelos vinculados ao ambiente:', editingEnvironment.id);
-        
-        const { data: linkedCriteria, error: criteriaError } = await supabase
+        console.log('🔍 Carregando vínculos do ambiente:', editingEnvironment.id);
+
+        // 1) Buscar critérios vinculados ao ambiente
+        const { data: envLinks, error: envLinksError } = await supabase
           .from('environment_criteria')
-          .select(`
-            criterion_id,
-            company_criteria!inner (
-              origin_model_id
-            )
-          `)
+          .select('criterion_id')
           .eq('environment_id', editingEnvironment.id);
-        
-        if (criteriaError) {
-          console.error('❌ Erro ao buscar critérios vinculados:', criteriaError);
-        } else {
-          console.log('📄 Critérios vinculados encontrados:', linkedCriteria?.length || 0);
-        }
-        
-        if (linkedCriteria && linkedCriteria.length > 0) {
-          // Get unique model IDs from linked criteria
-          const modelIds = [...new Set(
-            linkedCriteria
-              .map((lc: any) => lc.company_criteria?.origin_model_id)
-              .filter(Boolean)
-          )];
-          console.log('✅ Modelos identificados:', modelIds);
-          setSelectedModelIds(modelIds as string[]);
-        } else {
-          console.log('⚠️ Nenhum modelo vinculado encontrado');
+
+        if (envLinksError) {
+          console.error('❌ Erro ao buscar environment_criteria:', envLinksError);
           setSelectedModelIds([]);
+        } else if (!envLinks || envLinks.length === 0) {
+          console.log('⚠️ Ambiente sem critérios vinculados');
+          setSelectedModelIds([]);
+        } else {
+          const criterionIds = envLinks.map((l: any) => l.criterion_id);
+          console.log('📋 Critérios vinculados:', criterionIds.length);
+
+          // 2) Buscar os critérios da empresa e mapear para origin_model_id
+          const { data: companyCriteria, error: ccError } = await supabase
+            .from('company_criteria')
+            .select('id, origin_model_id, status')
+            .eq('company_id', fetchedCompanyId as string)
+            .in('id', criterionIds);
+
+          if (ccError) {
+            console.error('❌ Erro ao buscar company_criteria:', ccError);
+            setSelectedModelIds([]);
+          } else {
+            const modelIds = Array.from(new Set(
+              (companyCriteria || [])
+                .map((c: any) => c.origin_model_id)
+                .filter((id: string | null) => !!id)
+            ));
+            console.log('✅ Modelos vinculados identificados:', modelIds);
+            setSelectedModelIds(modelIds as string[]);
+          }
         }
       }
     } catch (error) {
