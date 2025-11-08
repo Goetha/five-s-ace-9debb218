@@ -66,7 +66,7 @@ export function CompanyCards({
         {companies.map((company) => (
           <Card
             key={company.id}
-            className={`transition-all hover:shadow-md ${
+            className={`transition-all hover:shadow-md border-l-4 border-l-success ${
               selectedCompanies.includes(company.id) ? 'ring-2 ring-primary' : ''
             }`}
           >
@@ -114,11 +114,11 @@ export function CompanyCards({
               </div>
 
               {/* Responsible */}
-              <div className="flex items-center gap-2 text-sm">
-                <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <div className="flex items-start gap-2">
+                <Users className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <span className="text-muted-foreground text-xs block">Responsável</span>
-                  <span className="text-foreground font-medium truncate block">{company.admin.name}</span>
+                  <span className="text-foreground font-medium text-sm truncate block">{company.admin.name}</span>
                 </div>
               </div>
 
