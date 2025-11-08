@@ -1,4 +1,4 @@
-import { Eye, Edit, Link2, MoreVertical, Building, Mail, Users, UserPlus } from "lucide-react";
+import { Eye, Edit, Link2, MoreVertical, Building, Mail, Users, UserPlus, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
@@ -66,27 +66,26 @@ export function CompanyCards({
         {companies.map((company) => (
           <Card
             key={company.id}
-            className={`transition-all hover:shadow-md border-l-4 border-l-success ${
+            className={`transition-all hover:shadow-md border border-success/30 ${
               selectedCompanies.includes(company.id) ? 'ring-2 ring-primary' : ''
             }`}
           >
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="p-4 space-y-3">
               {/* Header with Checkbox and Menu */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <Checkbox
                     checked={selectedCompanies.includes(company.id)}
                     onCheckedChange={() => onSelectionChange(company.id)}
                     aria-label={`Selecionar ${company.name}`}
-                    className="mt-1"
                   />
-                  <Avatar className="h-12 w-12 flex-shrink-0">
-                    <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">
+                  <Avatar className="h-10 w-10 flex-shrink-0">
+                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                       {company.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-base text-foreground truncate mb-1">
+                    <h3 className="font-semibold text-lg text-foreground truncate">
                       {company.name}
                     </h3>
                     <p className="text-xs text-muted-foreground truncate">{company.cnpj}</p>
@@ -107,41 +106,41 @@ export function CompanyCards({
                 </DropdownMenu>
               </div>
 
-              {/* Contact Info */}
-              <div className="flex items-center gap-2 text-sm">
-                <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-muted-foreground truncate">{company.admin.email}</span>
-              </div>
+              {/* Info Lines */}
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-muted-foreground truncate">{company.admin.email}</span>
+                </div>
 
-              {/* Responsible */}
-              <div className="flex items-start gap-2">
-                <Users className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <span className="text-muted-foreground text-xs block">Responsável</span>
-                  <span className="text-foreground font-medium text-sm truncate block">{company.admin.name}</span>
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <div>
+                    <span className="text-muted-foreground text-xs">Responsável</span>
+                    <p className="text-foreground font-medium">{company.admin.name}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Building className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-muted-foreground">{company.total_users} usuário{company.total_users !== 1 ? 's' : ''}</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="text-muted-foreground">Criado em {formatDate(company.created_at)}</span>
                 </div>
               </div>
 
-              {/* Stats */}
-              <div className="flex items-center gap-2 text-sm">
-                <Building className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-muted-foreground">{company.total_users} usuário{company.total_users !== 1 ? 's' : ''}</span>
-              </div>
-
-              {/* Creation Date */}
-              <div className="text-xs text-muted-foreground">
-                Criado em {formatDate(company.created_at)}
-              </div>
-
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => onView(company)}
                   className="flex-1"
                 >
-                  <Eye className="h-3 w-3 mr-1" />
+                  <Eye className="h-4 w-4 mr-1" />
                   Ver Detalhes
                 </Button>
                 <Button
@@ -150,19 +149,18 @@ export function CompanyCards({
                   onClick={() => onEdit(company)}
                   className="flex-1"
                 >
-                  <Edit className="h-3 w-3 mr-1" />
+                  <Edit className="h-4 w-4 mr-1" />
                   Editar
                 </Button>
               </div>
 
-              {/* Link Models Button */}
+              {/* Vincular Button */}
               <Button
-                variant="default"
                 size="sm"
                 onClick={() => onAssignModels(company)}
                 className="w-full bg-warning hover:bg-warning/90 text-warning-foreground"
               >
-                <Link2 className="h-3 w-3 mr-1" />
+                <Link2 className="h-4 w-4 mr-1" />
                 Vincular
               </Button>
             </CardContent>
