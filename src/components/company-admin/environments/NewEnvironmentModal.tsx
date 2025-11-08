@@ -184,7 +184,9 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
       // If editing, fetch linked models (via criteria)
       if (editingEnvironment) {
-        const { data: linkedCriteria } = await supabase
+        console.log('🔍 Carregando modelos vinculados ao ambiente:', editingEnvironment.id);
+        
+        const { data: linkedCriteria, error: criteriaError } = await supabase
           .from('environment_criteria')
           .select(`
             criterion_id,
@@ -194,14 +196,24 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           `)
           .eq('environment_id', editingEnvironment.id);
         
-        if (linkedCriteria) {
+        if (criteriaError) {
+          console.error('❌ Erro ao buscar critérios vinculados:', criteriaError);
+        } else {
+          console.log('📄 Critérios vinculados encontrados:', linkedCriteria?.length || 0);
+        }
+        
+        if (linkedCriteria && linkedCriteria.length > 0) {
           // Get unique model IDs from linked criteria
           const modelIds = [...new Set(
             linkedCriteria
               .map((lc: any) => lc.company_criteria?.origin_model_id)
               .filter(Boolean)
           )];
+          console.log('✅ Modelos identificados:', modelIds);
           setSelectedModelIds(modelIds as string[]);
+        } else {
+          console.log('⚠️ Nenhum modelo vinculado encontrado');
+          setSelectedModelIds([]);
         }
       }
     } catch (error) {
@@ -289,29 +301,71 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           return;
         }
 
-        // Update criteria links from selected models
-        // Remove old links
-        await supabase
+        // Update criteria links from selected models (MERGE strategy)
+        console.log('🔄 Atualizando vínculos de critérios');
+        console.log('📦 Modelos selecionados:', selectedModelIds);
+        
+        // Buscar critérios atuais vinculados ao ambiente
+        const { data: currentLinks } = await supabase
           .from('environment_criteria')
-          .delete()
+          .select('criterion_id')
           .eq('environment_id', editingEnvironment.id);
-
-        // Add new links from selected models
+        
+        const currentCriteriaIds = currentLinks?.map(l => l.criterion_id) || [];
+        console.log('📋 Critérios atualmente vinculados:', currentCriteriaIds.length);
+        
+        // Buscar critérios dos modelos selecionados
         if (selectedModelIds.length > 0) {
           const { data: modelCriteria } = await supabase
             .from('company_criteria')
             .select('id')
             .eq('company_id', companyIdData as string)
-            .in('origin_model_id', selectedModelIds);
+            .in('origin_model_id', selectedModelIds)
+            .eq('status', 'active');
 
-          if (modelCriteria && modelCriteria.length > 0) {
-            await supabase
+          const newCriteriaIds = modelCriteria?.map(c => c.id) || [];
+          console.log('🆕 Critérios dos modelos selecionados:', newCriteriaIds.length);
+
+          // Calcular diferenças
+          const toAdd = newCriteriaIds.filter(id => !currentCriteriaIds.includes(id));
+          const toRemove = currentCriteriaIds.filter(id => !newCriteriaIds.includes(id));
+
+          console.log('➕ Critérios a adicionar:', toAdd.length);
+          console.log('➖ Critérios a remover:', toRemove.length);
+
+          // Adicionar novos vínculos
+          if (toAdd.length > 0) {
+            const { error: insertError } = await supabase
               .from('environment_criteria')
-              .insert(modelCriteria.map(c => ({
+              .insert(toAdd.map(criterionId => ({
                 environment_id: editingEnvironment.id,
-                criterion_id: c.id
+                criterion_id: criterionId
               })));
+            
+            if (insertError) {
+              console.error('❌ Erro ao adicionar critérios:', insertError);
+            } else {
+              console.log('✅ Critérios adicionados com sucesso');
+            }
           }
+
+          // Remover vínculos desmarcados
+          if (toRemove.length > 0) {
+            const { error: deleteError } = await supabase
+              .from('environment_criteria')
+              .delete()
+              .eq('environment_id', editingEnvironment.id)
+              .in('criterion_id', toRemove);
+            
+            if (deleteError) {
+              console.error('❌ Erro ao remover critérios:', deleteError);
+            } else {
+              console.log('✅ Critérios removidos com sucesso');
+            }
+          }
+        } else {
+          // Nenhum modelo selecionado - MANTER critérios existentes
+          console.log('⚠️ Nenhum modelo selecionado - mantendo critérios existentes');
         }
 
         toast({
