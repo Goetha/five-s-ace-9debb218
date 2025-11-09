@@ -564,6 +564,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ensure_company_criteria_for_model: {
+        Args: { p_company_id: string; p_model_id: string }
+        Returns: undefined
+      }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -573,6 +577,10 @@ export type Database = {
         Returns: boolean
       }
       is_ifa_admin: { Args: { _user_id: string }; Returns: boolean }
+      link_model_criteria_to_all_environments: {
+        Args: { p_company_id: string; p_model_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:
