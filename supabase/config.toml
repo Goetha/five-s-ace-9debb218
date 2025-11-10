@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.send-user-credentials]
 verify_jwt = false
+
+[functions.cleanup-auth-users]
+verify_jwt = true
