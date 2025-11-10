@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Building2, BookOpen, Users, ClipboardList, TrendingUp, Activity } from "lucide-react";
+import { Building2, BookOpen, Users, ClipboardList, TrendingUp, Activity, Trash2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { Company } from "@/types/company";
 import { Criteria } from "@/types/criteria";
 import { MasterModel } from "@/types/model";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -19,6 +21,29 @@ const Dashboard = () => {
     totalModels: 0,
     totalUsers: 0,
   });
+  const [isCleaningAuth, setIsCleaningAuth] = useState(false);
+
+  const handleCleanupAuthUsers = async () => {
+    setIsCleaningAuth(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cleanup-auth-users');
+      
+      if (error) throw error;
+      
+      toast.success('Limpeza concluída!', {
+        description: `${data.deleted_count} usuários deletados do auth.users. ${data.failed_count} falhas.`
+      });
+      
+      console.log('Cleanup result:', data);
+    } catch (error) {
+      console.error('Error cleaning up auth users:', error);
+      toast.error('Erro ao limpar usuários', {
+        description: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    } finally {
+      setIsCleaningAuth(false);
+    }
+  };
 
   useEffect(() => {
     // Load companies
@@ -115,6 +140,29 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Cleanup Auth Users - Temporary */}
+        <Card className="border-red-500/50 bg-red-500/5">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />
+              <CardTitle className="text-red-500">Limpeza de Autenticação (Temporário)</CardTitle>
+            </div>
+            <CardDescription>
+              Deletar todos os usuários do auth.users exceto IFA Admin. Este botão é temporário para completar a limpeza do banco.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={handleCleanupAuthUsers}
+              disabled={isCleaningAuth}
+              variant="destructive"
+              className="w-full"
+            >
+              {isCleaningAuth ? "Limpando..." : "Limpar Usuários Auth"}
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
