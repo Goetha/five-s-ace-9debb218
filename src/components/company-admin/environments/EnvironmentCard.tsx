@@ -227,8 +227,10 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
             {childEnvironments.map((child) => {
               const ChildIcon = iconMap[child.icon as keyof typeof iconMap] || MapPin;
               const childLevel = getLevel(child);
-              const childTypeLabel = childLevel === 2 ? 'Ambiente' : 'Local';
-              const childBadgeColor = childLevel === 2 
+              const childTypeLabel = childLevel === 1 ? 'Área' : childLevel === 2 ? 'Ambiente' : 'Local';
+              const childBadgeColor = childLevel === 1 
+                ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400' 
+                : childLevel === 2 
                 ? 'bg-green-500/10 text-green-700 dark:text-green-400'
                 : 'bg-blue-500/10 text-blue-700 dark:text-blue-400';
               
