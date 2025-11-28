@@ -138,44 +138,20 @@ export function NewAuditDialog({
         throw criteriaError;
       }
 
-      let count = 0;
-
-      // Se o local tem critérios específicos, contar esses
-      if (criteriaLinks && criteriaLinks.length > 0) {
-        console.log('✅ Local tem critérios específicos vinculados');
-        const { count: specificCount, error: fetchError } = await supabase
-          .from('company_criteria')
-          .select('*', { count: 'exact', head: true })
-          .in('id', criteriaLinks.map(link => link.criterion_id))
-          .eq('status', 'active');
-
-        console.log('📊 Contagem de critérios específicos:', specificCount);
-        if (fetchError) {
-          console.error('❌ Erro ao contar critérios específicos:', fetchError);
-          throw fetchError;
-        }
-        count = specificCount || 0;
-      } else {
-        // Senão, contar TODOS os critérios ativos da empresa
-        console.log('📦 Nenhum critério específico, buscando TODOS da empresa');
-        const { count: companyCount, error: fetchError, data: debugData } = await supabase
-          .from('company_criteria')
-          .select('*', { count: 'exact', head: false })
-          .eq('company_id', preSelectedCompanyId)
-          .eq('status', 'active');
-
-        console.log('📊 Contagem total de critérios da empresa:', companyCount);
-        console.log('📄 Dados retornados (debug):', debugData);
-        
-        if (fetchError) {
-          console.error('❌ Erro ao contar critérios da empresa:', fetchError);
-          throw fetchError;
-        }
-        count = companyCount || 0;
+      // Contar apenas critérios vinculados ao local
+      if (!criteriaLinks || criteriaLinks.length === 0) {
+        setCriteriaCount(0);
+        return;
       }
 
-      console.log('✅ Total de critérios encontrados:', count);
-      setCriteriaCount(count);
+      const { count: specificCount, error: fetchError } = await supabase
+        .from('company_criteria')
+        .select('*', { count: 'exact', head: true })
+        .in('id', criteriaLinks.map(link => link.criterion_id))
+        .eq('status', 'active');
+
+      if (fetchError) throw fetchError;
+      setCriteriaCount(specificCount || 0);
     } catch (error) {
       console.error('❌ Error counting criteria:', error);
       toast({
@@ -216,33 +192,23 @@ export function NewAuditDialog({
 
       if (criteriaError) throw criteriaError;
 
-      let criteria;
-
-      // Se o local tem critérios específicos, usar esses
-      if (criteriaLinks && criteriaLinks.length > 0) {
-        const { data: specificCriteria, error: fetchError } = await supabase
-          .from('company_criteria')
-          .select('id, name')
-          .in('id', criteriaLinks.map(link => link.criterion_id))
-          .eq('status', 'active');
-
-        if (fetchError) throw fetchError;
-        criteria = specificCriteria;
-      } else {
-        // Senão, buscar TODOS os critérios ativos da empresa
-        const { data: companyCriteria, error: fetchError } = await supabase
-          .from('company_criteria')
-          .select('id, name')
-          .eq('company_id', preSelectedCompanyId)
-          .eq('status', 'active');
-
-        if (fetchError) throw fetchError;
-        criteria = companyCriteria;
+      // Validar que há critérios vinculados ao local
+      if (!criteriaLinks || criteriaLinks.length === 0) {
+        throw new Error('Nenhum critério vinculado a este local. Por favor, vincule critérios através do gerenciamento de locais.');
       }
 
-      // Validar se há critérios disponíveis
+      // Buscar detalhes dos critérios vinculados
+      const { data: criteria, error: fetchError } = await supabase
+        .from('company_criteria')
+        .select('id, name')
+        .in('id', criteriaLinks.map(link => link.criterion_id))
+        .eq('status', 'active');
+
+      if (fetchError) throw fetchError;
+
+      // Validar se há critérios ativos
       if (!criteria || criteria.length === 0) {
-        throw new Error('Nenhum critério ativo disponível para esta empresa. Entre em contato com o administrador.');
+        throw new Error('Nenhum critério ativo vinculado a este local.');
       }
 
       // Criar itens de auditoria
