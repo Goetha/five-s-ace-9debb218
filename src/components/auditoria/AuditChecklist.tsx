@@ -59,11 +59,16 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
     }
   };
 
-  const handleAnswerChange = (itemId: string, answer: boolean, photoUrl?: string, comment?: string) => {
+  const handleAnswerChange = (itemId: string, answer: boolean, photoUrls?: string[], comment?: string) => {
     setItems(prevItems =>
       prevItems.map(item =>
         item.id === itemId
-          ? { ...item, answer, photo_url: photoUrl || item.photo_url, comment: comment || item.comment }
+          ? { 
+              ...item, 
+              answer, 
+              photo_url: photoUrls && photoUrls.length > 0 ? JSON.stringify(photoUrls) : item.photo_url,
+              comment: comment !== undefined ? comment : item.comment
+            }
           : item
       )
     );
@@ -112,6 +117,26 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
       toast({
         title: "Auditoria incompleta",
         description: `Ainda faltam ${unanswered} perguntas para responder.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validar fotos obrigatórias (pelo menos uma foto por item)
+    const itemsWithoutPhoto = items.filter(item => {
+      if (!item.photo_url) return true;
+      try {
+        const photos = JSON.parse(item.photo_url);
+        return !Array.isArray(photos) || photos.length === 0;
+      } catch {
+        return !item.photo_url;
+      }
+    });
+    
+    if (itemsWithoutPhoto.length > 0) {
+      toast({
+        title: "Fotos obrigatórias",
+        description: "Todas as perguntas precisam de pelo menos uma foto de evidência.",
         variant: "destructive"
       });
       return;

@@ -11,25 +11,37 @@ import type { AuditItem } from "@/types/audit";
 interface ChecklistItemProps {
   item: AuditItem;
   index: number;
-  onAnswerChange: (itemId: string, answer: boolean, photoUrl?: string, comment?: string) => void;
+  onAnswerChange: (itemId: string, answer: boolean, photoUrls?: string[], comment?: string) => void;
 }
 
 export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [comment, setComment] = useState(item.comment || "");
-  const [photoUrl, setPhotoUrl] = useState(item.photo_url || "");
+  
+  // Parse existing photos from JSON string or use empty array
+  const parsePhotos = (photoUrl: string | null): string[] => {
+    if (!photoUrl) return [];
+    try {
+      const parsed = JSON.parse(photoUrl);
+      return Array.isArray(parsed) ? parsed : [photoUrl];
+    } catch {
+      return [photoUrl];
+    }
+  };
+  
+  const [photoUrls, setPhotoUrls] = useState<string[]>(parsePhotos(item.photo_url));
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleAnswer = (answer: boolean) => {
-    onAnswerChange(item.id, answer, photoUrl || undefined, comment);
+    onAnswerChange(item.id, answer, photoUrls.length > 0 ? photoUrls : undefined, comment);
     setShowDetails(true);
   };
 
   const handleCommentChange = (value: string) => {
     setComment(value);
-    onAnswerChange(item.id, item.answer!, photoUrl || undefined, value);
+    onAnswerChange(item.id, item.answer!, photoUrls.length > 0 ? photoUrls : undefined, value);
   };
 
   const handlePhotoClick = () => {
@@ -83,12 +95,13 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
         .from('audit-photos')
         .getPublicUrl(filePath);
 
-      setPhotoUrl(publicUrl);
-      onAnswerChange(item.id, item.answer!, publicUrl, comment);
+      const updatedPhotos = [...photoUrls, publicUrl];
+      setPhotoUrls(updatedPhotos);
+      onAnswerChange(item.id, item.answer!, updatedPhotos, comment);
 
       toast({
-        title: "Foto enviada",
-        description: "A evidência foi registrada com sucesso.",
+        title: "Foto adicionada",
+        description: `${updatedPhotos.length} foto(s) registrada(s).`,
       });
     } catch (error) {
       console.error('Error uploading photo:', error);
@@ -100,6 +113,17 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleRemovePhoto = (indexToRemove: number) => {
+    const updatedPhotos = photoUrls.filter((_, index) => index !== indexToRemove);
+    setPhotoUrls(updatedPhotos);
+    onAnswerChange(item.id, item.answer!, updatedPhotos.length > 0 ? updatedPhotos : undefined, comment);
+    
+    toast({
+      title: "Foto removida",
+      description: `${updatedPhotos.length} foto(s) restante(s).`,
+    });
   };
 
   return (
@@ -165,7 +189,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
             <div className="space-y-2">
               <label className="text-xs sm:text-sm font-medium block text-red-600">
                 <Camera className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" />
-                Foto de Evidência (obrigatória)
+                Fotos de Evidência (obrigatórias) - {photoUrls.length} foto(s)
               </label>
               
               <input
@@ -177,45 +201,46 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
                 className="hidden"
               />
 
-              {photoUrl ? (
-                <div className="space-y-2">
-                  <img 
-                    src={photoUrl} 
-                    alt="Evidência" 
-                    className="w-full max-h-48 sm:max-h-64 object-cover rounded-lg border"
-                  />
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handlePhotoClick}
-                    disabled={isUploading}
-                    className="w-full text-xs"
-                  >
-                    <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                    Trocar Foto
-                  </Button>
+              {photoUrls.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  {photoUrls.map((url, index) => (
+                    <div key={index} className="relative group">
+                      <img 
+                        src={url} 
+                        alt={`Evidência ${index + 1}`} 
+                        className="w-full h-32 sm:h-40 object-cover rounded-lg border"
+                      />
+                      <button
+                        onClick={() => handleRemovePhoto(index)}
+                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        type="button"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handlePhotoClick}
-                  disabled={isUploading}
-                  className="w-full border-red-300 hover:border-red-400 text-xs"
-                >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-2 animate-spin" />
-                      Enviando...
-                    </>
-                  ) : (
-                    <>
-                      <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                      Tirar Foto
-                    </>
-                  )}
-                </Button>
               )}
+
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handlePhotoClick}
+                disabled={isUploading}
+                className="w-full border-red-300 hover:border-red-400 text-xs"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-2 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                    {photoUrls.length > 0 ? 'Adicionar Mais Fotos' : 'Tirar Foto'}
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         )}
