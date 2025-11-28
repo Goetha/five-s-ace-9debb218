@@ -179,21 +179,21 @@ export default function DetalhesAuditoria() {
         Voltar
       </Button>
 
-      <Card className="p-3 sm:p-6">
+      <Card className="p-3 sm:p-6 bg-card">
         <div className="space-y-4 sm:space-y-6">
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-1 min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
-                <h1 className="text-lg sm:text-2xl font-bold truncate">{audit.location_name}</h1>
+                <h1 className="text-base sm:text-2xl font-bold truncate">{audit.location_name}</h1>
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground">
                 {format(new Date(audit.started_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
               </p>
             </div>
             <Badge className={cn(
-              "flex-shrink-0 text-xs",
-              audit.status === 'completed' ? "bg-green-100 text-green-700 border-green-300" : "bg-blue-100 text-blue-700 border-blue-300"
+              "flex-shrink-0 text-xs px-2 py-0.5",
+              audit.status === 'completed' ? "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-400" : "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-400"
             )}>
               {audit.status === 'completed' ? 'Concluída' : 'Em Andamento'}
             </Badge>
@@ -201,28 +201,28 @@ export default function DetalhesAuditoria() {
 
           {audit.status === 'completed' && (
             <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="flex items-center justify-center gap-2 text-green-600 mb-1">
-                    <Check className="h-5 w-5" />
-                    <span className="text-sm font-medium">Sim</span>
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                <div className="text-center p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-900">
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-emerald-600 dark:text-emerald-400 mb-1">
+                    <Check className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="text-xs sm:text-sm font-medium">Sim</span>
                   </div>
-                  <p className="text-3xl font-bold text-green-600">{audit.total_yes}</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">{audit.total_yes}</p>
                 </div>
-                <div className="text-center p-4 bg-red-50 rounded-lg">
-                  <div className="flex items-center justify-center gap-2 text-red-600 mb-1">
-                    <X className="h-5 w-5" />
-                    <span className="text-sm font-medium">Não</span>
+                <div className="text-center p-3 sm:p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900">
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-red-600 dark:text-red-400 mb-1">
+                    <X className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="text-xs sm:text-sm font-medium">Não</span>
                   </div>
-                  <p className="text-3xl font-bold text-red-600">{audit.total_no}</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-red-600 dark:text-red-400">{audit.total_no}</p>
                 </div>
               </div>
 
-              <div className="text-center space-y-3 p-6 bg-secondary rounded-lg">
+              <div className="text-center space-y-2 sm:space-y-3 p-4 sm:p-6 bg-secondary/50 rounded-lg border border-border">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Pontuação Final</p>
-                  <p className="text-5xl font-bold">{audit.score?.toFixed(1)}</p>
-                  <p className="text-muted-foreground">/10</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Pontuação Final</p>
+                  <p className="text-4xl sm:text-5xl font-bold">{audit.score?.toFixed(1)}</p>
+                  <p className="text-sm text-muted-foreground">/10</p>
                 </div>
                 <div className="flex justify-center">
                   <ScoreLevelIndicator level={scoreLevel} />
@@ -250,16 +250,16 @@ export default function DetalhesAuditoria() {
       </Card>
 
       {audit.status === 'completed' && (
-        <Card className="p-4 sm:p-6">
-          <h2 className="text-lg sm:text-xl font-bold mb-4">Respostas Detalhadas</h2>
-          <div className="space-y-6">
+        <Card className="p-3 sm:p-6 bg-card">
+          <h2 className="text-base sm:text-xl font-bold mb-3 sm:mb-4">Respostas Detalhadas</h2>
+          <div className="space-y-4 sm:space-y-6">
             {yesItems.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-base sm:text-lg font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+              <div className="space-y-2.5 sm:space-y-3">
+                <h3 className="text-sm sm:text-lg font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
                   <Check className="h-4 w-4 sm:h-5 sm:w-5" />
                   Conformidades ({yesItems.length})
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-2.5 sm:space-y-3">
                   {yesItems.map((item, index) => (
                     <ChecklistItemReadOnly key={item.id} item={item} index={index} />
                   ))}
@@ -268,12 +268,12 @@ export default function DetalhesAuditoria() {
             )}
 
             {noItems.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-base sm:text-lg font-semibold text-red-700 dark:text-red-400 flex items-center gap-2">
+              <div className="space-y-2.5 sm:space-y-3">
+                <h3 className="text-sm sm:text-lg font-semibold text-red-700 dark:text-red-400 flex items-center gap-2">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                   Não-Conformidades ({noItems.length})
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-2.5 sm:space-y-3">
                   {noItems.map((item, index) => (
                     <ChecklistItemReadOnly key={item.id} item={item} index={index} />
                   ))}

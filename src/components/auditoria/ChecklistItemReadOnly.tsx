@@ -19,14 +19,14 @@ export function ChecklistItemReadOnly({ item, index }: ChecklistItemReadOnlyProp
 
   return (
     <>
-      <Card className={item.answer ? "bg-emerald-50 dark:bg-emerald-950/20" : "bg-red-50 dark:bg-red-950/20"}>
-        <CardContent className="p-4 space-y-3">
+      <Card className={item.answer ? "bg-emerald-50/50 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-900" : "bg-red-50/50 dark:bg-red-950/10 border-red-200 dark:border-red-900"}>
+        <CardContent className="p-3 sm:p-4 space-y-2.5 sm:space-y-3">
           {/* Question */}
           <div>
-            <p className="font-medium text-sm text-muted-foreground mb-2">
+            <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">
               Pergunta {index + 1}
             </p>
-            <p className="text-base font-medium">{item.question}</p>
+            <p className="text-sm sm:text-base font-medium leading-snug">{item.question}</p>
           </div>
 
           {/* Answer Buttons (Read-Only) */}
@@ -34,50 +34,52 @@ export function ChecklistItemReadOnly({ item, index }: ChecklistItemReadOnlyProp
             <Button
               type="button"
               disabled
+              size="sm"
               variant={item.answer === true ? "default" : "outline"}
-              className={`flex-1 ${
+              className={`flex-1 text-xs sm:text-sm ${
                 item.answer === true
-                  ? "bg-emerald-600 hover:bg-emerald-600 text-white"
-                  : "opacity-50"
+                  ? "bg-emerald-600 hover:bg-emerald-600 text-white border-emerald-600"
+                  : "opacity-40 bg-transparent"
               }`}
             >
-              <Check className="h-4 w-4 mr-1" />
+              <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
               Conforme
             </Button>
             <Button
               type="button"
               disabled
+              size="sm"
               variant={item.answer === false ? "default" : "outline"}
-              className={`flex-1 ${
+              className={`flex-1 text-xs sm:text-sm ${
                 item.answer === false
-                  ? "bg-red-600 hover:bg-red-600 text-white"
-                  : "opacity-50"
+                  ? "bg-red-600 hover:bg-red-600 text-white border-red-600"
+                  : "opacity-40 bg-transparent"
               }`}
             >
-              <X className="h-4 w-4 mr-1" />
+              <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
               Não Conforme
             </Button>
           </div>
 
           {/* Comment (Read-Only) */}
           {item.comment && (
-            <div className="bg-background/50 p-3 rounded-md">
-              <p className="text-sm font-medium mb-1 text-muted-foreground">Comentário:</p>
-              <p className="text-sm">{item.comment}</p>
+            <div className="bg-muted/50 p-2.5 sm:p-3 rounded-md">
+              <p className="text-xs sm:text-sm font-medium mb-1 text-muted-foreground">Comentário:</p>
+              <p className="text-xs sm:text-sm leading-relaxed">{item.comment}</p>
             </div>
           )}
 
           {/* Photos (Read-Only with Preview) */}
           {photoUrls.length > 0 && (
             <div className="space-y-2">
-              <p className="text-sm font-medium text-muted-foreground">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground">
                 Evidências fotográficas ({photoUrls.length}):
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {photoUrls.map((url, idx) => (
                   <div
                     key={idx}
-                    className="relative aspect-square rounded-md overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity"
+                    className="relative aspect-square rounded-md overflow-hidden bg-muted/30 cursor-pointer hover:opacity-80 transition-opacity border border-border"
                     onClick={() => setPreviewImage(url)}
                   >
                     <img
