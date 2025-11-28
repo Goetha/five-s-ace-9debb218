@@ -2,7 +2,8 @@ import { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { Camera, Check, X, Upload, Loader2, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -267,7 +268,10 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
 
       {/* Modal de Preview da Foto */}
       <Dialog open={previewImage !== null} onOpenChange={() => setPreviewImage(null)}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-0">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-0" aria-describedby={undefined}>
+          <VisuallyHidden.Root>
+            <DialogTitle>Visualização da Foto</DialogTitle>
+          </VisuallyHidden.Root>
           <div className="relative w-full h-full flex items-center justify-center bg-black/90">
             {previewImage && (
               <img 
