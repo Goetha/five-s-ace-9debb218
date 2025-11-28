@@ -228,7 +228,7 @@ export default function Ambientes() {
               <EnvironmentCard
                 key={area.id}
                 environment={area}
-                locations={allDescendants}
+                locations={allEnvironments}
                 onEdit={(env) => {
                   setEditingEnvironment(env);
                   setParentIdForNew(null);
