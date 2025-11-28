@@ -17,16 +17,16 @@ export function CompanyCard({ company, totalEnvironments, totalLocations, onAddE
   // Note: totalEnvironments now represents Areas, totalLocations represents Environments + Locals
   return (
     <Card className="border-2 border-primary/50 bg-primary/5">
-      <CardContent className="p-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-1">
-            {/* Botão de Expandir/Colapsar todos os ambientes */}
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {/* Botão de Expandir/Colapsar */}
             {totalEnvironments > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onToggleExpand}
-                className="h-6 w-6 p-0"
+                className="h-6 w-6 p-0 shrink-0"
               >
                 {isExpanded ? (
                   <ChevronDown className="h-4 w-4" />
@@ -35,17 +35,21 @@ export function CompanyCard({ company, totalEnvironments, totalLocations, onAddE
                 )}
               </Button>
             )}
-            <div className="flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-bold">{company.name}</h2>
-                <Badge variant="outline" className="text-xs">Empresa</Badge>
-                <span className="text-sm text-muted-foreground">
-                  • {totalEnvironments} Áreas • {totalLocations} Ambientes/Locais
-                </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold truncate">{company.name}</h2>
+                <Badge variant="outline" className="text-xs shrink-0">Empresa</Badge>
+              </div>
+              <div className="text-xs sm:text-sm text-muted-foreground mt-1">
+                {totalEnvironments} Áreas • {totalLocations} Ambientes/Locais
               </div>
             </div>
           </div>
-          <Button size="sm" onClick={onAddEnvironment} className="bg-primary hover:bg-primary/90">
+          <Button 
+            size="sm" 
+            onClick={onAddEnvironment} 
+            className="bg-primary hover:bg-primary/90 w-full sm:w-auto shrink-0"
+          >
             <Plus className="h-3 w-3 mr-1" />
             Nova Área
           </Button>
