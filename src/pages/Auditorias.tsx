@@ -21,19 +21,23 @@ interface Company {
 interface AuditGroupedData {
   company_id: string;
   company_name: string;
-  environments: {
-    environment_id: string;
-    environment_name: string;
-    locations: {
-      location_id: string;
-      location_name: string;
-      audits: {
-        id: string;
-        status: string;
-        score: number | null;
-        score_level: string | null;
-        started_at: string;
-        auditor_name?: string;
+  areas: {
+    area_id: string;
+    area_name: string;
+    environments: {
+      environment_id: string;
+      environment_name: string;
+      locals: {
+        local_id: string;
+        local_name: string;
+        audits: {
+          id: string;
+          status: string;
+          score: number | null;
+          score_level: string | null;
+          started_at: string;
+          auditor_name?: string;
+        }[];
       }[];
     }[];
   }[];
@@ -153,38 +157,54 @@ const Auditorias = () => {
         return null;
       };
 
-      // 1) Inicializar hierarquia completa por empresa
+      // 1) Inicializar hierarquia completa por empresa (4 níveis: Empresa > Área > Ambiente > Local)
       const grouped: { [key: string]: AuditGroupedData } = {};
+      
       for (const company of companiesData || []) {
         grouped[company.id] = {
           company_id: company.id,
           company_name: company.name,
-          environments: []
+          areas: []
         };
 
         const root = rootByCompany.get(company.id);
-        const secondLevel = root ? (childrenByParent.get(root.id) || []) : [];
-
-        // Ordenar por nome
-        secondLevel.sort((a: any, b: any) => a.name.localeCompare(b.name));
-
-        for (const env of secondLevel) {
-          const envGroup = {
-            environment_id: env.id,
-            environment_name: env.name,
-            locations: [] as any[]
+        if (!root) continue;
+        
+        // Nível 1: Áreas (filhos diretos do root)
+        const areas = (childrenByParent.get(root.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
+        
+        for (const area of areas) {
+          const areaGroup = {
+            area_id: area.id,
+            area_name: area.name,
+            environments: [] as any[]
           };
-
-          const locations = (childrenByParent.get(env.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
-          for (const loc of locations) {
-            envGroup.locations.push({
-              location_id: loc.id,
-              location_name: loc.name,
-              audits: []
-            });
+          
+          // Nível 2: Ambientes (filhos das áreas)
+          const environments = (childrenByParent.get(area.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
+          
+          for (const env of environments) {
+            const envGroup = {
+              environment_id: env.id,
+              environment_name: env.name,
+              locals: [] as any[]
+            };
+            
+            // Nível 3: Locais (filhos dos ambientes)
+            const locals = (childrenByParent.get(env.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
+            
+            for (const local of locals) {
+              envGroup.locals.push({
+                local_id: local.id,
+                local_name: local.name,
+                audits: []
+              });
+            }
+            
+            areaGroup.environments.push(envGroup);
           }
-
-          grouped[company.id].environments.push(envGroup);
+          
+          grouped[company.id].areas.push(areaGroup);
         }
       }
 
@@ -194,7 +214,7 @@ const Auditorias = () => {
       let inProgress = 0;
       const scheduled: ScheduledAudit[] = [];
 
-      // 2) Preencher auditorias nas estruturas existentes
+      // 2) Preencher auditorias nas estruturas existentes  
       for (const audit of (auditsData || [])) {
         total++;
         if (audit.status === 'completed') completed++;
@@ -220,40 +240,58 @@ const Auditorias = () => {
         }
 
         // Garantir que a empresa existe no grouped
-        const companyGroup = grouped[audit.company_id] || (grouped[audit.company_id] = {
-          company_id: audit.company_id,
-          company_name: company?.name || 'Sem nome',
-          environments: []
-        });
-
-        // Garantir existência do ambiente (nível 2 - filho direto do root)
-        let envGroup = secondLevelEnv
-          ? companyGroup.environments.find(e => e.environment_id === secondLevelEnv.id)
-          : undefined;
-
-        // Se o nível 2 não existe no grupo, criar
-        if (!envGroup && secondLevelEnv) {
-          envGroup = {
-            environment_id: secondLevelEnv.id,
-            environment_name: secondLevelEnv.name || 'Sem ambiente',
-            locations: []
+        if (!grouped[audit.company_id]) {
+          grouped[audit.company_id] = {
+            company_id: audit.company_id,
+            company_name: company?.name || 'Sem nome',
+            areas: []
           };
-          companyGroup.environments.push(envGroup);
         }
 
-        // Adicionar o location (que pode ser nível 3, 4, etc)
-        if (locationEnv && envGroup) {
-          let locGroup = envGroup.locations.find(l => l.location_id === locationEnv.id);
-          if (!locGroup) {
-            locGroup = {
-              location_id: locationEnv.id,
-              location_name: locationEnv.name || 'Sem local',
-              audits: []
+        const companyGroup = grouped[audit.company_id];
+
+        // Encontrar onde a auditoria deve ser adicionada na hierarquia
+        if (!locationEnv) continue;
+
+        // Subir na hierarquia para encontrar: local -> ambiente -> área
+        let currentEnv = locationEnv;
+        let parentEnv = currentEnv.parent_id ? envMap.get(currentEnv.parent_id) : null;
+        let grandparentEnv = parentEnv?.parent_id ? envMap.get(parentEnv.parent_id) : null;
+
+        // Se grandparent existe e não tem parent (é filho direto do root), então temos a hierarquia completa
+        if (grandparentEnv && !grandparentEnv.parent_id) {
+          // grandparentEnv = Área, parentEnv = Ambiente, currentEnv = Local
+          let areaGroup = companyGroup.areas.find(a => a.area_id === grandparentEnv!.id);
+          if (!areaGroup) {
+            areaGroup = {
+              area_id: grandparentEnv.id,
+              area_name: grandparentEnv.name,
+              environments: []
             };
-            envGroup.locations.push(locGroup);
+            companyGroup.areas.push(areaGroup);
           }
 
-          locGroup.audits.push({
+          let envGroup = areaGroup.environments.find(e => e.environment_id === parentEnv!.id);
+          if (!envGroup) {
+            envGroup = {
+              environment_id: parentEnv!.id,
+              environment_name: parentEnv!.name,
+              locals: []
+            };
+            areaGroup.environments.push(envGroup);
+          }
+
+          let localGroup = envGroup.locals.find(l => l.local_id === currentEnv.id);
+          if (!localGroup) {
+            localGroup = {
+              local_id: currentEnv.id,
+              local_name: currentEnv.name,
+              audits: []
+            };
+            envGroup.locals.push(localGroup);
+          }
+
+          localGroup.audits.push({
             id: audit.id,
             status: audit.status,
             score: audit.score,
@@ -292,14 +330,17 @@ const Auditorias = () => {
     if (filterStatus !== "all") {
       filtered = filtered.map(group => ({
         ...group,
-        environments: group.environments.map(env => ({
-          ...env,
-          locations: env.locations.map(loc => ({
-            ...loc,
-            audits: loc.audits.filter(audit => audit.status === filterStatus)
-          })).filter(loc => loc.audits.length > 0)
-        })).filter(env => env.locations.length > 0)
-      })).filter(group => group.environments.length > 0);
+        areas: group.areas.map(area => ({
+          ...area,
+          environments: area.environments.map(env => ({
+            ...env,
+            locals: env.locals.map(local => ({
+              ...local,
+              audits: local.audits.filter(audit => audit.status === filterStatus)
+            })).filter(local => local.audits.length > 0)
+          })).filter(env => env.locals.length > 0)
+        })).filter(area => area.environments.length > 0)
+      })).filter(group => group.areas.length > 0);
     }
     
     setFilteredGroupedAudits(filtered);
