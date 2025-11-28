@@ -96,10 +96,10 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
   const level = getLevel(environment);
   const typeLabel = level === 1 ? 'Área' : level === 2 ? 'Ambiente' : 'Local';
   const typeBadgeColor = level === 1 
-    ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400' 
+    ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30' 
     : level === 2
-    ? 'bg-green-500/10 text-green-700 dark:text-green-400'
-    : 'bg-blue-500/10 text-blue-700 dark:text-blue-400';
+    ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30'
+    : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30';
   
   // Group locations by level
   const childEnvironments = locations?.filter(l => l.parent_id === environment.id) || [];
@@ -146,7 +146,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <CardTitle className="text-base sm:text-lg truncate">{environment.name}</CardTitle>
-                <Badge variant="secondary" className={`${typeBadgeColor} text-xs shrink-0`}>
+                <Badge variant="outline" className={`${typeBadgeColor} border text-xs shrink-0`}>
                   {typeLabel}
                 </Badge>
               </div>
@@ -162,9 +162,9 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
               variant="outline"
               size="sm"
               onClick={() => onEdit(environment)}
-              className="h-8"
+              className="h-8 w-8 sm:h-9 sm:w-9 p-0"
             >
-              <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
+              <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
             
             {level < 3 && (
@@ -172,10 +172,10 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                 variant="outline"
                 size="sm"
                 onClick={() => onAddLocation(environment.id)}
-                className="h-8"
+                className="h-8 sm:h-9"
               >
-                <Plus className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
-                <span className="hidden sm:inline">{level === 1 ? 'Ambiente' : 'Local'}</span>
+                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline text-xs sm:text-sm">{level === 1 ? 'Ambiente' : 'Local'}</span>
               </Button>
             )}
 
@@ -186,22 +186,22 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                 setItemToDelete({ id: environment.id, name: environment.name, level });
                 setShowDeleteDialog(true);
               }}
-              className="h-8"
+              className="h-8 w-8 sm:h-9 sm:w-9 p-0"
             >
-              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
+              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
             </Button>
-
+            
             {childEnvironments.length > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="h-8"
+                className="h-8 w-8 sm:h-9 sm:w-9 p-0"
               >
                 {isExpanded ? (
-                  <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <ChevronUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 ) : (
-                  <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 )}
               </Button>
             )}
@@ -223,53 +223,61 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
 
         {/* Child Environments/Locations List */}
         {isExpanded && childEnvironments.length > 0 && (
-          <div className="mt-4 space-y-2 pl-4 border-l-2 border-muted">
+          <div className="mt-3 sm:mt-4 space-y-2 sm:space-y-3 pl-2 sm:pl-4 border-l-2 border-primary/20">
             {childEnvironments.map((child) => {
               const ChildIcon = iconMap[child.icon as keyof typeof iconMap] || MapPin;
               const childLevel = getLevel(child);
               const childTypeLabel = childLevel === 1 ? 'Área' : childLevel === 2 ? 'Ambiente' : 'Local';
               const childBadgeColor = childLevel === 1 
-                ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400' 
+                ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30' 
                 : childLevel === 2 
-                ? 'bg-green-500/10 text-green-700 dark:text-green-400'
-                : 'bg-blue-500/10 text-blue-700 dark:text-blue-400';
+                ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30'
+                : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30';
+              
+              const childBorderColor = childLevel === 1 
+                ? 'border-l-orange-500/50' 
+                : childLevel === 2 
+                ? 'border-l-green-500/50'
+                : 'border-l-blue-500/50';
               
               const grandchildren = locations?.filter(l => l.parent_id === child.id) || [];
               
               return (
                 <div key={child.id} className="space-y-2">
-                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="p-1.5 bg-background rounded">
-                        <ChildIcon className="h-4 w-4 text-muted-foreground" />
+                  <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-2.5 sm:p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors border-l-4 ${childBorderColor}`}>
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                      <div className="p-1.5 bg-background rounded shrink-0">
+                        <ChildIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{child.name}</span>
-                          <Badge variant="secondary" className={`${childBadgeColor} text-xs`}>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm truncate">{child.name}</span>
+                          <Badge variant="outline" className={`${childBadgeColor} text-[10px] sm:text-xs shrink-0`}>
                             {childTypeLabel}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
                           {child.audits_count || 0} auditorias
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 ml-auto">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => onEdit(child)}
+                        className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                       >
-                        <Pencil className="h-3 w-3" />
+                        <Pencil className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       </Button>
-                      {childLevel === 2 && (
+                      {childLevel < 3 && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onAddLocation(child.id)}
+                          className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                         </Button>
                       )}
                       <Button
@@ -279,52 +287,53 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                           setItemToDelete({ id: child.id, name: child.name, level: childLevel });
                           setShowDeleteDialog(true);
                         }}
+                        className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                       >
-                        <Trash2 className="h-3 w-3 text-destructive" />
+                        <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-destructive" />
                       </Button>
                     </div>
                   </div>
                   
                   {/* Grandchildren (Locais within Ambientes) */}
                   {grandchildren.length > 0 && (
-                    <div className="ml-8 space-y-1 pl-4 border-l border-muted">
+                    <div className="ml-4 sm:ml-8 space-y-1.5 pl-2 sm:pl-4 border-l-2 border-blue-500/30">
                       {grandchildren.map((grandchild) => {
                         const GrandchildIcon = iconMap[grandchild.icon as keyof typeof iconMap] || MapPin;
                         return (
                           <div
                             key={grandchild.id}
-                            className="flex items-center justify-between p-2 bg-muted/20 rounded hover:bg-muted/40 transition-colors"
+                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2 bg-muted/20 rounded hover:bg-muted/40 transition-colors border-l-2 border-l-blue-500/40"
                           >
-                            <div className="flex items-center gap-2">
-                              <GrandchildIcon className="h-3 w-3 text-muted-foreground" />
-                              <div>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-xs font-medium">{grandchild.name}</span>
-                                  <Badge variant="secondary" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 text-[10px] px-1">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <GrandchildIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-xs font-medium truncate">{grandchild.name}</span>
+                                  <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30 text-[9px] sm:text-[10px] px-1 shrink-0">
                                     Local
                                   </Badge>
                                 </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 ml-auto">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 p-0"
+                                className="h-6 w-6 sm:h-7 sm:w-7 p-0"
                                 onClick={() => onEdit(grandchild)}
                               >
-                                <Pencil className="h-2.5 w-2.5" />
+                                <Pencil className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 p-0"
+                                className="h-6 w-6 sm:h-7 sm:w-7 p-0"
                                 onClick={() => {
                                   setItemToDelete({ id: grandchild.id, name: grandchild.name, level: 3 });
                                   setShowDeleteDialog(true);
                                 }}
                               >
-                                <Trash2 className="h-2.5 w-2.5 text-destructive" />
+                                <Trash2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-destructive" />
                               </Button>
                             </div>
                           </div>
