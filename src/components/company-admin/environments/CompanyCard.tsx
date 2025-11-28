@@ -14,6 +14,7 @@ interface CompanyCardProps {
 }
 
 export function CompanyCard({ company, totalEnvironments, totalLocations, onAddEnvironment, isExpanded, onToggleExpand }: CompanyCardProps) {
+  // Note: totalEnvironments now represents Areas, totalLocations represents Environments + Locals
   return (
     <Card className="border-2 border-primary/50 bg-primary/5">
       <CardContent className="p-3">
@@ -39,14 +40,14 @@ export function CompanyCard({ company, totalEnvironments, totalLocations, onAddE
                 <h2 className="text-lg font-bold">{company.name}</h2>
                 <Badge variant="outline" className="text-xs">Empresa</Badge>
                 <span className="text-sm text-muted-foreground">
-                  • {totalEnvironments} Ambientes • {totalLocations} Locais
+                  • {totalEnvironments} Áreas • {totalLocations} Ambientes/Locais
                 </span>
               </div>
             </div>
           </div>
           <Button size="sm" onClick={onAddEnvironment} className="bg-primary hover:bg-primary/90">
             <Plus className="h-3 w-3 mr-1" />
-            Ambiente
+            Nova Área
           </Button>
         </div>
       </CardContent>

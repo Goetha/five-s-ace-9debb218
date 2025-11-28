@@ -30,7 +30,8 @@ import {
   Cog,
   Folder,
   Loader2,
-  Eye,
+  Layers,
+  MapPin,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,7 +63,7 @@ const iconOptions = [
 ];
 
 export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvironment, parentId, companyId: propsCompanyId }: NewEnvironmentModalProps) {
-  const [environmentType, setEnvironmentType] = useState<"environment" | "location">("environment");
+  const [environmentType, setEnvironmentType] = useState<"area" | "environment" | "local">("area");
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("Factory");
   const [description, setDescription] = useState("");
@@ -86,28 +87,65 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
     }
   }, [open, user]);
 
-  // Populate form when editing or adding location
+  // Reset form when modal opens/closes or when editing changes
   useEffect(() => {
     if (open) {
       if (editingEnvironment) {
         setName(editingEnvironment.name);
-        setDescription(editingEnvironment.description || "");
+        setIcon(editingEnvironment.icon || 'building');
+        setDescription(editingEnvironment.description || '');
+        setSelectedParentId(editingEnvironment.parent_id || '');
         setStatus(editingEnvironment.status);
-        // Determinar tipo baseado na hierarquia
-        const isLocation = editingEnvironment.parent_id && allEnvironments.find(e => e.id === editingEnvironment.parent_id)?.parent_id;
-        setEnvironmentType(isLocation ? "location" : "environment");
-        setSelectedParentId(editingEnvironment.parent_id || "");
-      } else if (parentId) {
-        setEnvironmentType("location");
-        setSelectedParentId(parentId);
+        
+        // Determine type based on parent_id hierarchy
+        if (!editingEnvironment.parent_id) {
+          setEnvironmentType('area');
+        } else {
+          const parent = allEnvironments.find(e => e.id === editingEnvironment.parent_id);
+          if (!parent) {
+            setEnvironmentType('area');
+          } else if (!parent.parent_id) {
+            // Parent is root (empresa), so this is an area
+            setEnvironmentType('area');
+          } else {
+            const grandparent = allEnvironments.find(e => e.id === parent.parent_id);
+            if (!grandparent?.parent_id) {
+              // Grandparent is root, parent is area, this is environment
+              setEnvironmentType('environment');
+            } else {
+              // This is a local (3rd level)
+              setEnvironmentType('local');
+            }
+          }
+        }
       } else {
-        // Reset form for new environment
-        setName("");
-        setDescription("");
-        setStatus("active");
-        setEnvironmentType("environment");
-        setSelectedParentId("");
-        setSelectedModelIds([]);
+        // Reset to defaults when creating new
+        setName('');
+        setIcon('building');
+        setDescription('');
+        setStatus('active');
+        
+        // Determine type based on parentId context
+        if (parentId) {
+          const parent = allEnvironments.find(e => e.id === parentId);
+          if (!parent?.parent_id) {
+            // Parent is root, creating an area
+            setEnvironmentType('area');
+          } else {
+            const grandparent = allEnvironments.find(e => e.id === parent.parent_id);
+            if (!grandparent?.parent_id) {
+              // Grandparent is root, parent is area, creating environment
+              setEnvironmentType('environment');
+            } else {
+              // Creating local (3rd level)
+              setEnvironmentType('local');
+            }
+          }
+          setSelectedParentId(parentId);
+        } else {
+          setEnvironmentType('area');
+          setSelectedParentId('');
+        }
       }
     }
   }, [open, editingEnvironment, parentId, allEnvironments]);
@@ -135,14 +173,8 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         .eq('status', 'active')
         .order('name');
 
-      // Find the root environment (parent_id = NULL) - this is the company's main environment
-      const rootEnv = allEnvs?.find(e => e.parent_id === null);
-      
-      // Environments are those with parent_id = root environment id
-      const environments = allEnvs?.filter(e => e.parent_id === rootEnv?.id) || [];
-
       setAllEnvironments(allEnvs || []);
-      setAvailableEnvironments(environments);
+      setAvailableEnvironments(allEnvs || []);
 
       // Fetch models linked to this company
       const { data: companyModelsData } = await supabase
@@ -182,62 +214,40 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
       setAvailableModels(modelsWithCount.filter(Boolean));
 
-      // If editing, fetch linked models (via criteria) - query simplificada e direta
+      // If editing, fetch linked models (via criteria)
       if (editingEnvironment) {
-        console.log('🔍 Carregando modelos do ambiente:', editingEnvironment.id, editingEnvironment.name);
-
         try {
-          // 1) Buscar TODOS os critérios vinculados ao ambiente
-          const { data: envCriteria, error: envError } = await supabase
+          const { data: envCriteria } = await supabase
             .from('environment_criteria')
             .select('criterion_id')
             .eq('environment_id', editingEnvironment.id);
 
-          if (envError) {
-            console.error('❌ Erro ao buscar environment_criteria:', envError);
+          if (envCriteria && envCriteria.length > 0) {
+            const criterionIds = envCriteria.map((ec: any) => ec.criterion_id);
+
+            const { data: criteria } = await supabase
+              .from('company_criteria')
+              .select('id, origin_model_id')
+              .in('id', criterionIds)
+              .eq('company_id', fetchedCompanyId as string);
+
+            const modelIds = Array.from(
+              new Set(
+                (criteria || [])
+                  .map((c: any) => c.origin_model_id)
+                  .filter((id: any) => id != null)
+              )
+            ) as string[];
+
+            setSelectedModelIds(modelIds);
+          } else {
             setSelectedModelIds([]);
-            return;
           }
-
-          if (!envCriteria || envCriteria.length === 0) {
-            console.log('⚠️ Nenhum critério vinculado a este ambiente');
-            setSelectedModelIds([]);
-            return;
-          }
-
-          const criterionIds = envCriteria.map((ec: any) => ec.criterion_id);
-          console.log(`📋 ${criterionIds.length} critérios vinculados ao ambiente`);
-
-          // 2) Buscar os dados dos critérios para identificar origin_model_id
-          const { data: criteria, error: criteriaError } = await supabase
-            .from('company_criteria')
-            .select('id, origin_model_id')
-            .in('id', criterionIds)
-            .eq('company_id', fetchedCompanyId as string);
-
-          if (criteriaError) {
-            console.error('❌ Erro ao buscar company_criteria:', criteriaError);
-            setSelectedModelIds([]);
-            return;
-          }
-
-          // 3) Extrair IDs únicos dos modelos
-          const modelIds = Array.from(
-            new Set(
-              (criteria || [])
-                .map((c: any) => c.origin_model_id)
-                .filter((id: any) => id != null)
-            )
-          ) as string[];
-
-          console.log(`✅ ${modelIds.length} modelos identificados:`, modelIds);
-          setSelectedModelIds(modelIds);
         } catch (error) {
-          console.error('❌ Erro inesperado ao carregar modelos:', error);
+          console.error('Error loading models:', error);
           setSelectedModelIds([]);
         }
       } else {
-        // Reset quando não está editando
         setSelectedModelIds([]);
       }
     } catch (error) {
@@ -247,22 +257,33 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
   const selectedIcon = iconOptions.find((opt) => opt.value === icon);
 
+  const getModalTitle = () => {
+    if (editingEnvironment) {
+      if (environmentType === 'area') return 'Editar Área';
+      if (environmentType === 'environment') return 'Editar Ambiente';
+      return 'Editar Local';
+    }
+    if (environmentType === 'area') return 'Criar Nova Área';
+    if (environmentType === 'environment') return 'Criar Novo Ambiente';
+    return 'Criar Novo Local';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim()) {
       toast({
         title: "Campos obrigatórios",
-        description: `Preencha o nome do ${environmentType === 'environment' ? 'ambiente' : 'local'}.`,
+        description: `Preencha o nome ${environmentType === 'area' ? 'da área' : environmentType === 'environment' ? 'do ambiente' : 'do local'}.`,
         variant: "destructive",
       });
       return;
     }
 
-    if (environmentType === "location" && !selectedParentId) {
+    if (environmentType !== "area" && !selectedParentId) {
       toast({
         title: "Campos obrigatórios",
-        description: "Selecione o ambiente pai para este local.",
+        description: `Selecione ${environmentType === 'environment' ? 'a área pai' : 'o ambiente pai'}.`,
         variant: "destructive",
       });
       return;
@@ -273,7 +294,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
     try {
       setLoading(true);
 
-      // Use propsCompanyId if provided, otherwise get from RPC
       let companyIdData = propsCompanyId;
       
       if (!companyIdData) {
@@ -290,11 +310,10 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
       }
 
       if (isEditing && editingEnvironment) {
-        // Update existing environment/location
+        // Update existing
         let finalParentId = selectedParentId;
         
-        if (environmentType === "environment") {
-          // For environments, find the root environment of the company
+        if (environmentType === "area") {
           const { data: rootEnv } = await supabase
             .from('environments')
             .select('id')
@@ -316,29 +335,23 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           .eq('id', editingEnvironment.id);
 
         if (error) {
-          console.error("Error updating environment:", error);
+          console.error("Error updating:", error);
           toast({
-            title: "Erro ao atualizar ambiente",
+            title: "Erro ao atualizar",
             description: error.message,
             variant: "destructive",
           });
           return;
         }
 
-        // Update criteria links from selected models (MERGE strategy)
-        console.log('🔄 Atualizando vínculos de critérios');
-        console.log('📦 Modelos selecionados:', selectedModelIds);
-        
-        // Buscar critérios atuais vinculados ao ambiente
+        // Update criteria links
         const { data: currentLinks } = await supabase
           .from('environment_criteria')
           .select('criterion_id')
           .eq('environment_id', editingEnvironment.id);
         
         const currentCriteriaIds = currentLinks?.map(l => l.criterion_id) || [];
-        console.log('📋 Critérios atualmente vinculados:', currentCriteriaIds.length);
         
-        // Buscar critérios dos modelos selecionados
         if (selectedModelIds.length > 0) {
           const { data: modelCriteria } = await supabase
             .from('company_criteria')
@@ -348,60 +361,37 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
             .eq('status', 'active');
 
           const newCriteriaIds = modelCriteria?.map(c => c.id) || [];
-          console.log('🆕 Critérios dos modelos selecionados:', newCriteriaIds.length);
 
-          // Calcular diferenças
           const toAdd = newCriteriaIds.filter(id => !currentCriteriaIds.includes(id));
           const toRemove = currentCriteriaIds.filter(id => !newCriteriaIds.includes(id));
 
-          console.log('➕ Critérios a adicionar:', toAdd.length);
-          console.log('➖ Critérios a remover:', toRemove.length);
-
-          // Adicionar novos vínculos
           if (toAdd.length > 0) {
-            const { error: insertError } = await supabase
+            await supabase
               .from('environment_criteria')
               .insert(toAdd.map(criterionId => ({
                 environment_id: editingEnvironment.id,
                 criterion_id: criterionId
               })));
-            
-            if (insertError) {
-              console.error('❌ Erro ao adicionar critérios:', insertError);
-            } else {
-              console.log('✅ Critérios adicionados com sucesso');
-            }
           }
 
-          // Remover vínculos desmarcados
           if (toRemove.length > 0) {
-            const { error: deleteError } = await supabase
+            await supabase
               .from('environment_criteria')
               .delete()
               .eq('environment_id', editingEnvironment.id)
               .in('criterion_id', toRemove);
-            
-            if (deleteError) {
-              console.error('❌ Erro ao remover critérios:', deleteError);
-            } else {
-              console.log('✅ Critérios removidos com sucesso');
-            }
           }
-        } else {
-          // Nenhum modelo selecionado - MANTER critérios existentes
-          console.log('⚠️ Nenhum modelo selecionado - mantendo critérios existentes');
         }
 
         toast({
           title: "✓ Atualizado com sucesso!",
-          description: `${environmentType === 'environment' ? 'O ambiente' : 'O local'} "${name}" foi atualizado.`,
+          description: `${environmentType === 'area' ? 'A área' : environmentType === 'environment' ? 'O ambiente' : 'O local'} "${name}" foi atualizado.`,
         });
       } else {
-        // Insert new environment/location
+        // Create new
         let finalParentId = selectedParentId;
         
-        if (environmentType === "environment") {
-          // For environments, find the root environment of the company
+        if (environmentType === "area") {
           const { data: rootEnv } = await supabase
             .from('environments')
             .select('id')
@@ -425,9 +415,9 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           .single();
 
         if (error) {
-          console.error("Error creating environment:", error);
+          console.error("Error creating:", error);
           toast({
-            title: "Erro ao criar ambiente",
+            title: "Erro ao criar",
             description: error.message,
             variant: "destructive",
           });
@@ -436,7 +426,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
         // Link criteria from selected models
         if (newEnv && selectedModelIds.length > 0) {
-          // Get all criteria IDs from selected models
           const { data: modelCriteria } = await supabase
             .from('company_criteria')
             .select('id')
@@ -455,7 +444,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
         toast({
           title: "✓ Criado com sucesso!",
-          description: `${environmentType === 'environment' ? 'O ambiente' : 'O local'} "${name}" foi criado com ${selectedModelIds.length} ${selectedModelIds.length === 1 ? 'modelo vinculado' : 'modelos vinculados'}.`,
+          description: `${environmentType === 'area' ? 'A área' : environmentType === 'environment' ? 'O ambiente' : 'O local'} "${name}" foi criado.`,
         });
       }
 
@@ -465,11 +454,10 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
       setDescription("");
       setSelectedParentId("");
       setStatus("active");
-      setEnvironmentType("environment");
+      setEnvironmentType("area");
       setSelectedModelIds([]);
       onOpenChange(false);
 
-      // Call onSuccess callback to refresh parent component
       if (onSuccess) {
         onSuccess();
       }
@@ -477,7 +465,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
       console.error("Error:", error);
       toast({
         title: "Erro inesperado",
-        description: "Ocorreu um erro ao criar o ambiente.",
+        description: "Ocorreu um erro inesperado.",
         variant: "destructive",
       });
     } finally {
@@ -489,201 +477,183 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {isEditing 
-              ? `Editar ${editingEnvironment?.parent_id && allEnvironments.find(e => e.id === editingEnvironment.parent_id)?.parent_id ? 'Local' : 'Ambiente'}`
-              : environmentType === 'environment' ? 'Criar Novo Ambiente' : 'Criar Novo Local'
-            }
-          </DialogTitle>
+          <DialogTitle>{getModalTitle()}</DialogTitle>
           <DialogDescription>
             {isEditing 
               ? "Atualize as informações" 
-              : environmentType === 'environment' 
-                ? "Ambientes são as grandes áreas da empresa (Produção, Administrativo, etc)" 
-                : "Locais são subdivisões de ambientes (Linha 1, Sala 101, etc)"
+              : `Preencha os dados ${environmentType === 'area' ? 'da área' : environmentType === 'environment' ? 'do ambiente' : 'do local'}`
             }
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Tipo: Ambiente ou Local - Apenas quando não vem do botão da empresa */}
-          {!isEditing && parentId && (
-            <div className="space-y-3">
-              <Label>Tipo *</Label>
-              <div className="p-4 border rounded-lg bg-green-500/10 border-green-500/30">
-                <div className="flex items-center gap-2">
-                  <Eye className="h-5 w-5 text-green-600" />
-                  <div>
-                    <div className="font-medium">Local</div>
-                    <div className="text-sm text-muted-foreground">Exemplo: Linha 1, Sala 101, Depósito A</div>
-                  </div>
-                </div>
-              </div>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            {/* Environment Type Info */}
+            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg mb-4">
+              {environmentType === 'area' ? (
+                <>
+                  <Building2 className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">
+                    Áreas são divisões principais da empresa (ex: Depósito, Produção, Escritório)
+                  </span>
+                </>
+              ) : environmentType === 'environment' ? (
+                <>
+                  <Layers className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">
+                    Ambientes são subdivisões de áreas (ex: Corredor, Sala, Setor)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">
+                    Locais são pontos físicos específicos (ex: Piso, Prateleira, Posição)
+                  </span>
+                </>
+              )}
+            </div>
 
-              <div className="ml-8 space-y-2">
-                <Label htmlFor="parent">Local dentro de *</Label>
-                <Select value={selectedParentId} onValueChange={setSelectedParentId}>
+            {/* Name */}
+            <div className="space-y-2 mb-4">
+              <Label htmlFor="name">
+                Nome {environmentType === 'area' ? 'da Área' : environmentType === 'environment' ? 'do Ambiente' : 'do Local'} *
+              </Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={environmentType === 'area' ? 'Ex: Depósito' : environmentType === 'environment' ? 'Ex: Corredor A' : 'Ex: Prateleira 1'}
+                required
+              />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2 mb-4">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Descreva brevemente..."
+                rows={3}
+              />
+            </div>
+
+            {/* Parent Selection */}
+            {environmentType !== 'area' && (
+              <div className="space-y-2 mb-4">
+                <Label htmlFor="parent">
+                  {environmentType === 'environment' ? 'Área Pai *' : 'Ambiente Pai *'}
+                </Label>
+                <Select
+                  value={selectedParentId}
+                  onValueChange={setSelectedParentId}
+                >
                   <SelectTrigger id="parent">
-                    <SelectValue placeholder="Selecione o ambiente" />
+                    <SelectValue placeholder={
+                      environmentType === 'environment' ? 'Selecione a área' : 'Selecione o ambiente'
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableEnvironments.map((env) => (
-                      <SelectItem key={env.id} value={env.id}>
-                        {env.name}
-                      </SelectItem>
-                    ))}
+                    {availableEnvironments
+                      .filter(env => {
+                        if (environmentType === 'environment') {
+                          // Show areas (children of root)
+                          const root = availableEnvironments.find(e => !e.parent_id);
+                          return env.parent_id === root?.id;
+                        } else {
+                          // Show environments (children of areas)
+                          const parent = availableEnvironments.find(e => e.id === env.parent_id);
+                          const root = availableEnvironments.find(e => !e.parent_id);
+                          return parent && parent.parent_id === root?.id;
+                        }
+                      })
+                      .map((env) => (
+                        <SelectItem key={env.id} value={env.id}>
+                          {env.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Quando vem do botão da empresa - apenas mostrar que é Ambiente */}
-          {!isEditing && !parentId && (
-            <div className="space-y-3">
-              <Label>Tipo *</Label>
-              <div className="p-4 border rounded-lg bg-orange-500/10 border-orange-500/30">
-                <div className="flex items-center gap-2">
-                  <Factory className="h-5 w-5 text-orange-500" />
-                  <div>
-                    <div className="font-medium">Ambiente</div>
-                    <div className="text-sm text-muted-foreground">Grande área da empresa (Produção, Administrativo, Estoque)</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Nome */}
-          <div className="space-y-2">
-            <Label htmlFor="name">Nome {environmentType === 'environment' ? 'do Ambiente' : 'do Local'} *</Label>
-            <Input
-              id="name"
-              placeholder={environmentType === 'environment' ? "Ex: Produção" : "Ex: Linha 1"}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Descrição */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
-            <Textarea
-              id="description"
-              placeholder={environmentType === 'environment' ? "Descreva este ambiente..." : "Descreva este local..."}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              maxLength={300}
-            />
-            <p className="text-xs text-muted-foreground text-right">
-              {description.length}/300 caracteres
-            </p>
-          </div>
-
-          {/* Modelos Aplicáveis - Apenas para Ambientes */}
-          {environmentType === "environment" && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label>Modelos de Critérios</Label>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Selecione os modelos de critérios que devem ser avaliados neste ambiente
-              </p>
-            
-              {availableModels.length === 0 ? (
-                <div className="border rounded-lg p-6 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum modelo disponível. Os modelos são atribuídos pelo Administrador IFA.
-                  </p>
-                </div>
-              ) : (
-                <ScrollArea className="h-[250px] border rounded-lg p-3">
-                  <div className="space-y-2">
-                    {availableModels.map((model) => (
-                      <div 
-                        key={model.id}
-                        className="flex items-start space-x-3 p-3 hover:bg-muted rounded-md transition-colors border"
-                      >
-                        <Checkbox
-                          id={model.id}
-                          checked={selectedModelIds.includes(model.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedModelIds([...selectedModelIds, model.id]);
-                            } else {
-                              setSelectedModelIds(selectedModelIds.filter(id => id !== model.id));
-                            }
-                          }}
-                          className="mt-1"
-                        />
-                        <div className="flex-1">
-                          <Label
-                            htmlFor={model.id}
-                            className="text-sm font-semibold cursor-pointer flex items-center gap-2"
-                          >
-                            {model.name}
-                            <Badge variant="secondary" className="text-xs">
-                              {model.criteria_count} {model.criteria_count === 1 ? 'critério' : 'critérios'}
-                            </Badge>
-                          </Label>
-                          {model.description && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {model.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              )}
-              {selectedModelIds.length > 0 && (
-                <p className="text-xs text-primary font-medium">
-                  {selectedModelIds.length} {selectedModelIds.length === 1 ? 'modelo selecionado' : 'modelos selecionados'}
+            {/* Applicable Models - Only for Areas */}
+            {environmentType === 'area' && !editingEnvironment && (
+              <div className="space-y-2 mb-4">
+                <Label>Modelos Aplicáveis</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Selecione os modelos de critérios que se aplicam a esta área
                 </p>
-              )}
+                <div className="border rounded-lg p-4 space-y-3 max-h-64 overflow-y-auto">
+                  {availableModels.map((model) => (
+                    <div key={model.id} className="flex items-start space-x-3">
+                      <Checkbox
+                        id={`model-${model.id}`}
+                        checked={selectedModelIds.includes(model.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedModelIds([...selectedModelIds, model.id]);
+                          } else {
+                            setSelectedModelIds(selectedModelIds.filter(id => id !== model.id));
+                          }
+                        }}
+                      />
+                      <div className="flex-1">
+                        <label
+                          htmlFor={`model-${model.id}`}
+                          className="text-sm font-medium leading-none cursor-pointer"
+                        >
+                          {model.name}
+                        </label>
+                        {model.description && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {model.description}
+                          </p>
+                        )}
+                        <Badge variant="secondary" className="mt-1">
+                          {model.criteria_count} critérios
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Status */}
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <RadioGroup value={status} onValueChange={(value: any) => setStatus(value)}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="active" id="active" />
+                  <Label htmlFor="active" className="font-normal cursor-pointer">
+                    Ativo
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="inactive" id="inactive" />
+                  <Label htmlFor="inactive" className="font-normal cursor-pointer">
+                    Inativo
+                  </Label>
+                </div>
+              </RadioGroup>
             </div>
-          )}
+          </ScrollArea>
 
-          {/* Status */}
-          <div className="space-y-3">
-            <Label>Status Inicial</Label>
-            <RadioGroup value={status} onValueChange={(v) => setStatus(v as "active" | "inactive")}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="active" id="active" />
-                <Label htmlFor="active" className="cursor-pointer">
-                  Ativo - Disponível para auditorias
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="inactive" id="inactive" />
-                <Label htmlFor="inactive" className="cursor-pointer">
-                  Inativo - Oculto dos avaliadores
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Footer */}
-          <div className="flex gap-3 justify-end pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <div className="flex gap-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="flex-1"
+            >
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
-              className="bg-primary hover:bg-primary-hover text-primary-foreground"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isEditing ? "Salvando..." : "Criando..."}
-                </>
-              ) : (
-                isEditing ? "Salvar Alterações" : environmentType === 'environment' ? "Criar Ambiente" : "Criar Local"
-              )}
+            <Button type="submit" disabled={loading} className="flex-1">
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isEditing ? "Atualizar" : "Criar"}
             </Button>
           </div>
         </form>

@@ -1,15 +1,38 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Environment } from "@/types/environment";
-import { Building2, Eye, Factory, MoreVertical, Pencil, Plus, Cog, Package, Utensils, Wrench, Briefcase, User, BarChart3, Calendar, Trash2, ChevronDown, ChevronRight } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import {
+  Building2,
+  Factory,
+  Package,
+  Utensils,
+  Wrench,
+  Briefcase,
+  Cog,
+  MapPin,
+  Layers,
+  Calendar,
+  Pencil,
+  Trash2,
+  Plus,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
 interface EnvironmentCardProps {
   environment: Environment;
   locations: Environment[];
@@ -17,6 +40,7 @@ interface EnvironmentCardProps {
   onAddLocation: (parentId: string) => void;
   onRefresh: () => void;
 }
+
 const iconMap: Record<string, typeof Factory> = {
   Factory,
   Building2,
@@ -24,154 +48,296 @@ const iconMap: Record<string, typeof Factory> = {
   Utensils,
   Wrench,
   Briefcase,
-  Cog
+  Cog,
+  MapPin,
+  Layers,
 };
-export function EnvironmentCard({
-  environment,
-  locations,
-  onEdit,
-  onAddLocation,
-  onRefresh
-}: EnvironmentCardProps) {
-  const Icon = iconMap[environment.icon] || Building2;
-  const isActive = environment.status === "active";
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(true);
-  const {
-    toast
-  } = useToast();
-  const handleDelete = async (envId: string, envName: string) => {
+
+export function EnvironmentCard({ environment, locations, onEdit, onAddLocation, onRefresh }: EnvironmentCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string; level: number } | null>(null);
+
+  const IconComponent = iconMap[environment.icon as keyof typeof iconMap] || Building2;
+  const { toast } = useToast();
+  
+  // Determine hierarchy level
+  // Level 1: Area (direct child of root)
+  // Level 2: Environment (child of area)
+  // Level 3: Local (child of environment)
+  const getLevel = (env: typeof environment): number => {
+    if (!env.parent_id) return 0; // Root
+    // Count parent chain
+    let level = 1;
+    let currentParent = env.parent_id;
+    while (currentParent) {
+      const parent = locations?.find(l => l.id === currentParent);
+      if (!parent || !parent.parent_id) break;
+      level++;
+      currentParent = parent.parent_id;
+    }
+    return level;
+  };
+  
+  const level = getLevel(environment);
+  const typeLabel = level === 1 ? 'Área' : level === 2 ? 'Ambiente' : 'Local';
+  const typeBadgeColor = level === 1 
+    ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400' 
+    : level === 2
+    ? 'bg-green-500/10 text-green-700 dark:text-green-400'
+    : 'bg-blue-500/10 text-blue-700 dark:text-blue-400';
+  
+  // Group locations by level
+  const childEnvironments = locations?.filter(l => l.parent_id === environment.id) || [];
+  const grandchildLocations = locations?.filter(l => {
+    const parent = locations?.find(p => p.id === l.parent_id);
+    return parent && parent.parent_id === environment.id;
+  }) || [];
+
+  const handleDelete = async (id: string, level: number) => {
     try {
-      const {
-        error
-      } = await supabase.from('environments').delete().eq('id', envId);
-      if (error) {
-        console.error("Error deleting environment:", error);
-        toast({
-          title: "Erro ao excluir",
-          description: error.message,
-          variant: "destructive"
-        });
-        return;
-      }
+      const { error } = await supabase
+        .from('environments')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const levelName = level === 1 ? 'Área' : level === 2 ? 'Ambiente' : 'Local';
       toast({
-        title: "✓ Ambiente excluído",
-        description: `O ambiente "${envName}" foi removido.`
+        title: `${levelName} excluído com sucesso!`,
       });
       onRefresh();
     } catch (error) {
-      console.error("Error:", error);
+      console.error('Error deleting:', error);
       toast({
-        title: "Erro inesperado",
-        description: "Não foi possível excluir o ambiente.",
-        variant: "destructive"
+        title: 'Erro ao excluir',
+        variant: 'destructive',
       });
     } finally {
-      setDeleteDialogOpen(false);
-      setDeletingId(null);
+      setShowDeleteDialog(false);
+      setItemToDelete(null);
     }
   };
-  return <div className="space-y-2">
-      {/* Ambiente (nível 1) - Laranja - COMPACTO */}
-      <Card className="hover:shadow-md transition-shadow border-orange-500/30">
-        <CardContent className="p-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 flex-1 flex-wrap">
-              {/* Botão de Expandir/Colapsar */}
-              {locations.length > 0 && <Button variant="ghost" size="sm" onClick={() => setIsExpanded(!isExpanded)} className="h-6 w-6 p-0">
-                  {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                </Button>}
-              <h3 className="font-semibold text-base">{environment.name}</h3>
-              <Badge variant="secondary" className="text-xs bg-orange-500/10 text-orange-700 border-orange-500/30">
-                Ambiente
-              </Badge>
-              
-              <span className="text-xs text-muted-foreground">
-                {environment.audits_count} aud • {format(new Date(environment.created_at), "dd/MM/yy")} • {locations.length} loc
-              </span>
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader className="pb-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <IconComponent className="h-5 w-5 text-primary" />
             </div>
-            
-            {/* Botões compactos inline */}
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={() => onEdit(environment)}>
-                <Pencil className="h-3 w-3" />
-              </Button>
-              <Button variant="ghost" size="sm" className="text-green-700 hover:bg-green-500/10" onClick={() => onAddLocation(environment.id)}>
-                <Plus className="h-3 w-3" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => {
-              setDeletingId(environment.id);
-              setDeleteDialogOpen(true);
-            }} className="text-destructive hover:text-destructive">
-                <Trash2 className="h-3 w-3" />
-              </Button>
+            <div>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-lg">{environment.name}</CardTitle>
+                <Badge variant="secondary" className={typeBadgeColor}>
+                  {typeLabel}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {environment.audits_count || 0} auditorias realizadas
+              </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Locais (nível 2) - Verde - SUPER COMPACTOS */}
-      {locations.length > 0 && isExpanded && <div className="ml-4 space-y-1 border-l border-green-500/30 pl-2">
-          {locations.map(location => {
-        const LocationIcon = iconMap[location.icon] || Eye;
-        const isLocationActive = location.status === "active";
-        return <Card key={location.id} className="hover:shadow-sm transition-shadow border-green-500/20">
-                <CardContent className="p-2">
-                  <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1">
-                    <span className="font-medium text-sm">{location.name}</span>
-                    <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-500/30">
-                      Local
-                    </Badge>
-                    
-                    <span className="text-xs text-muted-foreground">
-                      {location.audits_count} aud
-                    </span>
-                  </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onEdit(environment)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            
+            {level < 3 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onAddLocation(environment.id)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                {level === 1 ? 'Ambiente' : 'Local'}
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setItemToDelete({ id: environment.id, name: environment.name, level })}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+
+            {childEnvironments.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsExpanded(!isExpanded)}
+              >
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="pt-4">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <Layers className="h-4 w-4" />
+            <span>{childEnvironments.length} {level === 1 ? 'ambientes' : 'locais'}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Calendar className="h-4 w-4" />
+            <span>Criado em {new Date(environment.created_at).toLocaleDateString('pt-BR')}</span>
+          </div>
+        </div>
+
+        {/* Child Environments/Locations List */}
+        {isExpanded && childEnvironments.length > 0 && (
+          <div className="mt-4 space-y-2 pl-4 border-l-2 border-muted">
+            {childEnvironments.map((child) => {
+              const ChildIcon = iconMap[child.icon as keyof typeof iconMap] || MapPin;
+              const childLevel = getLevel(child);
+              const childTypeLabel = childLevel === 2 ? 'Ambiente' : 'Local';
+              const childBadgeColor = childLevel === 2 
+                ? 'bg-green-500/10 text-green-700 dark:text-green-400'
+                : 'bg-blue-500/10 text-blue-700 dark:text-blue-400';
+              
+              const grandchildren = locations?.filter(l => l.parent_id === child.id) || [];
+              
+              return (
+                <div key={child.id} className="space-y-2">
+                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 bg-background rounded">
+                        <ChildIcon className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{child.name}</span>
+                          <Badge variant="secondary" className={`${childBadgeColor} text-xs`}>
+                            {childTypeLabel}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {child.audits_count || 0} auditorias
+                        </p>
+                      </div>
+                    </div>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => onEdit(location)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit(child)}
+                      >
                         <Pencil className="h-3 w-3" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => {
-                  setDeletingId(location.id);
-                  setDeleteDialogOpen(true);
-                }}>
-                        <Trash2 className="h-3 w-3" />
+                      {childLevel === 2 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onAddLocation(child.id)}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setItemToDelete({ id: child.id, name: child.name, level: childLevel })}
+                      >
+                        <Trash2 className="h-3 w-3 text-destructive" />
                       </Button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>;
-      })}
-        </div>}
+                  
+                  {/* Grandchildren (Locais within Ambientes) */}
+                  {grandchildren.length > 0 && (
+                    <div className="ml-8 space-y-1 pl-4 border-l border-muted">
+                      {grandchildren.map((grandchild) => {
+                        const GrandchildIcon = iconMap[grandchild.icon as keyof typeof iconMap] || MapPin;
+                        return (
+                          <div
+                            key={grandchild.id}
+                            className="flex items-center justify-between p-2 bg-muted/20 rounded hover:bg-muted/40 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <GrandchildIcon className="h-3 w-3 text-muted-foreground" />
+                              <div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-xs font-medium">{grandchild.name}</span>
+                                  <Badge variant="secondary" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 text-[10px] px-1">
+                                    Local
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => onEdit(grandchild)}
+                              >
+                                <Pencil className="h-2.5 w-2.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => setItemToDelete({ id: grandchild.id, name: grandchild.name, level: 3 })}
+                              >
+                                <Trash2 className="h-2.5 w-2.5 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir este {locations.some(s => s.id === deletingId) ? 'local' : 'ambiente'}? Esta ação não pode ser desfeita.
-              {deletingId === environment.id && locations.length > 0 && <span className="block mt-2 text-destructive font-medium">
-                  ⚠️ Atenção: Este ambiente possui {locations.length} {locations.length === 1 ? 'local' : 'locais'} vinculado(s) que também serão excluídos.
-                </span>}
+              Tem certeza que deseja excluir {itemToDelete?.level === 1 ? 'a área' : itemToDelete?.level === 2 ? 'o ambiente' : 'o local'}{' '}
+              <span className="font-semibold">{itemToDelete?.name}</span>?
+              {itemToDelete?.level === 1 && childEnvironments.length > 0 && (
+                <span className="block mt-2 text-destructive">
+                  Atenção: Todos os {childEnvironments.length} ambientes e seus locais vinculados também serão excluídos.
+                </span>
+              )}
+              {itemToDelete?.level === 2 && grandchildLocations.length > 0 && (
+                <span className="block mt-2 text-destructive">
+                  Atenção: Todos os {grandchildLocations.length} locais vinculados também serão excluídos.
+                </span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={() => {
-            if (deletingId) {
-              const envToDelete = deletingId === environment.id ? environment : locations.find(s => s.id === deletingId);
-              if (envToDelete) {
-                handleDelete(envToDelete.id, envToDelete.name);
-              }
-            }
-          }}>
+            <AlertDialogAction
+              onClick={() => itemToDelete && handleDelete(itemToDelete.id, itemToDelete.level)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>;
+    </Card>
+  );
 }
