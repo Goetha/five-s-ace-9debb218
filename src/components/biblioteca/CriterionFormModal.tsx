@@ -327,89 +327,6 @@ const selectedTags = form.watch("tags");
                   </div>
                 </div>
 
-                {/* SEÇÃO 4: Categorização */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-foreground">
-                    Categorização
-                  </h3>
-
-                  <FormField control={form.control} name="tags" render={() => <FormItem>
-                        <FormLabel>Tags/Categorias</FormLabel>
-                        
-                        {/* Selected Tags Display */}
-                        {selectedTags.length > 0 && <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-md">
-                            {selectedTags.map(tag => <Badge key={tag} variant="secondary" className="gap-1 animate-fade-in">
-                                {tag}
-                                <button type="button" onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </Badge>)}
-                          </div>}
-
-                        <div className="space-y-3">
-                          {/* Predefined Tags */}
-                          <div className="grid grid-cols-2 gap-2">
-                            {availableTags.map(tag => <FormField key={tag} control={form.control} name="tags" render={({
-                        field
-                      }) => <FormItem className="flex items-center space-x-2 space-y-0">
-                                    <FormControl>
-                                      <Checkbox checked={field.value?.includes(tag)} onCheckedChange={checked => {
-                            const updatedTags = checked ? [...field.value, tag] : field.value.filter(t => t !== tag);
-                            field.onChange(updatedTags);
-                          }} />
-                                    </FormControl>
-                                    <FormLabel className="font-normal cursor-pointer">
-                                      {tag}
-                                    </FormLabel>
-                                  </FormItem>} />)}
-                          </div>
-
-                          {/* Custom Tag Input */}
-                          <div className="flex gap-2">
-                            <Input placeholder="Nova tag customizada..." value={newTagInput} onChange={e => setNewTagInput(e.target.value)} onKeyDown={e => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddCustomTag();
-                        }
-                      }} />
-                            <Button type="button" variant="outline" size="icon" onClick={handleAddCustomTag} disabled={!newTagInput.trim()}>
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        <FormDescription>
-                          Ajuda a filtrar e organizar os critérios
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>} />
-
-                  <FormField control={form.control} name="status" render={({
-                  field
-                }) => <FormItem className="space-y-3">
-                        <FormLabel>Status</FormLabel>
-                        <FormControl>
-                          <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="Ativo" id="ativo" />
-                              <Label htmlFor="ativo" className="cursor-pointer font-normal">
-                                Ativo
-                              </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="Inativo" id="inativo" />
-                              <Label htmlFor="inativo" className="cursor-pointer font-normal">
-                                Inativo
-                              </Label>
-                            </div>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormDescription>
-                          Critérios inativos não ficam disponíveis para as empresas
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>} />
-                </div>
 
                 {/* Hidden submit button for form */}
                 <button type="submit" className="hidden" />
@@ -447,24 +364,6 @@ const selectedTags = form.watch("tags");
                 <div className="text-sm">
                   <span className="text-muted-foreground">Tipo: </span>
                   <span className="font-medium">{form.watch("scoreType")}</span>
-                </div>
-
-                {/* Tags */}
-                {selectedTags.length > 0 && <div>
-                    <p className="text-sm text-muted-foreground mb-2">Tags:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {selectedTags.map(tag => <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>)}
-                    </div>
-                  </div>}
-
-                {/* Status */}
-                <div>
-                  <span className="text-sm text-muted-foreground">Status: </span>
-                  <Badge variant={form.watch("status") === "Ativo" ? "default" : "secondary"} className="text-xs">
-                    {form.watch("status") === "Ativo" ? "🟢" : "⭕"} {form.watch("status")}
-                  </Badge>
                 </div>
               </div>
             </Card>
