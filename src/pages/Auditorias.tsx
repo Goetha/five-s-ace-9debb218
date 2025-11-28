@@ -256,10 +256,19 @@ const Auditorias = () => {
         // Subir na hierarquia para encontrar: local -> ambiente -> área
         let currentEnv = locationEnv;
         let parentEnv = currentEnv.parent_id ? envMap.get(currentEnv.parent_id) : null;
-        let grandparentEnv = parentEnv?.parent_id ? envMap.get(parentEnv.parent_id) : null;
+        
+        if (!parentEnv) continue;
+        
+        let grandparentEnv = parentEnv.parent_id ? envMap.get(parentEnv.parent_id) : null;
+        
+        if (!grandparentEnv) continue;
+        
+        // Verificar se grandparent é filho direto do root (área)
+        // Para isso, o parent do grandparent deve ser o root (que não tem parent)
+        const greatGrandparent = grandparentEnv.parent_id ? envMap.get(grandparentEnv.parent_id) : null;
+        const isAreaLevel = greatGrandparent && !greatGrandparent.parent_id;
 
-        // Se grandparent existe e não tem parent (é filho direto do root), então temos a hierarquia completa
-        if (grandparentEnv && !grandparentEnv.parent_id) {
+        if (isAreaLevel) {
           // grandparentEnv = Área, parentEnv = Ambiente, currentEnv = Local
           let areaGroup = companyGroup.areas.find(a => a.area_id === grandparentEnv!.id);
           if (!areaGroup) {
