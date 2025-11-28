@@ -223,7 +223,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
 
         {/* Child Environments/Locations List */}
         {isExpanded && childEnvironments.length > 0 && (
-          <div className="mt-3 sm:mt-4 space-y-2 sm:space-y-3 pl-2 sm:pl-4 border-l-2 border-primary/20">
+          <div className="mt-3 sm:mt-4 space-y-2 sm:space-y-3 pl-2 sm:pl-4">
             {childEnvironments.map((child) => {
               const ChildIcon = iconMap[child.icon as keyof typeof iconMap] || MapPin;
               const childLevel = getLevel(child);
@@ -234,17 +234,11 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                 ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30'
                 : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30';
               
-              const childBorderColor = childLevel === 1 
-                ? 'border-l-orange-500/50' 
-                : childLevel === 2 
-                ? 'border-l-green-500/50'
-                : 'border-l-blue-500/50';
-              
               const grandchildren = locations?.filter(l => l.parent_id === child.id) || [];
-              
+
               return (
                 <div key={child.id} className="space-y-2">
-                  <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-2.5 sm:p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors border-l-4 ${childBorderColor}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-2.5 sm:p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                       <div className="p-1.5 bg-background rounded shrink-0">
                         <ChildIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -296,13 +290,13 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                   
                   {/* Grandchildren (Locais within Ambientes) */}
                   {grandchildren.length > 0 && (
-                    <div className="ml-4 sm:ml-8 space-y-1.5 pl-2 sm:pl-4 border-l-2 border-blue-500/30">
+                    <div className="ml-4 sm:ml-8 space-y-1.5 pl-2 sm:pl-4">
                       {grandchildren.map((grandchild) => {
                         const GrandchildIcon = iconMap[grandchild.icon as keyof typeof iconMap] || MapPin;
                         return (
                           <div
                             key={grandchild.id}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2 bg-muted/20 rounded hover:bg-muted/40 transition-colors border-l-2 border-l-blue-500/40"
+                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2 bg-muted/20 rounded hover:bg-muted/40 transition-colors"
                           >
                             <div className="flex items-center gap-2 min-w-0 flex-1">
                               <GrandchildIcon className="h-3 w-3 text-muted-foreground shrink-0" />
