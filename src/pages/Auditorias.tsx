@@ -348,47 +348,47 @@ const Auditorias = () => {
   }
   return <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto p-4 sm:p-6 space-y-6">
+      <main className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Auditorias</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Auditorias</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               Gerencie todas as auditorias realizadas
             </p>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           {stats.map((stat, index) => {
           const Icon = stat.icon;
-          return <Card key={index} className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
-                    <p className="text-2xl font-bold mt-1">{stat.value}</p>
+          return <Card key={index} className="p-3 sm:p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground truncate">{stat.label}</p>
+                    <p className="text-xl sm:text-2xl font-bold mt-0.5 sm:mt-1">{stat.value}</p>
                   </div>
-                  <Icon className={`h-8 w-8 ${stat.color}`} />
+                  <Icon className={`h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0 ${stat.color}`} />
                 </div>
               </Card>;
         })}
         </div>
 
         {/* Auditorias Agendadas */}
-        {scheduledAudits.length > 0 && <Card className="p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-blue-600" />
+        {scheduledAudits.length > 0 && <Card className="p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+              <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
               Próximas Auditorias Agendadas
             </h2>
-            <div className="space-y-3">
-              {scheduledAudits.map(audit => <div key={audit.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border border-blue-200 rounded-lg bg-blue-50/50 gap-2">
-                  <div>
-                    <p className="font-medium">{audit.company_name}</p>
-                    <p className="text-sm text-muted-foreground">{audit.environment_name} • {audit.location_name}</p>
+            <div className="space-y-2 sm:space-y-3">
+              {scheduledAudits.map(audit => <div key={audit.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 sm:p-3 border border-blue-200 rounded-lg bg-blue-50/50 gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm sm:text-base truncate">{audit.company_name}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate">{audit.environment_name} • {audit.location_name}</p>
                   </div>
-                  <div className="text-left sm:text-right">
-                    <p className="text-sm font-medium text-blue-700">
+                  <div className="text-left sm:text-right flex-shrink-0">
+                    <p className="text-xs sm:text-sm font-medium text-blue-700">
                       {format(new Date(audit.next_audit_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                     </p>
                     <p className="text-xs text-muted-foreground">Auditor: {audit.auditor_name}</p>
@@ -398,10 +398,10 @@ const Auditorias = () => {
           </Card>}
 
         {/* Filtros e Lista de Auditorias */}
-        <Card className="p-6">
-          <div className="space-y-4">
+        <Card className="p-3 sm:p-6">
+          <div className="space-y-3 sm:space-y-4">
             {/* Filtros */}
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4">
               <div className="flex-1">
                 <Select value={filterCompany} onValueChange={setFilterCompany}>
                   <SelectTrigger>
@@ -443,10 +443,10 @@ const Auditorias = () => {
         </Card>
 
         {/* Nova Auditoria por Empresa */}
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Iniciar Nova Auditoria</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {companies.map(company => <Button key={company.id} variant="outline" className="justify-start h-auto p-4" onClick={() => handleNewAudit(company)}>
+        <Card className="p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Iniciar Nova Auditoria</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+            {companies.map(company => <Button key={company.id} variant="outline" className="justify-start h-auto p-3 sm:p-4 text-sm" onClick={() => handleNewAudit(company)}>
                 <Plus className="h-4 w-4 mr-2 flex-shrink-0" />
                 <span className="truncate">{company.name}</span>
               </Button>)}

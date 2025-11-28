@@ -107,11 +107,11 @@ export function AuditGroupedList({ groupedAudits, onAuditClick }: AuditGroupedLi
             onOpenChange={() => toggleCompany(company.company_id)}
           >
             <CollapsibleTrigger className="w-full">
-              <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Building2 className="h-5 w-5 text-primary" />
-                  <span className="font-semibold text-lg">{company.company_name}</span>
-                  <Badge variant="secondary" className="text-xs">
+              <div className="flex items-center justify-between p-3 sm:p-4 hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                  <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+                  <span className="font-semibold text-sm sm:text-lg truncate">{company.company_name}</span>
+                  <Badge variant="secondary" className="text-xs flex-shrink-0 hidden sm:inline-flex">
                     {company.environments.reduce((acc, env) => 
                       acc + env.locations.reduce((locAcc, loc) => locAcc + loc.audits.length, 0), 0
                     )} auditorias
@@ -119,7 +119,7 @@ export function AuditGroupedList({ groupedAudits, onAuditClick }: AuditGroupedLi
                 </div>
                 <ChevronDown
                   className={cn(
-                    "h-5 w-5 text-muted-foreground transition-transform",
+                    "h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground transition-transform flex-shrink-0",
                     openCompanies.includes(company.company_id) && "rotate-180"
                   )}
                 />
@@ -127,25 +127,25 @@ export function AuditGroupedList({ groupedAudits, onAuditClick }: AuditGroupedLi
             </CollapsibleTrigger>
 
             <CollapsibleContent>
-              <div className="px-4 pb-4 space-y-3">
+              <div className="px-2 sm:px-4 pb-3 sm:pb-4 space-y-2 sm:space-y-3">
                 {company.environments.map((environment) => (
-                  <div key={environment.environment_id} className="ml-4 border-l-2 border-primary/20 pl-4">
+                  <div key={environment.environment_id} className="ml-2 sm:ml-4 border-l-2 border-primary/20 pl-2 sm:pl-4">
                     <Collapsible
                       open={openEnvironments.includes(environment.environment_id)}
                       onOpenChange={() => toggleEnvironment(environment.environment_id)}
                     >
                       <CollapsibleTrigger className="w-full">
-                        <div className="flex items-center justify-between py-2 hover:bg-muted/30 px-3 rounded-md transition-colors">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-primary" />
-                            <span className="font-medium">{environment.environment_name}</span>
-                            <Badge variant="outline" className="text-xs">
+                        <div className="flex items-center justify-between py-2 hover:bg-muted/30 px-2 sm:px-3 rounded-md transition-colors">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+                            <span className="font-medium text-xs sm:text-sm truncate">{environment.environment_name}</span>
+                            <Badge variant="outline" className="text-xs flex-shrink-0 hidden sm:inline-flex">
                               {environment.locations.reduce((acc, loc) => acc + loc.audits.length, 0)} auditorias
                             </Badge>
                           </div>
                           <ChevronDown
                             className={cn(
-                              "h-4 w-4 text-muted-foreground transition-transform",
+                              "h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground transition-transform flex-shrink-0",
                               openEnvironments.includes(environment.environment_id) && "rotate-180"
                             )}
                           />
@@ -153,37 +153,37 @@ export function AuditGroupedList({ groupedAudits, onAuditClick }: AuditGroupedLi
                       </CollapsibleTrigger>
 
                       <CollapsibleContent>
-                        <div className="mt-2 space-y-2">
+                        <div className="mt-1.5 sm:mt-2 space-y-1.5 sm:space-y-2">
                           {environment.locations.map((location) => (
-                            <div key={location.location_id} className="ml-4 space-y-2">
-                              <div className="flex items-center gap-2 py-1">
-                                <div className="h-6 w-6 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                            <div key={location.location_id} className="ml-2 sm:ml-4 space-y-1.5 sm:space-y-2">
+                              <div className="flex items-center gap-1.5 sm:gap-2 py-1">
+                                <div className="h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
                                   <span className="text-xs">📍</span>
                                 </div>
-                                <span className="text-sm font-medium text-muted-foreground">
+                                <span className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
                                   {location.location_name}
                                 </span>
                               </div>
                               
                               {location.audits.length === 0 ? (
-                                <div className="ml-8 text-xs text-muted-foreground italic py-2">
+                                <div className="ml-6 sm:ml-8 text-xs text-muted-foreground italic py-2">
                                   Sem auditorias neste local
                                 </div>
                               ) : (
-                                <div className="ml-8 space-y-2">
+                                <div className="ml-6 sm:ml-8 space-y-1.5 sm:space-y-2">
                                   {location.audits.map((audit) => (
                                     <div
                                       key={audit.id}
-                                      className="p-3 bg-muted/30 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/50 transition-all cursor-pointer"
+                                      className="p-2.5 sm:p-3 bg-muted/30 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/50 transition-all cursor-pointer"
                                       onClick={() => onAuditClick(audit.id)}
                                     >
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="space-y-1 flex-1 min-w-0">
-                                          <div className="flex items-center gap-2 flex-wrap">
+                                      <div className="flex items-start justify-between gap-2 sm:gap-3">
+                                        <div className="space-y-0.5 sm:space-y-1 flex-1 min-w-0">
+                                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                                             {getStatusBadge(audit.status)}
                                             {audit.score_level && getScoreLevelBadge(audit.score_level)}
                                           </div>
-                                          <p className="text-xs text-muted-foreground">
+                                          <p className="text-xs text-muted-foreground truncate">
                                             Auditor: {audit.auditor_name || 'N/A'}
                                           </p>
                                           <p className="text-xs text-muted-foreground">
@@ -192,7 +192,7 @@ export function AuditGroupedList({ groupedAudits, onAuditClick }: AuditGroupedLi
                                         </div>
                                         {audit.score !== null && (
                                           <div className="text-right flex-shrink-0">
-                                            <p className="text-xl font-bold">{audit.score.toFixed(1)}%</p>
+                                            <p className="text-lg sm:text-xl font-bold">{audit.score.toFixed(1)}%</p>
                                             <p className="text-xs text-muted-foreground">Score</p>
                                           </div>
                                         )}
