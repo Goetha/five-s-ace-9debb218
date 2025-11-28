@@ -15,7 +15,8 @@ interface ChecklistItemProps {
 }
 
 export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProps) {
-  const [showDetails, setShowDetails] = useState(false);
+  const [localAnswer, setLocalAnswer] = useState<boolean | null>(item.answer);
+  const [showDetails, setShowDetails] = useState(item.answer !== null);
   const [comment, setComment] = useState(item.comment || "");
   
   // Parse existing photos from JSON string or use empty array
@@ -35,13 +36,14 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
   const { toast } = useToast();
 
   const handleAnswer = (answer: boolean) => {
-    onAnswerChange(item.id, answer, photoUrls.length > 0 ? photoUrls : undefined, comment);
+    setLocalAnswer(answer);
     setShowDetails(true);
+    onAnswerChange(item.id, answer, photoUrls.length > 0 ? photoUrls : undefined, comment);
   };
 
   const handleCommentChange = (value: string) => {
     setComment(value);
-    onAnswerChange(item.id, item.answer!, photoUrls.length > 0 ? photoUrls : undefined, value);
+    onAnswerChange(item.id, localAnswer!, photoUrls.length > 0 ? photoUrls : undefined, value);
   };
 
   const handlePhotoClick = () => {
@@ -97,7 +99,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
 
       const updatedPhotos = [...photoUrls, publicUrl];
       setPhotoUrls(updatedPhotos);
-      onAnswerChange(item.id, item.answer!, updatedPhotos, comment);
+      onAnswerChange(item.id, localAnswer!, updatedPhotos, comment);
 
       toast({
         title: "Foto adicionada",
@@ -118,7 +120,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
   const handleRemovePhoto = (indexToRemove: number) => {
     const updatedPhotos = photoUrls.filter((_, index) => index !== indexToRemove);
     setPhotoUrls(updatedPhotos);
-    onAnswerChange(item.id, item.answer!, updatedPhotos.length > 0 ? updatedPhotos : undefined, comment);
+    onAnswerChange(item.id, localAnswer!, updatedPhotos.length > 0 ? updatedPhotos : undefined, comment);
     
     toast({
       title: "Foto removida",
@@ -129,8 +131,8 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
   return (
     <Card className={cn(
       "p-3 sm:p-4 transition-colors",
-      item.answer === true && "bg-success/10 border-success/30 dark:bg-success/20",
-      item.answer === false && "bg-destructive/10 border-destructive/30 dark:bg-destructive/20"
+      localAnswer === true && "bg-success/10 border-success/30 dark:bg-success/20",
+      localAnswer === false && "bg-destructive/10 border-destructive/30 dark:bg-destructive/20"
     )}>
       <div className="space-y-3">
         <div className="flex flex-col gap-3">
@@ -143,24 +145,24 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
 
           <div className="flex gap-2 w-full">
             <Button
-              variant={item.answer === true ? "default" : "outline"}
+              variant={localAnswer === true ? "default" : "outline"}
               size="sm"
               onClick={() => handleAnswer(true)}
               className={cn(
                 "flex-1 text-xs sm:text-sm",
-                item.answer === true && "bg-success hover:bg-success/90"
+                localAnswer === true && "bg-success hover:bg-success/90"
               )}
             >
               <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
               Sim
             </Button>
             <Button
-              variant={item.answer === false ? "default" : "outline"}
+              variant={localAnswer === false ? "default" : "outline"}
               size="sm"
               onClick={() => handleAnswer(false)}
               className={cn(
                 "flex-1 text-xs sm:text-sm",
-                item.answer === false && "bg-destructive hover:bg-destructive/90"
+                localAnswer === false && "bg-destructive hover:bg-destructive/90"
               )}
             >
               <X className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -169,16 +171,16 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
           </div>
         </div>
 
-        {showDetails && item.answer !== null && (
+        {showDetails && (
           <div className="space-y-3 pt-3 border-t">
             <div>
               <label className="text-xs sm:text-sm font-medium mb-2 block text-foreground">
-                Comentário {item.answer === false ? "(obrigatório)" : "(opcional)"}
+                Comentário {localAnswer === false ? "(obrigatório)" : "(opcional)"}
               </label>
               <Textarea
                 value={comment}
                 onChange={(e) => handleCommentChange(e.target.value)}
-                placeholder={item.answer === false 
+                placeholder={localAnswer === false 
                   ? "Descreva a não-conformidade encontrada..." 
                   : "Adicione observações sobre esta conformidade..."
                 }
