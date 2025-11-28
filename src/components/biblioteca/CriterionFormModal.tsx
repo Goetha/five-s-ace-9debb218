@@ -24,9 +24,7 @@ const criterionSchema = z.object({
   description: z.string().optional(),
   senso: z.array(z.enum(["1S", "2S", "3S", "4S", "5S"]))
     .min(1, "Selecione pelo menos um senso"),
-  scoreType: z.enum(["0-10", "conform-non-conform", "0-5", "percentage"], {
-    required_error: "Selecione um tipo de avaliação"
-  }),
+  scoreType: z.literal("conform-non-conform"),
   tags: z.array(z.string()).default([]),
   status: z.enum(["Ativo", "Inativo"]).default("Ativo")
 });
@@ -71,7 +69,7 @@ const form = useForm<CriterionFormValues>({
     name: "",
     description: "",
     senso: [],
-    scoreType: "0-10",
+    scoreType: "conform-non-conform",
     tags: [],
     status: "Ativo"
   }
@@ -84,12 +82,12 @@ const selectedTags = form.watch("tags");
   useEffect(() => {
     if (open) {
       if (mode === "edit" && criterion) {
-        // Load criterion data for editing
+        // Load criterion data for editing (sempre força conform-non-conform)
         form.reset({
           name: criterion.name,
           description: "",
           senso: Array.isArray(criterion.senso) ? criterion.senso : [criterion.senso],
-          scoreType: criterion.scoreType,
+          scoreType: "conform-non-conform",
           tags: criterion.tags,
           status: criterion.status
         });
@@ -99,7 +97,7 @@ const selectedTags = form.watch("tags");
           name: "",
           description: "",
           senso: undefined,
-          scoreType: "0-10",
+          scoreType: "conform-non-conform",
           tags: [],
           status: "Ativo"
         });
@@ -257,74 +255,20 @@ const selectedTags = form.watch("tags");
                   />
                 </div>
 
-                 {/* SEÇÃO 3: Sistema de Pontuação com Níveis 5S */}
+                 {/* SEÇÃO 3: Tipo de Avaliação (Fixo) */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-foreground">
-                    Sistema de Pontuação 5S
-                  </h3>
-
-                  {/* Score Level Visual Guide */}
-                  <Card className="p-4 bg-muted/30 space-y-3">
-                    <p className="text-sm font-medium text-muted-foreground">Níveis de Atendimento:</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3 p-2 rounded bg-red-50 border border-red-200">
-                        <span className="text-2xl">🔴</span>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-red-700">Não atende o padrão 5S</p>
-                          <p className="text-xs text-red-600">De 0 a 4 pontos</p>
-                        </div>
+                  <Card className="p-4 bg-muted/30 border-primary/20">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-foreground mb-1">Tipo de Avaliação</p>
+                        <p className="text-lg font-bold text-primary">Sim / Não (Conforme/Não Conforme)</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Todos os critérios são avaliados como Conforme ou Não Conforme
+                        </p>
                       </div>
-                      <div className="flex items-center gap-3 p-2 rounded bg-yellow-50 border border-yellow-200">
-                        <span className="text-2xl">🟡</span>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-yellow-700">Atende parcialmente ao padrão 5S</p>
-                          <p className="text-xs text-yellow-600">De 5 a 8 pontos</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 p-2 rounded bg-green-50 border border-green-200">
-                        <span className="text-2xl">🟢</span>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-green-700">Atende ao padrão 5S</p>
-                          <p className="text-xs text-green-600">De 9 a 10 pontos</p>
-                        </div>
-                      </div>
+                      <div className="text-4xl">✓</div>
                     </div>
                   </Card>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="scoreType" render={({
-                    field
-                  }) => <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            Tipo de Avaliação <span className="text-destructive">*</span>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <div className="space-y-2 text-sm">
-                                  <p><strong>Sim/Não:</strong> Resposta binária (atende ou não atende)</p>
-                                  <p><strong>0-10:</strong> Escala detalhada de 0 a 10 pontos</p>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione o tipo..." />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="conform-non-conform">Sim / Não (Conforme/Não Conforme)</SelectItem>
-                              <SelectItem value="0-10">Escala 0-10 pontos</SelectItem>
-                              <SelectItem value="0-5">Escala 0-5 pontos</SelectItem>
-                              <SelectItem value="percentage">Percentual (0-100%)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>} />
-                  </div>
                 </div>
 
 
@@ -362,8 +306,10 @@ const selectedTags = form.watch("tags");
 
                 {/* Score Type */}
                 <div className="text-sm">
-                  <span className="text-muted-foreground">Tipo: </span>
-                  <span className="font-medium">{form.watch("scoreType")}</span>
+                  <span className="text-muted-foreground">Avaliação: </span>
+                  <Badge variant="outline" className="text-xs">
+                    Conforme/Não Conforme
+                  </Badge>
                 </div>
               </div>
             </Card>
