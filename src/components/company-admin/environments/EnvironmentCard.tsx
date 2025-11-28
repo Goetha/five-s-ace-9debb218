@@ -66,17 +66,25 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
   // Level 2: Environment (child of area)
   // Level 3: Local (child of environment)
   const getLevel = (env: typeof environment): number => {
-    if (!env.parent_id) return 0; // Root
-    // Count parent chain
-    let level = 1;
-    let currentParent = env.parent_id;
-    while (currentParent) {
-      const parent = locations?.find(l => l.id === currentParent);
-      if (!parent || !parent.parent_id) break;
+    if (!env.parent_id) return 0; // Root (Empresa)
+    
+    // Contar quantos ancestrais até chegar na raiz
+    let level = 0;
+    let currentId: string | null | undefined = env.id;
+    
+    while (currentId) {
+      const current = locations?.find(l => l.id === currentId);
+      if (!current) break;
+      
+      if (!current.parent_id) {
+        // Chegou na raiz (Empresa)
+        break;
+      }
       level++;
-      currentParent = parent.parent_id;
+      currentId = current.parent_id;
     }
-    return level;
+    
+    return level; // 1 = Área, 2 = Ambiente, 3 = Local
   };
   
   const level = getLevel(environment);
@@ -168,7 +176,10 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setItemToDelete({ id: environment.id, name: environment.name, level })}
+              onClick={() => {
+                setItemToDelete({ id: environment.id, name: environment.name, level });
+                setShowDeleteDialog(true);
+              }}
               className="h-8"
             >
               <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
@@ -256,7 +267,10 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setItemToDelete({ id: child.id, name: child.name, level: childLevel })}
+                        onClick={() => {
+                          setItemToDelete({ id: child.id, name: child.name, level: childLevel });
+                          setShowDeleteDialog(true);
+                        }}
                       >
                         <Trash2 className="h-3 w-3 text-destructive" />
                       </Button>
@@ -297,7 +311,10 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 w-6 p-0"
-                                onClick={() => setItemToDelete({ id: grandchild.id, name: grandchild.name, level: 3 })}
+                                onClick={() => {
+                                  setItemToDelete({ id: grandchild.id, name: grandchild.name, level: 3 });
+                                  setShowDeleteDialog(true);
+                                }}
                               >
                                 <Trash2 className="h-2.5 w-2.5 text-destructive" />
                               </Button>
