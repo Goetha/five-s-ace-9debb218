@@ -13,6 +13,7 @@ import { ArrowLeft, Calendar, Check, Loader2, MapPin, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AuditChecklist } from "@/components/auditoria/AuditChecklist";
+import { ChecklistItemReadOnly } from "@/components/auditoria/ChecklistItemReadOnly";
 import { AuditResult } from "@/components/auditoria/AuditResult";
 import { EmptyAuditWarning } from "@/components/auditorias/EmptyAuditWarning";
 import { cn } from "@/lib/utils";
@@ -161,8 +162,15 @@ export default function DetalhesAuditoria() {
 
   // Se a auditoria está concluída, mostra os detalhes
   const scoreLevel = audit.score ? getScoreLevel(audit.score) : 'low';
-  const yesItems = items.filter(item => item.answer === true);
-  const noItems = items.filter(item => item.answer === false);
+  
+  // Parse photo_urls for all items
+  const parsedItems = items.map(item => ({
+    ...item,
+    photo_urls: item.photo_url ? JSON.parse(item.photo_url) : []
+  }));
+  
+  const yesItems = parsedItems.filter(item => item.answer === true);
+  const noItems = parsedItems.filter(item => item.answer === false);
   
   const content = (
     <div className="p-3 sm:p-6 max-w-4xl mx-auto space-y-3 sm:space-y-6">
@@ -242,45 +250,32 @@ export default function DetalhesAuditoria() {
       </Card>
 
       {audit.status === 'completed' && (
-        <Card className="p-6">
-          <h2 className="text-xl font-bold mb-4">Respostas Detalhadas</h2>
-          <div className="space-y-4">
+        <Card className="p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-bold mb-4">Respostas Detalhadas</h2>
+          <div className="space-y-6">
             {yesItems.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="font-semibold text-green-600 flex items-center gap-2">
-                  <Check className="h-4 w-4" />
+              <div className="space-y-3">
+                <h3 className="text-base sm:text-lg font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                  <Check className="h-4 w-4 sm:h-5 sm:w-5" />
                   Conformidades ({yesItems.length})
                 </h3>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {yesItems.map((item, index) => (
-                    <div key={item.id} className="p-3 rounded-lg bg-muted">
-                      <p className="text-sm">
-                        <span className="font-medium">Pergunta {index + 1}:</span> {item.question}
-                      </p>
-                    </div>
+                    <ChecklistItemReadOnly key={item.id} item={item} index={index} />
                   ))}
                 </div>
               </div>
             )}
 
             {noItems.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="font-semibold text-red-600 flex items-center gap-2">
-                  <X className="h-4 w-4" />
+              <div className="space-y-3">
+                <h3 className="text-base sm:text-lg font-semibold text-red-700 dark:text-red-400 flex items-center gap-2">
+                  <X className="h-4 w-4 sm:h-5 sm:w-5" />
                   Não-Conformidades ({noItems.length})
                 </h3>
                 <div className="space-y-3">
                   {noItems.map((item, index) => (
-                    <div key={item.id} className="p-4 bg-red-50 rounded-lg space-y-2">
-                      <p className="text-sm">
-                        <span className="font-medium">Pergunta {index + 1}:</span> {item.question}
-                      </p>
-                      {item.comment && (
-                        <p className="text-sm text-muted-foreground pl-4 border-l-2 border-red-300">
-                          {item.comment}
-                        </p>
-                      )}
-                    </div>
+                    <ChecklistItemReadOnly key={item.id} item={item} index={index} />
                   ))}
                 </div>
               </div>
