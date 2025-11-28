@@ -2,7 +2,8 @@ import { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Camera, Check, X, Upload, Loader2 } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Camera, Check, X, Upload, Loader2, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +33,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
   
   const [photoUrls, setPhotoUrls] = useState<string[]>(parsePhotos(item.photo_url));
   const [isUploading, setIsUploading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -207,14 +209,29 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
                 <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   {photoUrls.map((url, index) => (
                     <div key={index} className="relative group">
-                      <img 
-                        src={url} 
-                        alt={`Evidência ${index + 1}`} 
-                        className="w-full h-32 sm:h-40 object-cover rounded-lg border"
-                      />
+                      <div 
+                        className="w-full h-32 sm:h-40 rounded-lg border overflow-hidden cursor-pointer"
+                        onClick={() => setPreviewImage(url)}
+                      >
+                        <img 
+                          src={url} 
+                          alt={`Evidência ${index + 1}`} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            console.error('Error loading image:', url);
+                            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999"%3EErro%3C/text%3E%3C/svg%3E';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                          <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
                       <button
-                        onClick={() => handleRemovePhoto(index)}
-                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemovePhoto(index);
+                        }}
+                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                         type="button"
                       >
                         <X className="h-3 w-3" />
@@ -247,6 +264,29 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
           </div>
         )}
       </div>
+
+      {/* Modal de Preview da Foto */}
+      <Dialog open={previewImage !== null} onOpenChange={() => setPreviewImage(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-0">
+          <div className="relative w-full h-full flex items-center justify-center bg-black/90">
+            {previewImage && (
+              <img 
+                src={previewImage} 
+                alt="Preview" 
+                className="max-w-full max-h-[90vh] object-contain"
+              />
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 text-white hover:bg-white/20"
+              onClick={() => setPreviewImage(null)}
+            >
+              <X className="h-6 w-6" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
