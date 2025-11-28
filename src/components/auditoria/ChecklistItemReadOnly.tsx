@@ -19,7 +19,7 @@ export function ChecklistItemReadOnly({ item, index }: ChecklistItemReadOnlyProp
 
   return (
     <>
-      <Card className={item.answer ? "bg-emerald-50/80 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900" : "bg-red-50/80 dark:bg-red-950/10 border-red-100 dark:border-red-900"}>
+      <Card className={item.answer ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"}>
         <CardContent className="p-3 sm:p-4 space-y-2.5 sm:space-y-3">
           {/* Question */}
           <div>
@@ -63,7 +63,7 @@ export function ChecklistItemReadOnly({ item, index }: ChecklistItemReadOnlyProp
 
           {/* Comment (Read-Only) */}
           {item.comment && (
-            <div className="bg-background/80 backdrop-blur-sm p-2.5 sm:p-3 rounded-md border border-border/50">
+            <div className="bg-muted/30 p-2.5 sm:p-3 rounded-md border border-border/30">
               <p className="text-xs sm:text-sm font-medium mb-1 text-muted-foreground/70">Comentário:</p>
               <p className="text-xs sm:text-sm leading-relaxed text-foreground">{item.comment}</p>
             </div>
@@ -79,7 +79,7 @@ export function ChecklistItemReadOnly({ item, index }: ChecklistItemReadOnlyProp
                 {photoUrls.map((url, idx) => (
                   <div
                     key={idx}
-                    className="relative aspect-square rounded-md overflow-hidden bg-background/60 cursor-pointer hover:opacity-80 transition-opacity border border-border/50"
+                    className="relative aspect-square rounded-md overflow-hidden bg-muted/20 cursor-pointer hover:opacity-80 transition-opacity border border-border/30"
                     onClick={() => setPreviewImage(url)}
                   >
                     <img
