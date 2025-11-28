@@ -137,94 +137,96 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
 
   return (
     <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="pb-3 sm:pb-4 p-3 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-          {/* Info Section */}
-          <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
-            <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg shrink-0">
+      <CardHeader className="p-3 sm:p-4">
+        {/* Main Card Layout */}
+        <div className="flex items-center justify-between gap-3">
+          {/* Left: Icon + Info */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+            <div className="p-2 bg-primary/10 rounded-lg shrink-0">
               <IconComponent className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <CardTitle className="text-base sm:text-lg truncate">{environment.name}</CardTitle>
-                <Badge variant="outline" className={`${typeBadgeColor} border text-xs shrink-0`}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <CardTitle className="text-sm sm:text-base font-semibold truncate">
+                  {environment.name}
+                </CardTitle>
+                <Badge variant="outline" className={`${typeBadgeColor} border text-[10px] sm:text-xs shrink-0`}>
                   {typeLabel}
                 </Badge>
               </div>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
                 {environment.audits_count || 0} auditorias
               </p>
             </div>
           </div>
 
-          {/* Actions Section */}
-          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+          {/* Right: Action Buttons */}
+          <div className="flex items-center gap-1 shrink-0">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => onEdit(environment)}
-              className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+              className="h-8 w-8 p-0 hover:bg-muted"
             >
-              <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <Pencil className="h-3.5 w-3.5" />
             </Button>
             
             {level < 3 && (
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => onAddLocation(environment.id)}
-                className="h-8 sm:h-9"
+                className="h-8 w-8 p-0 hover:bg-muted"
               >
-                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
-                <span className="hidden sm:inline text-xs sm:text-sm">{level === 1 ? 'Ambiente' : 'Local'}</span>
+                <Plus className="h-3.5 w-3.5" />
               </Button>
             )}
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setItemToDelete({ id: environment.id, name: environment.name, level });
-                setShowDeleteDialog(true);
-              }}
-              className="h-8 w-8 sm:h-9 sm:w-9 p-0"
-            >
-              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
-            </Button>
-            
             {childEnvironments.length > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                className="h-8 w-8 p-0 hover:bg-muted"
               >
                 {isExpanded ? (
-                  <ChevronUp className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <ChevronUp className="h-3.5 w-3.5" />
                 ) : (
-                  <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <ChevronDown className="h-3.5 w-3.5" />
                 )}
               </Button>
             )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setItemToDelete({ id: environment.id, name: environment.name, level });
+                setShowDeleteDialog(true);
+              }}
+              className="h-8 w-8 p-0 hover:bg-destructive/10"
+            >
+              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+            </Button>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-3 sm:pt-4 p-3 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+      <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0">
+        <div className="flex items-center gap-3 sm:gap-4 text-[10px] sm:text-xs text-muted-foreground mb-2">
           <div className="flex items-center gap-1">
-            <Layers className="h-3 w-3 sm:h-4 sm:w-4" />
+            <Layers className="h-3 w-3" />
             <span>{childEnvironments.length} {level === 1 ? 'ambientes' : 'locais'}</span>
           </div>
           <div className="flex items-center gap-1">
-            <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="truncate">Criado em {new Date(environment.created_at).toLocaleDateString('pt-BR')}</span>
+            <Calendar className="h-3 w-3" />
+            <span>Criado em {new Date(environment.created_at).toLocaleDateString('pt-BR')}</span>
           </div>
         </div>
 
         {/* Child Environments/Locations List */}
         {isExpanded && childEnvironments.length > 0 && (
-          <div className="mt-3 sm:mt-4 space-y-2 sm:space-y-3 pl-2 sm:pl-4">
+          <div className="mt-3 space-y-2">
             {childEnvironments.map((child) => {
               const ChildIcon = iconMap[child.icon as keyof typeof iconMap] || MapPin;
               const childLevel = getLevel(child);
@@ -240,42 +242,48 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
 
               return (
                 <div key={child.id} className="space-y-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 p-2.5 sm:p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  {/* Child Card (Ambiente) */}
+                  <div className="flex items-center justify-between gap-2 p-2.5 bg-muted/30 rounded-lg hover:bg-muted/40 transition-colors">
+                    {/* Left: Icon + Info */}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
                       <div className="p-1.5 bg-background rounded shrink-0">
-                        <ChildIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+                        <ChildIcon className="h-3.5 w-3.5 text-muted-foreground" />
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm truncate">{child.name}</span>
-                          <Badge variant="outline" className={`${childBadgeColor} text-[10px] sm:text-xs shrink-0`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm font-medium truncate">{child.name}</span>
+                          <Badge variant="outline" className={`${childBadgeColor} text-[10px] shrink-0`}>
                             {childTypeLabel}
                           </Badge>
                         </div>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        <p className="text-[10px] text-muted-foreground">
                           {child.audits_count || 0} auditorias
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 ml-auto">
+
+                    {/* Right: Action Buttons */}
+                    <div className="flex items-center gap-1 shrink-0">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => onEdit(child)}
-                        className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                        className="h-7 w-7 p-0 hover:bg-muted"
                       >
-                        <Pencil className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                        <Pencil className="h-3 w-3" />
                       </Button>
+                      
                       {childLevel < 3 && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onAddLocation(child.id)}
-                          className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                          className="h-7 w-7 p-0 hover:bg-muted"
                         >
-                          <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                          <Plus className="h-3 w-3" />
                         </Button>
                       )}
+
                       {grandchildren.length > 0 && (
                         <Button
                           variant="ghost"
@@ -286,15 +294,16 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                               [child.id]: !isChildExpanded,
                             }))
                           }
-                          className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                          className="h-7 w-7 p-0 hover:bg-muted"
                         >
                           {isChildExpanded ? (
-                            <ChevronUp className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                            <ChevronUp className="h-3 w-3" />
                           ) : (
-                            <ChevronDown className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                            <ChevronDown className="h-3 w-3" />
                           )}
                         </Button>
                       )}
+
                       <Button
                         variant="ghost"
                         size="sm"
@@ -302,53 +311,56 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                           setItemToDelete({ id: child.id, name: child.name, level: childLevel });
                           setShowDeleteDialog(true);
                         }}
-                        className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                        className="h-7 w-7 p-0 hover:bg-destructive/10"
                       >
-                        <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-destructive" />
+                        <Trash2 className="h-3 w-3 text-destructive" />
                       </Button>
                     </div>
                   </div>
                   
                   {/* Grandchildren (Locais within Ambientes) */}
                   {isChildExpanded && grandchildren.length > 0 && (
-                    <div className="ml-4 sm:ml-8 space-y-1.5 pl-2 sm:pl-4">
+                    <div className="ml-6 space-y-1.5">
                       {grandchildren.map((grandchild) => {
                         const GrandchildIcon = iconMap[grandchild.icon as keyof typeof iconMap] || MapPin;
                         return (
                           <div
                             key={grandchild.id}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2 bg-muted/20 rounded hover:bg-muted/40 transition-colors"
+                            className="flex items-center justify-between gap-2 p-2 bg-muted/20 rounded hover:bg-muted/30 transition-colors"
                           >
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                            {/* Left: Icon + Info */}
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
                               <GrandchildIcon className="h-3 w-3 text-muted-foreground shrink-0" />
-                              <div className="min-w-0 flex-1">
+                              <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   <span className="text-xs font-medium truncate">{grandchild.name}</span>
-                                  <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30 text-[9px] sm:text-[10px] px-1 shrink-0">
+                                  <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30 text-[9px] px-1 shrink-0">
                                     Local
                                   </Badge>
                                 </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1 ml-auto">
+
+                            {/* Right: Action Buttons */}
+                            <div className="flex items-center gap-1 shrink-0">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 sm:h-7 sm:w-7 p-0"
+                                className="h-6 w-6 p-0 hover:bg-muted"
                                 onClick={() => onEdit(grandchild)}
                               >
-                                <Pencil className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                <Pencil className="h-2.5 w-2.5" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 sm:h-7 sm:w-7 p-0"
+                                className="h-6 w-6 p-0 hover:bg-destructive/10"
                                 onClick={() => {
                                   setItemToDelete({ id: grandchild.id, name: grandchild.name, level: 3 });
                                   setShowDeleteDialog(true);
                                 }}
                               >
-                                <Trash2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-destructive" />
+                                <Trash2 className="h-2.5 w-2.5 text-destructive" />
                               </Button>
                             </div>
                           </div>
