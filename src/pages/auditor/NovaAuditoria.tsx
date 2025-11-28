@@ -39,17 +39,28 @@ export default function NovaAuditoria() {
 
       if (error) throw error;
 
-      // Fetch criteria for this company
-      const { data: criteria, error: criteriaError } = await supabase
-        .from('company_criteria')
-        .select('id, name, description')
-        .eq('company_id', companyId)
-        .eq('status', 'active');
+      // Fetch criteria linked to this specific location
+      const { data: environmentCriteria, error: criteriaError } = await supabase
+        .from('environment_criteria')
+        .select(`
+          criterion_id,
+          company_criteria!inner(id, name, description, status)
+        `)
+        .eq('environment_id', locationId);
 
       if (criteriaError) throw criteriaError;
 
+      // Filter only active criteria and map to audit items
+      const activeCriteria = environmentCriteria
+        .filter(ec => ec.company_criteria.status === 'active')
+        .map(ec => ec.company_criteria);
+
+      if (activeCriteria.length === 0) {
+        throw new Error('Nenhum critério ativo vinculado a este local');
+      }
+
       // Create audit items for each criterion
-      const auditItems = criteria.map(criterion => ({
+      const auditItems = activeCriteria.map(criterion => ({
         audit_id: audit.id,
         criterion_id: criterion.id,
         question: criterion.description || criterion.name
