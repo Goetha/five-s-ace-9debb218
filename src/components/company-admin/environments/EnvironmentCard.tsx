@@ -67,23 +67,22 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
   // Level 3: Local (child of environment)
   const getLevel = (env: typeof environment): number => {
     if (!env.parent_id) return 0; // Root (Empresa)
-    
-    // Contar quantos ancestrais até chegar na raiz
-    let level = 0;
-    let currentId: string | null | undefined = env.id;
-    
-    while (currentId) {
-      const current = locations?.find(l => l.id === currentId);
-      if (!current) break;
-      
-      if (!current.parent_id) {
-        // Chegou na raiz (Empresa)
+
+    // Conta quantos níveis até chegar na raiz (empresa)
+    let level = 1; // Já sabemos que tem um pai
+    let parentId: string | null | undefined = env.parent_id;
+
+    while (parentId) {
+      const parent = locations?.find((l) => l.id === parentId);
+      if (!parent || !parent.parent_id) {
+        // Chegou na raiz ou não encontrou mais ancestrais
         break;
       }
+
       level++;
-      currentId = current.parent_id;
+      parentId = parent.parent_id;
     }
-    
+
     return level; // 1 = Área, 2 = Ambiente, 3 = Local
   };
   
