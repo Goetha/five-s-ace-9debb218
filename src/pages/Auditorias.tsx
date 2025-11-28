@@ -131,6 +131,28 @@ const Auditorias = () => {
         }
       }
 
+      // Função para encontrar o nível 2 (filho direto do root) subindo na hierarquia
+      const findSecondLevel = (envId: string): any | null => {
+        let current = envMap.get(envId);
+        if (!current) return null;
+        
+        // Subir até encontrar um nó cujo parent é o root (parent_id aponta para root)
+        while (current) {
+          if (!current.parent_id) return null; // Chegou ao root, não tem nível 2
+          const parent = envMap.get(current.parent_id);
+          if (!parent) return null;
+          
+          // Se o parent não tem parent (é o root), então current é nível 2
+          if (!parent.parent_id) {
+            return current;
+          }
+          
+          // Continuar subindo
+          current = parent;
+        }
+        return null;
+      };
+
       // 1) Inicializar hierarquia completa por empresa
       const grouped: { [key: string]: AuditGroupedData } = {};
       for (const company of companiesData || []) {
@@ -180,8 +202,10 @@ const Auditorias = () => {
 
         const company = companiesMap.get(audit.company_id);
         const locationEnv = envMap.get(audit.location_id);
-        const parentEnv = locationEnv?.parent_id ? envMap.get(locationEnv.parent_id) : null;
         const auditor = profilesMap.get(audit.auditor_id);
+
+        // Encontrar o nível 2 (filho direto do root) para este location
+        const secondLevelEnv = locationEnv ? findSecondLevel(locationEnv.id) : null;
 
         // Auditorias agendadas
         if (audit.status === 'completed' && audit.next_audit_date && new Date(audit.next_audit_date) > new Date()) {
@@ -189,7 +213,7 @@ const Auditorias = () => {
             id: audit.id,
             company_name: company?.name || 'N/A',
             location_name: locationEnv?.name || 'N/A',
-            environment_name: parentEnv?.name || 'N/A',
+            environment_name: secondLevelEnv?.name || 'N/A',
             auditor_name: auditor?.full_name || 'N/A',
             next_audit_date: audit.next_audit_date
           });
@@ -202,33 +226,34 @@ const Auditorias = () => {
           environments: []
         });
 
-        // Garantir existência do ambiente (andar)
-        let envGroup = parentEnv
-          ? companyGroup.environments.find(e => e.environment_id === parentEnv.id)
+        // Garantir existência do ambiente (nível 2 - filho direto do root)
+        let envGroup = secondLevelEnv
+          ? companyGroup.environments.find(e => e.environment_id === secondLevelEnv.id)
           : undefined;
 
-        if (!envGroup && parentEnv) {
+        // Se o nível 2 não existe no grupo, criar
+        if (!envGroup && secondLevelEnv) {
           envGroup = {
-            environment_id: parentEnv.id,
-            environment_name: parentEnv.name || 'Sem ambiente',
+            environment_id: secondLevelEnv.id,
+            environment_name: secondLevelEnv.name || 'Sem ambiente',
             locations: []
           };
           companyGroup.environments.push(envGroup);
         }
 
-        // Garantir existência do local
-        if (locationEnv) {
-          let locGroup = envGroup?.locations.find(l => l.location_id === locationEnv.id);
+        // Adicionar o location (que pode ser nível 3, 4, etc)
+        if (locationEnv && envGroup) {
+          let locGroup = envGroup.locations.find(l => l.location_id === locationEnv.id);
           if (!locGroup) {
             locGroup = {
               location_id: locationEnv.id,
               location_name: locationEnv.name || 'Sem local',
               audits: []
             };
-            envGroup?.locations.push(locGroup);
+            envGroup.locations.push(locGroup);
           }
 
-          locGroup?.audits.push({
+          locGroup.audits.push({
             id: audit.id,
             status: audit.status,
             score: audit.score,
