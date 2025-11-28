@@ -57,6 +57,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string; level: number } | null>(null);
+  const [expandedChildren, setExpandedChildren] = useState<Record<string, boolean>>({});
 
   const IconComponent = iconMap[environment.icon as keyof typeof iconMap] || Building2;
   const { toast } = useToast();
@@ -235,6 +236,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                 : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30';
               
               const grandchildren = locations?.filter(l => l.parent_id === child.id) || [];
+              const isChildExpanded = expandedChildren[child.id] ?? true;
 
               return (
                 <div key={child.id} className="space-y-2">
@@ -274,6 +276,25 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                           <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                         </Button>
                       )}
+                      {grandchildren.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setExpandedChildren((prev) => ({
+                              ...prev,
+                              [child.id]: !isChildExpanded,
+                            }))
+                          }
+                          className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                        >
+                          {isChildExpanded ? (
+                            <ChevronUp className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                          ) : (
+                            <ChevronDown className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                          )}
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -289,7 +310,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                   </div>
                   
                   {/* Grandchildren (Locais within Ambientes) */}
-                  {grandchildren.length > 0 && (
+                  {isChildExpanded && grandchildren.length > 0 && (
                     <div className="ml-4 sm:ml-8 space-y-1.5 pl-2 sm:pl-4">
                       {grandchildren.map((grandchild) => {
                         const GrandchildIcon = iconMap[grandchild.icon as keyof typeof iconMap] || MapPin;
