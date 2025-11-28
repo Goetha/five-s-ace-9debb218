@@ -66,7 +66,11 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
   // Level 2: Environment (child of area)
   // Level 3: Local (child of environment)
   const getLevel = (env: typeof environment): number => {
-    if (!env.parent_id) return 0; // Root (Empresa)
+    console.log('🔍 getLevel for:', env.name, 'parent_id:', env.parent_id);
+    if (!env.parent_id) {
+      console.log('  → Level 0 (Root)');
+      return 0;
+    }
 
     // Conta quantos níveis até chegar na raiz (empresa)
     let level = 1; // Já sabemos que tem um pai
@@ -74,8 +78,10 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
 
     while (parentId) {
       const parent = locations?.find((l) => l.id === parentId);
+      console.log('  → Looking for parent:', parentId, 'Found:', parent?.name);
       if (!parent || !parent.parent_id) {
         // Chegou na raiz ou não encontrou mais ancestrais
+        console.log('  → Reached root, final level:', level);
         break;
       }
 
@@ -83,6 +89,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
       parentId = parent.parent_id;
     }
 
+    console.log('  → Final level:', level, 'for', env.name);
     return level; // 1 = Área, 2 = Ambiente, 3 = Local
   };
   
