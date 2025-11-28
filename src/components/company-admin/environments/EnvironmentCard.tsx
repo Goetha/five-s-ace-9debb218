@@ -122,32 +122,35 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
 
   return (
     <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="pb-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <IconComponent className="h-5 w-5 text-primary" />
+      <CardHeader className="pb-3 sm:pb-4 p-3 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+          {/* Info Section */}
+          <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
+            <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg shrink-0">
+              <IconComponent className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-lg">{environment.name}</CardTitle>
-                <Badge variant="secondary" className={typeBadgeColor}>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle className="text-base sm:text-lg truncate">{environment.name}</CardTitle>
+                <Badge variant="secondary" className={`${typeBadgeColor} text-xs shrink-0`}>
                   {typeLabel}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                {environment.audits_count || 0} auditorias realizadas
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                {environment.audits_count || 0} auditorias
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Actions Section */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
               onClick={() => onEdit(environment)}
+              className="h-8"
             >
-              <Pencil className="h-4 w-4" />
+              <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
             
             {level < 3 && (
@@ -155,9 +158,10 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                 variant="outline"
                 size="sm"
                 onClick={() => onAddLocation(environment.id)}
+                className="h-8"
               >
-                <Plus className="h-4 w-4 mr-1" />
-                {level === 1 ? 'Ambiente' : 'Local'}
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">{level === 1 ? 'Ambiente' : 'Local'}</span>
               </Button>
             )}
 
@@ -165,8 +169,9 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
               variant="outline"
               size="sm"
               onClick={() => setItemToDelete({ id: environment.id, name: environment.name, level })}
+              className="h-8"
             >
-              <Trash2 className="h-4 w-4 text-destructive" />
+              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
             </Button>
 
             {childEnvironments.length > 0 && (
@@ -174,11 +179,12 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsExpanded(!isExpanded)}
+                className="h-8"
               >
                 {isExpanded ? (
-                  <ChevronUp className="h-4 w-4" />
+                  <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4" />
                 ) : (
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
                 )}
               </Button>
             )}
@@ -186,15 +192,15 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
         </div>
       </CardHeader>
 
-      <CardContent className="pt-4">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+      <CardContent className="pt-3 sm:pt-4 p-3 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
-            <Layers className="h-4 w-4" />
+            <Layers className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>{childEnvironments.length} {level === 1 ? 'ambientes' : 'locais'}</span>
           </div>
           <div className="flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
-            <span>Criado em {new Date(environment.created_at).toLocaleDateString('pt-BR')}</span>
+            <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="truncate">Criado em {new Date(environment.created_at).toLocaleDateString('pt-BR')}</span>
           </div>
         </div>
 

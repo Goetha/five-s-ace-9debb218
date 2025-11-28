@@ -104,8 +104,8 @@ export default function Ambientes() {
 
   return (
     <CompanyAdminLayout breadcrumbs={[{ label: "Dashboard" }, { label: "Áreas" }]}>
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
-        <div className="mb-6">
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
+        <div className="hidden sm:block mb-6">
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
@@ -120,76 +120,74 @@ export default function Ambientes() {
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Áreas, Ambientes e Locais</h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie a estrutura hierárquica da sua empresa
-            </p>
-          </div>
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold">Áreas, Ambientes e Locais</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+            Gerencie a estrutura hierárquica da sua empresa
+          </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total de Áreas</p>
-                  <p className="text-2xl font-bold">{totalAreas}</p>
+            <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Áreas</p>
+                  <p className="text-xl sm:text-2xl font-bold">{totalAreas}</p>
                 </div>
-                <Building2 className="h-8 w-8 text-orange-500" />
+                <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 shrink-0" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total de Ambientes</p>
-                  <p className="text-2xl font-bold">{totalEnvironments}</p>
+            <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Ambientes</p>
+                  <p className="text-xl sm:text-2xl font-bold">{totalEnvironments}</p>
                 </div>
-                <Layers className="h-8 w-8 text-green-500" />
+                <Layers className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 shrink-0" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total de Locais</p>
-                  <p className="text-2xl font-bold">{totalLocals}</p>
+            <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Locais</p>
+                  <p className="text-xl sm:text-2xl font-bold">{totalLocals}</p>
                 </div>
-                <MapPin className="h-8 w-8 text-blue-500" />
+                <MapPin className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 shrink-0" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Ativos</p>
-                  <p className="text-2xl font-bold">{activeAreas + activeEnvironments + activeLocals}</p>
+            <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Ativos</p>
+                  <p className="text-xl sm:text-2xl font-bold">{activeAreas + activeEnvironments + activeLocals}</p>
                 </div>
-                <CheckCircle className="h-8 w-8 text-primary" />
+                <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-primary shrink-0" />
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 sm:mb-6">
           <Input
             placeholder="Buscar áreas..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1"
+            className="flex-1 h-9 sm:h-10"
           />
           <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px] h-9 sm:h-10">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
