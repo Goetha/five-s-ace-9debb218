@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,9 +29,11 @@ import {
   Plus,
   ChevronDown,
   ChevronUp,
+  ClipboardList,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ManageCriteriaModal } from "./ManageCriteriaModal";
 
 interface EnvironmentCardProps {
   environment: Environment;
@@ -58,9 +60,42 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string; level: number } | null>(null);
   const [expandedChildren, setExpandedChildren] = useState<Record<string, boolean>>({});
+  const [showManageCriteria, setShowManageCriteria] = useState(false);
+  const [selectedLocal, setSelectedLocal] = useState<{ id: string; name: string } | null>(null);
+  const [criteriaCounts, setCriteriaCounts] = useState<Record<string, number>>({});
 
   const IconComponent = iconMap[environment.icon as keyof typeof iconMap] || Building2;
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchCriteriaCounts();
+  }, [locations]);
+
+  const fetchCriteriaCounts = async () => {
+    try {
+      const localIds = locations
+        .filter(loc => getLevel(loc) === 3)
+        .map(loc => loc.id);
+
+      if (localIds.length === 0) return;
+
+      const { data, error } = await supabase
+        .from('environment_criteria')
+        .select('environment_id')
+        .in('environment_id', localIds);
+
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      data?.forEach(item => {
+        counts[item.environment_id] = (counts[item.environment_id] || 0) + 1;
+      });
+
+      setCriteriaCounts(counts);
+    } catch (error) {
+      console.error('Error fetching criteria counts:', error);
+    }
+  };
   
   // Determine hierarchy level
   // Level 1: Area (direct child of root)
@@ -133,6 +168,16 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
       setShowDeleteDialog(false);
       setItemToDelete(null);
     }
+  };
+
+  const handleManageCriteria = (local: Environment) => {
+    setSelectedLocal({ id: local.id, name: local.name });
+    setShowManageCriteria(true);
+  };
+
+  const handleCriteriaUpdate = () => {
+    fetchCriteriaCounts();
+    onRefresh();
   };
 
   return (
@@ -337,12 +382,24 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                                   <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30 text-[9px] px-1 shrink-0">
                                     Local
                                   </Badge>
+                                  <Badge variant="outline" className="text-[9px] px-1 shrink-0">
+                                    {criteriaCounts[grandchild.id] || 0} critérios
+                                  </Badge>
                                 </div>
                               </div>
                             </div>
 
                             {/* Right: Action Buttons */}
                             <div className="flex items-center gap-1 shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 hover:bg-muted"
+                                onClick={() => handleManageCriteria(grandchild)}
+                                title="Gerenciar Critérios"
+                              >
+                                <ClipboardList className="h-2.5 w-2.5" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -405,6 +462,20 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {selectedLocal && (
+        <ManageCriteriaModal
+          isOpen={showManageCriteria}
+          onClose={() => {
+            setShowManageCriteria(false);
+            setSelectedLocal(null);
+          }}
+          localId={selectedLocal.id}
+          localName={selectedLocal.name}
+          companyId={environment.company_id}
+          onUpdate={handleCriteriaUpdate}
+        />
+      )}
     </Card>
   );
 }
