@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Building2, MapPin, Building } from "lucide-react";
+import { Building2, MapPin, Building, Warehouse } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Company {
@@ -28,8 +28,10 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
   const { toast } = useToast();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string>("");
+  const [areas, setAreas] = useState<Environment[]>([]);
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [locations, setLocations] = useState<Environment[]>([]);
+  const [selectedArea, setSelectedArea] = useState<string>("");
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>("");
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
@@ -40,14 +42,27 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
 
   useEffect(() => {
     if (selectedCompany) {
-      fetchEnvironmentsAndSkipRoot(selectedCompany);
+      fetchAreas(selectedCompany);
+    } else {
+      setAreas([]);
+      setEnvironments([]);
+      setLocations([]);
+      setSelectedArea("");
+      setSelectedEnvironment("");
+      setSelectedLocation("");
+    }
+  }, [selectedCompany]);
+
+  useEffect(() => {
+    if (selectedArea) {
+      fetchEnvironments(selectedArea);
     } else {
       setEnvironments([]);
       setLocations([]);
       setSelectedEnvironment("");
       setSelectedLocation("");
     }
-  }, [selectedCompany]);
+  }, [selectedArea]);
 
   useEffect(() => {
     if (selectedEnvironment) {
@@ -100,7 +115,7 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
     }
   };
 
-  const fetchEnvironmentsAndSkipRoot = async (companyId: string) => {
+  const fetchAreas = async (companyId: string) => {
     try {
       // Primeiro busca o ambiente raiz (parent_id = null)
       const { data: rootEnv, error: rootError } = await supabase
@@ -113,13 +128,35 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
 
       if (rootError) throw rootError;
 
-      // Agora busca os ambientes filhos do root (os ambientes reais)
+      // Busca as áreas (nível 1 - filhos do root)
       const { data, error } = await supabase
         .from('environments')
         .select('id, name, parent_id')
         .eq('company_id', companyId)
         .eq('status', 'active')
         .eq('parent_id', rootEnv.id)
+        .order('name');
+
+      if (error) throw error;
+      setAreas(data || []);
+    } catch (error) {
+      console.error('Error fetching areas:', error);
+      toast({
+        title: "Erro ao carregar áreas",
+        description: "Tente novamente mais tarde.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const fetchEnvironments = async (areaId: string) => {
+    try {
+      // Busca os ambientes (nível 2 - filhos da área)
+      const { data, error } = await supabase
+        .from('environments')
+        .select('id, name, parent_id')
+        .eq('parent_id', areaId)
+        .eq('status', 'active')
         .order('name');
 
       if (error) throw error;
@@ -136,6 +173,7 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
 
   const fetchLocations = async (environmentId: string) => {
     try {
+      // Busca os locais (nível 3 - filhos do ambiente)
       const { data, error } = await supabase
         .from('environments')
         .select('id, name, parent_id')
@@ -175,7 +213,7 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
         <div>
           <h2 className="text-2xl font-bold mb-2">Nova Auditoria 5S</h2>
           <p className="text-muted-foreground">
-            Selecione o ambiente e o local que deseja avaliar
+            Selecione a localização exata que deseja avaliar
           </p>
         </div>
 
@@ -202,6 +240,35 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
           )}
 
           <div className="space-y-2">
+            <Label htmlFor="area" className="flex items-center gap-2">
+              <Warehouse className="h-4 w-4" />
+              Área
+            </Label>
+            <Select 
+              value={selectedArea} 
+              onValueChange={setSelectedArea}
+              disabled={!selectedCompany || areas.length === 0}
+            >
+              <SelectTrigger id="area">
+                <SelectValue placeholder={
+                  !selectedCompany 
+                    ? "Primeiro selecione uma empresa" 
+                    : areas.length === 0 
+                    ? "Nenhuma área disponível"
+                    : "Selecione uma área"
+                } />
+              </SelectTrigger>
+              <SelectContent>
+                {areas.map((area) => (
+                  <SelectItem key={area.id} value={area.id}>
+                    {area.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="environment" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               Ambiente
@@ -209,12 +276,12 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
             <Select 
               value={selectedEnvironment} 
               onValueChange={setSelectedEnvironment}
-              disabled={!selectedCompany || environments.length === 0}
+              disabled={!selectedArea || environments.length === 0}
             >
               <SelectTrigger id="environment">
                 <SelectValue placeholder={
-                  !selectedCompany 
-                    ? "Primeiro selecione uma empresa" 
+                  !selectedArea 
+                    ? "Primeiro selecione uma área" 
                     : environments.length === 0 
                     ? "Nenhum ambiente disponível"
                     : "Selecione um ambiente"
