@@ -32,42 +32,78 @@ const BibliotecaCriterios = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewCriterion, setViewCriterion] = useState<Criteria | null>(null);
   const [editCriterion, setEditCriterion] = useState<Criteria | null>(null);
-
-  const [filters, setFilters] = useState<CriteriaFilters>({
-    search: "",
-    senso: "Todos",
-    scoreType: "Todos",
-    tags: [],
-    status: "Todos",
-  });
+  const [filterCompanyId, setFilterCompanyId] = useState<string | null>(null);
 
   // Load criteria from Supabase on mount
+  // Load criteria from Supabase on mount and when filter changes
   useEffect(() => {
     loadCriteria();
-  }, []);
+  }, [filterCompanyId]);
 
   const loadCriteria = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("master_criteria")
-        .select("*")
-        .order("created_at", { ascending: false });
+      if (filterCompanyId) {
+        // If filtering by company, get criteria used by that company
+        const { data: companyCriteria, error: companyError } = await supabase
+          .from("company_criteria")
+          .select("master_criterion_id")
+          .eq("company_id", filterCompanyId)
+          .not("master_criterion_id", "is", null);
 
-      if (error) throw error;
+        if (companyError) throw companyError;
 
-      const normalizedCriteria: Criteria[] = (data || []).map((c: any): Criteria => ({
-        id: c.id,
-        name: c.name,
-        senso: normalizeSenso(c.senso) as SensoType[],
-        scoreType: c.scoring_type,
-        tags: c.tags || [],
-        status: toUiStatus(c.status),
-        companiesUsing: 0,
-        modelsUsing: 0,
-      }));
+        const masterCriteriaIds = companyCriteria
+          ?.map((cc) => cc.master_criterion_id)
+          .filter((id): id is string => id !== null) || [];
 
-      setCriteria(normalizedCriteria);
+        if (masterCriteriaIds.length === 0) {
+          setCriteria([]);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("master_criteria")
+          .select("*")
+          .in("id", masterCriteriaIds)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        const normalizedCriteria: Criteria[] = (data || []).map((c: any): Criteria => ({
+          id: c.id,
+          name: c.name,
+          senso: normalizeSenso(c.senso) as SensoType[],
+          scoreType: c.scoring_type,
+          tags: c.tags || [],
+          status: toUiStatus(c.status),
+          companiesUsing: 0,
+          modelsUsing: 0,
+        }));
+
+        setCriteria(normalizedCriteria);
+      } else {
+        // No filter, get all master criteria
+        const { data, error } = await supabase
+          .from("master_criteria")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        const normalizedCriteria: Criteria[] = (data || []).map((c: any): Criteria => ({
+          id: c.id,
+          name: c.name,
+          senso: normalizeSenso(c.senso) as SensoType[],
+          scoreType: c.scoring_type,
+          tags: c.tags || [],
+          status: toUiStatus(c.status),
+          companiesUsing: 0,
+          modelsUsing: 0,
+        }));
+
+        setCriteria(normalizedCriteria);
+      }
     } catch (error) {
       console.error("Error loading criteria:", error);
       toast({
@@ -80,7 +116,7 @@ const BibliotecaCriterios = () => {
     }
   };
 
-  // Filter criteria based on all filters
+  // Filter criteria based on search and tab only
   const filteredCriteria = useMemo(() => {
     let result = [...criteria];
 
@@ -96,27 +132,8 @@ const BibliotecaCriterios = () => {
       result = result.filter((c) => c.senso.includes(activeTab as any));
     }
 
-    // Advanced filters
-    if (filters.senso !== "Todos") {
-      result = result.filter((c) => c.senso.includes(filters.senso as any));
-    }
-
-    if (filters.scoreType !== "Todos") {
-      result = result.filter((c) => c.scoreType === filters.scoreType);
-    }
-
-    if (filters.tags.length > 0) {
-      result = result.filter((c) =>
-        filters.tags.some((tag) => c.tags.includes(tag))
-      );
-    }
-
-    if (filters.status !== "Todos") {
-      result = result.filter((c) => c.status === filters.status);
-    }
-
     return result;
-  }, [criteria, searchValue, activeTab, filters]);
+  }, [criteria, searchValue, activeTab]);
 
   // Pagination
   const totalPages = Math.ceil(filteredCriteria.length / itemsPerPage);
@@ -305,8 +322,11 @@ const BibliotecaCriterios = () => {
         {/* Advanced Filters Panel */}
         {showAdvancedFilters && (
           <AdvancedFilters
-            filters={filters}
-            onFiltersChange={setFilters}
+            companyId={filterCompanyId}
+            onCompanyChange={(companyId) => {
+              setFilterCompanyId(companyId);
+              setCurrentPage(1);
+            }}
             onClose={() => setShowAdvancedFilters(false)}
           />
         )}
