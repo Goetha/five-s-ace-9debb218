@@ -260,8 +260,9 @@ export default function Ambientes() {
               <EnvironmentCard 
                 key={env.id} 
                 environment={env}
-                locations={locationsList.filter(loc => loc.parent_id === env.id)}
+                locations={environments}
                 onEdit={environment => {
+                  setEditingEnvironment(environment);
                   setEditingEnvironment(environment);
                   setIsNewModalOpen(true);
                 }}
