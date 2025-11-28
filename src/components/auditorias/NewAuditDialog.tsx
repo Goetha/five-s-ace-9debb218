@@ -45,8 +45,10 @@ export function NewAuditDialog({
   const { user } = useAuth();
   const { toast } = useToast();
   
+  const [areas, setAreas] = useState<Environment[]>([]);
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [locations, setLocations] = useState<Environment[]>([]);
+  const [selectedArea, setSelectedArea] = useState<string>("");
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>("");
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [criteriaCount, setCriteriaCount] = useState<number>(0);
@@ -56,11 +58,11 @@ export function NewAuditDialog({
 
   useEffect(() => {
     if (open && preSelectedCompanyId) {
-      fetchEnvironments();
+      fetchAreas();
     }
   }, [open, preSelectedCompanyId]);
 
-  const fetchEnvironments = async () => {
+  const fetchAreas = async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -72,19 +74,39 @@ export function NewAuditDialog({
 
       if (error) throw error;
 
-      // Encontrar o root e filtrar
+      // Encontrar o root e buscar as Áreas (filhas do root)
       const root = data?.find(env => env.parent_id === null);
-      const nonRootEnvs = data?.filter(env => env.parent_id !== null && env.parent_id === root?.id) || [];
+      const areasList = data?.filter(env => env.parent_id !== null && env.parent_id === root?.id) || [];
       
-      setEnvironments(nonRootEnvs);
+      setAreas(areasList);
+    } catch (error) {
+      console.error('Error fetching areas:', error);
+      toast({
+        title: "Erro ao carregar áreas",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchEnvironments = async (areaId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('environments')
+        .select('*')
+        .eq('parent_id', areaId)
+        .eq('status', 'active')
+        .order('name');
+
+      if (error) throw error;
+      setEnvironments(data || []);
     } catch (error) {
       console.error('Error fetching environments:', error);
       toast({
         title: "Erro ao carregar ambientes",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -106,6 +128,16 @@ export function NewAuditDialog({
         variant: "destructive"
       });
     }
+  };
+
+  const handleAreaChange = (value: string) => {
+    setSelectedArea(value);
+    setSelectedEnvironment("");
+    setSelectedLocation("");
+    setEnvironments([]);
+    setLocations([]);
+    setCriteriaCount(0);
+    fetchEnvironments(value);
   };
 
   const handleEnvironmentChange = (value: string) => {
@@ -264,16 +296,43 @@ export function NewAuditDialog({
             </div>
           </div>
 
+          {/* Área */}
+          <div className="space-y-2">
+            <Label htmlFor="area">Área *</Label>
+            <Select
+              value={selectedArea}
+              onValueChange={handleAreaChange}
+              disabled={isLoading}
+            >
+              <SelectTrigger id="area">
+                <SelectValue placeholder="Selecione a área" />
+              </SelectTrigger>
+              <SelectContent>
+                {areas.map((area) => (
+                  <SelectItem key={area.id} value={area.id}>
+                    {area.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Ambiente */}
           <div className="space-y-2">
             <Label htmlFor="environment">Ambiente *</Label>
             <Select
               value={selectedEnvironment}
               onValueChange={handleEnvironmentChange}
-              disabled={isLoading}
+              disabled={!selectedArea || environments.length === 0}
             >
               <SelectTrigger id="environment">
-                <SelectValue placeholder="Selecione o ambiente" />
+                <SelectValue placeholder={
+                  !selectedArea 
+                    ? "Selecione uma área primeiro" 
+                    : environments.length === 0 
+                    ? "Nenhum ambiente disponível" 
+                    : "Selecione o ambiente"
+                } />
               </SelectTrigger>
               <SelectContent>
                 {environments.map((env) => (
@@ -329,6 +388,7 @@ export function NewAuditDialog({
                     </span>
                   </div>
                   <div className="text-sm text-blue-700 space-y-1">
+                    <p>• Área: {areas.find(a => a.id === selectedArea)?.name}</p>
                     <p>• Ambiente: {environments.find(e => e.id === selectedEnvironment)?.name}</p>
                     <p>• Local: {locations.find(l => l.id === selectedLocation)?.name}</p>
                     <p>• Perguntas: {criteriaCount}</p>
