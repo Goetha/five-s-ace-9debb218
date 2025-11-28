@@ -26,9 +26,10 @@ export interface AuditItem {
   criterion_id: string;
   question: string;
   answer: boolean | null;
-  photo_url: string | null;
+  photo_url: string | null; // JSON array of URLs stored as string
   comment: string | null;
   created_at: string;
+  photo_urls?: string[]; // Parsed array for easy access in components
 }
 
 export interface AuditWithDetails extends Audit {
@@ -45,7 +46,7 @@ export interface CreateAuditData {
 
 export interface UpdateAuditItemData {
   answer: boolean;
-  photo_url?: string;
+  photo_url?: string; // JSON array as string
   comment?: string;
 }
 
