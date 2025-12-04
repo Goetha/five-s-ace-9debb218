@@ -384,20 +384,12 @@ export function NewAuditDialog({
                   Carregando critérios...
                 </div>
               ) : criteriaCount > 0 ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                    <span className="font-medium text-blue-900 text-sm sm:text-base">
-                      Esta auditoria terá {criteriaCount} {criteriaCount === 1 ? 'critério' : 'critérios'}
-                    </span>
-                  </div>
-                  <div className="text-xs sm:text-sm text-blue-700 space-y-0.5 sm:space-y-1">
-                    <p>• Área: {areas.find(a => a.id === selectedArea)?.name}</p>
-                    <p>• Ambiente: {environments.find(e => e.id === selectedEnvironment)?.name}</p>
-                    <p>• Local: {locations.find(l => l.id === selectedLocation)?.name}</p>
-                    <p>• Perguntas: {criteriaCount}</p>
-                  </div>
-                </>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                  <span className="font-medium text-blue-900 text-sm sm:text-base">
+                    Esta auditoria terá {criteriaCount} {criteriaCount === 1 ? 'pergunta' : 'perguntas'}
+                  </span>
+                </div>
               ) : (
                 <div className="space-y-2 sm:space-y-3">
                   <div className="flex items-center gap-2 text-amber-700">
