@@ -233,7 +233,8 @@ export function ManageCriteriaModal({
         {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col">
           {/* Search + Create Button */}
-          <div className="px-4 sm:px-5 py-3 border-b bg-background">
+          <div className="px-4 sm:px-5 py-3 border-b bg-background space-y-3">
+            {/* Search Bar */}
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -244,47 +245,49 @@ export function ManageCriteriaModal({
                   className="pl-9 h-9"
                 />
               </div>
-              <Button
-                variant={isCreating ? "secondary" : "default"}
-                size="sm"
-                onClick={() => setIsCreating(!isCreating)}
-                className="h-9 px-3"
-              >
-                {isCreating ? (
+              {searchTerm && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSearchTerm('')}
+                  className="h-9 w-9 shrink-0"
+                >
                   <X className="h-4 w-4" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
-              </Button>
+                </Button>
+              )}
             </div>
-          </div>
 
-          {/* Inline Create Form */}
-          {isCreating && (
-            <div className="px-4 sm:px-5 py-3 border-b bg-primary/5 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium text-primary">
-                  <Plus className="h-4 w-4" />
-                  Novo Critério
-                </div>
-                
+            {/* Create Button / Form Toggle */}
+            {!isCreating ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsCreating(true)}
+                className="w-full justify-start text-primary hover:text-primary hover:bg-primary/10 h-9"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Critério
+              </Button>
+            ) : (
+              <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
                 <Input
                   placeholder="Nome do critério *"
                   value={newCriterionName}
                   onChange={(e) => setNewCriterionName(e.target.value)}
                   className="h-9 bg-background"
+                  autoFocus
                 />
                 
                 <Textarea
                   placeholder="Descrição (opcional)"
                   value={newCriterionDescription}
                   onChange={(e) => setNewCriterionDescription(e.target.value)}
-                  className="bg-background resize-none min-h-[60px]"
+                  className="bg-background resize-none min-h-[56px]"
                   rows={2}
                 />
                 
-                <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground font-medium">Senso (opcional)</label>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">Senso (opcional)</label>
                   <div className="flex flex-wrap gap-1.5">
                     {SENSO_OPTIONS.map((senso) => (
                       <button
@@ -293,7 +296,7 @@ export function ManageCriteriaModal({
                         onClick={() => handleToggleSenso(senso)}
                         className={`px-2.5 py-1 rounded text-xs font-semibold transition-all ${
                           newCriterionSenso.includes(senso)
-                            ? `${getSensoColor(senso)} text-white shadow-sm`
+                            ? `${getSensoColor(senso)} text-white`
                             : 'bg-muted text-muted-foreground hover:bg-muted/80'
                         }`}
                       >
@@ -303,7 +306,7 @@ export function ManageCriteriaModal({
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-1">
+                <div className="flex gap-2 pt-1">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -314,7 +317,7 @@ export function ManageCriteriaModal({
                       setNewCriterionSenso([]);
                     }}
                     disabled={isCreatingSaving}
-                    className="h-8"
+                    className="flex-1 h-8"
                   >
                     Cancelar
                   </Button>
@@ -322,16 +325,15 @@ export function ManageCriteriaModal({
                     size="sm"
                     onClick={handleCreateCriterion}
                     disabled={isCreatingSaving || !newCriterionName.trim()}
-                    className="h-8"
+                    className="flex-1 h-8"
                   >
                     {isCreatingSaving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                     Criar e Vincular
                   </Button>
                 </div>
               </div>
-            </div>
-          )}
-
+            )}
+          </div>
           {/* Criteria List */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-3">
             {loading ? (
