@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, X } from 'lucide-react';
+import { Search, Loader2, Plus, X, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -52,7 +52,6 @@ export function ManageCriteriaModal({
   useEffect(() => {
     if (isOpen) {
       fetchData();
-      // Reset form state when modal opens
       setIsCreating(false);
       setNewCriterionName('');
       setNewCriterionDescription('');
@@ -63,7 +62,6 @@ export function ManageCriteriaModal({
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Buscar todos os critérios ativos da empresa
       const { data: criteria, error: criteriaError } = await supabase
         .from('company_criteria')
         .select('id, name, description, senso, scoring_type')
@@ -73,7 +71,6 @@ export function ManageCriteriaModal({
 
       if (criteriaError) throw criteriaError;
 
-      // Buscar critérios já vinculados ao Local
       const { data: linked, error: linkedError } = await supabase
         .from('environment_criteria')
         .select('criterion_id')
@@ -121,7 +118,6 @@ export function ManageCriteriaModal({
 
     setIsCreatingSaving(true);
     try {
-      // Criar o critério na tabela company_criteria
       const { data: newCriterion, error: createError } = await supabase
         .from('company_criteria')
         .insert({
@@ -138,13 +134,9 @@ export function ManageCriteriaModal({
 
       if (createError) throw createError;
 
-      // Adicionar à lista de critérios
       setAllCriteria(prev => [...prev, newCriterion].sort((a, b) => a.name.localeCompare(b.name)));
-
-      // Vincular automaticamente ao local
       setLinkedCriteriaIds(prev => new Set([...prev, newCriterion.id]));
 
-      // Limpar formulário
       setNewCriterionName('');
       setNewCriterionDescription('');
       setNewCriterionSenso([]);
@@ -162,7 +154,6 @@ export function ManageCriteriaModal({
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Buscar estado atual do banco
       const { data: currentLinked, error: fetchError } = await supabase
         .from('environment_criteria')
         .select('criterion_id')
@@ -173,11 +164,9 @@ export function ManageCriteriaModal({
       const currentIds = new Set(currentLinked?.map(l => l.criterion_id) || []);
       const selectedIds = linkedCriteriaIds;
 
-      // Identificar adições e remoções
       const toAdd = [...selectedIds].filter(id => !currentIds.has(id));
       const toRemove = [...currentIds].filter(id => !selectedIds.has(id));
 
-      // Adicionar novos
       if (toAdd.length > 0) {
         const { error: insertError } = await supabase
           .from('environment_criteria')
@@ -191,7 +180,6 @@ export function ManageCriteriaModal({
         if (insertError) throw insertError;
       }
 
-      // Remover desmarcados
       if (toRemove.length > 0) {
         const { error: deleteError } = await supabase
           .from('environment_criteria')
@@ -226,7 +214,7 @@ export function ManageCriteriaModal({
       '1S': 'bg-red-500',
       '2S': 'bg-orange-500',
       '3S': 'bg-yellow-500',
-      '4S': 'bg-green-500',
+      '4S': 'bg-emerald-500',
       '5S': 'bg-blue-500',
     };
     return sensoColors[senso] || 'bg-gray-500';
@@ -234,173 +222,223 @@ export function ManageCriteriaModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] w-[95vw] sm:w-full flex flex-col p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle className="text-base sm:text-lg">Critérios do Local: {localName}</DialogTitle>
+      <DialogContent className="max-w-lg max-h-[90vh] w-[95vw] sm:w-full flex flex-col p-0 gap-0 overflow-hidden">
+        {/* Header */}
+        <DialogHeader className="px-4 sm:px-5 pt-4 sm:pt-5 pb-3 border-b bg-muted/30">
+          <DialogTitle className="text-base sm:text-lg font-semibold">
+            Critérios do Local: <span className="text-primary">{localName}</span>
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col space-y-3 sm:space-y-4">
+        {/* Content */}
+        <div className="flex-1 overflow-hidden flex flex-col">
           {/* Search + Create Button */}
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Buscar critério..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+          <div className="px-4 sm:px-5 py-3 border-b bg-background">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Buscar critério..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-9"
+                />
+              </div>
+              <Button
+                variant={isCreating ? "secondary" : "default"}
+                size="sm"
+                onClick={() => setIsCreating(!isCreating)}
+                className="h-9 px-3"
+              >
+                {isCreating ? (
+                  <X className="h-4 w-4" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+              </Button>
             </div>
-            <Button
-              variant={isCreating ? "secondary" : "default"}
-              size="sm"
-              onClick={() => setIsCreating(!isCreating)}
-              className="shrink-0"
-            >
-              {isCreating ? (
-                <X className="h-4 w-4" />
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Criar</span>
-                </>
-              )}
-            </Button>
           </div>
 
           {/* Inline Create Form */}
           {isCreating && (
-            <div className="bg-muted/40 border rounded-lg p-3 sm:p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-sm">Novo Critério</h4>
-              </div>
-              
-              <Input
-                placeholder="Nome do critério *"
-                value={newCriterionName}
-                onChange={(e) => setNewCriterionName(e.target.value)}
-                className="bg-background"
-              />
-              
-              <Textarea
-                placeholder="Descrição (opcional)"
-                value={newCriterionDescription}
-                onChange={(e) => setNewCriterionDescription(e.target.value)}
-                className="bg-background resize-none"
-                rows={2}
-              />
-              
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Senso (opcional)</label>
-                <div className="flex flex-wrap gap-2">
-                  {SENSO_OPTIONS.map((senso) => (
-                    <button
-                      key={senso}
-                      type="button"
-                      onClick={() => handleToggleSenso(senso)}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                        newCriterionSenso.includes(senso)
-                          ? `${getSensoColor(senso)} text-white ring-2 ring-offset-2 ring-offset-background`
-                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                      }`}
-                    >
-                      {senso}
-                    </button>
-                  ))}
+            <div className="px-4 sm:px-5 py-3 border-b bg-primary/5 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                  <Plus className="h-4 w-4" />
+                  Novo Critério
                 </div>
-              </div>
+                
+                <Input
+                  placeholder="Nome do critério *"
+                  value={newCriterionName}
+                  onChange={(e) => setNewCriterionName(e.target.value)}
+                  className="h-9 bg-background"
+                />
+                
+                <Textarea
+                  placeholder="Descrição (opcional)"
+                  value={newCriterionDescription}
+                  onChange={(e) => setNewCriterionDescription(e.target.value)}
+                  className="bg-background resize-none min-h-[60px]"
+                  rows={2}
+                />
+                
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">Senso (opcional)</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SENSO_OPTIONS.map((senso) => (
+                      <button
+                        key={senso}
+                        type="button"
+                        onClick={() => handleToggleSenso(senso)}
+                        className={`px-2.5 py-1 rounded text-xs font-semibold transition-all ${
+                          newCriterionSenso.includes(senso)
+                            ? `${getSensoColor(senso)} text-white shadow-sm`
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {senso}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setIsCreating(false);
-                    setNewCriterionName('');
-                    setNewCriterionDescription('');
-                    setNewCriterionSenso([]);
-                  }}
-                  disabled={isCreatingSaving}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleCreateCriterion}
-                  disabled={isCreatingSaving || !newCriterionName.trim()}
-                >
-                  {isCreatingSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Criar e Vincular
-                </Button>
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setIsCreating(false);
+                      setNewCriterionName('');
+                      setNewCriterionDescription('');
+                      setNewCriterionSenso([]);
+                    }}
+                    disabled={isCreatingSaving}
+                    className="h-8"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleCreateCriterion}
+                    disabled={isCreatingSaving || !newCriterionName.trim()}
+                    className="h-8"
+                  >
+                    {isCreatingSaving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                    Criar e Vincular
+                  </Button>
+                </div>
               </div>
             </div>
           )}
 
           {/* Criteria List */}
-          <div className="flex-1 overflow-y-auto border rounded-lg p-3 sm:p-4 space-y-2 sm:space-y-3">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-3">
             {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
             ) : filteredCriteria.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                {searchTerm ? 'Nenhum critério encontrado' : 'Nenhum critério disponível'}
+              <div className="text-center py-12 text-muted-foreground">
+                <p className="text-sm">
+                  {searchTerm ? 'Nenhum critério encontrado' : 'Nenhum critério disponível'}
+                </p>
+                {!searchTerm && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => setIsCreating(true)}
+                    className="mt-2 text-primary"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Criar primeiro critério
+                  </Button>
+                )}
               </div>
             ) : (
-              filteredCriteria.map((criterion) => (
-                <div
-                  key={criterion.id}
-                  className="flex items-start space-x-3 p-2.5 sm:p-3 rounded-lg border hover:bg-accent transition-colors cursor-pointer"
-                  onClick={() => handleToggleCriterion(criterion.id)}
-                >
-                  <Checkbox
-                    checked={linkedCriteriaIds.has(criterion.id)}
-                    onCheckedChange={() => handleToggleCriterion(criterion.id)}
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <p className="font-medium text-sm">{criterion.name}</p>
-                      {criterion.senso && criterion.senso.length > 0 && (
-                        <div className="flex gap-1">
-                          {criterion.senso.map((s) => (
-                            <Badge
-                              key={s}
-                              variant="secondary"
-                              className={`${getSensoColor(s)} text-white text-xs px-1.5 py-0`}
-                            >
-                              {s}
-                            </Badge>
-                          ))}
+              <div className="space-y-2">
+                {filteredCriteria.map((criterion) => {
+                  const isSelected = linkedCriteriaIds.has(criterion.id);
+                  return (
+                    <div
+                      key={criterion.id}
+                      onClick={() => handleToggleCriterion(criterion.id)}
+                      className={`
+                        flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all
+                        ${isSelected 
+                          ? 'bg-primary/5 border-primary/30 shadow-sm' 
+                          : 'bg-card hover:bg-accent/50 border-border'
+                        }
+                      `}
+                    >
+                      <div className="pt-0.5">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggleCriterion(criterion.id)}
+                          className={isSelected ? 'border-primary data-[state=checked]:bg-primary' : ''}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className={`text-sm leading-tight ${isSelected ? 'font-medium' : ''}`}>
+                            {criterion.name}
+                          </p>
+                          {criterion.senso && criterion.senso.length > 0 && (
+                            <div className="flex gap-1 shrink-0">
+                              {criterion.senso.map((s) => (
+                                <span
+                                  key={s}
+                                  className={`${getSensoColor(s)} text-white text-[10px] font-bold px-1.5 py-0.5 rounded`}
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
+                        {criterion.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                            {criterion.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    {criterion.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {criterion.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))
+                  );
+                })}
+              </div>
             )}
           </div>
 
           {/* Counter */}
-          <div className="text-sm text-muted-foreground text-center">
-            {selectedCount} de {totalCount} critérios selecionados
+          <div className="px-4 sm:px-5 py-2 border-t bg-muted/30">
+            <div className="flex items-center justify-center gap-2 text-sm">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <span className="text-muted-foreground">
+                <span className="font-medium text-foreground">{selectedCount}</span> de {totalCount} selecionados
+              </span>
+            </div>
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 pt-3 sm:pt-4">
-          <Button variant="outline" onClick={onClose} disabled={saving} className="w-full sm:w-auto">
+        {/* Footer */}
+        <div className="px-4 sm:px-5 py-3 border-t bg-muted/30 flex flex-col sm:flex-row gap-2">
+          <Button 
+            variant="outline" 
+            onClick={onClose} 
+            disabled={saving} 
+            className="w-full sm:w-auto sm:flex-1"
+          >
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={saving || loading} className="w-full sm:w-auto">
+          <Button 
+            onClick={handleSave} 
+            disabled={saving || loading} 
+            className="w-full sm:w-auto sm:flex-1"
+          >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Salvar Alterações
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
