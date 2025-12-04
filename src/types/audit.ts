@@ -30,6 +30,7 @@ export interface AuditItem {
   comment: string | null;
   created_at: string;
   photo_urls?: string[]; // Parsed array for easy access in components
+  senso?: string[] | null; // Senso from company_criteria
 }
 
 export interface AuditWithDetails extends Audit {
