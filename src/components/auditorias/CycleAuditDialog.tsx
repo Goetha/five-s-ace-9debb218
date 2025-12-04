@@ -21,7 +21,8 @@ import {
   Lock, 
   Play,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  AlertCircle
 } from "lucide-react";
 import type { AuditCycleWithDetails, CycleLocation } from "@/types/auditCycle";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -31,7 +32,7 @@ interface CycleAuditDialogProps {
   onOpenChange: (open: boolean) => void;
   companyId: string;
   companyName: string;
-  cycleId: string | null; // null = start new cycle
+  cycleId: string | null;
   onCycleUpdated: () => void;
 }
 
@@ -73,7 +74,7 @@ export function CycleAuditDialog({
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // 1. Fetch or create cycle
+      // 1. Fetch or get existing cycle
       let activeCycle: AuditCycleWithDetails | null = null;
       
       if (cycleId) {
@@ -87,7 +88,7 @@ export function CycleAuditDialog({
         activeCycle = data as AuditCycleWithDetails;
       }
 
-      // 2. Fetch all locations for this company (4-level hierarchy)
+      // 2. Fetch all environments for this company
       const { data: envData, error: envError } = await supabase
         .from('environments')
         .select('*')
@@ -96,6 +97,19 @@ export function CycleAuditDialog({
         .order('name');
       
       if (envError) throw envError;
+
+      console.log('📍 Environments loaded:', envData?.length);
+
+      // 3. Fetch all environment_criteria to know which locations have criteria
+      const { data: criteriaLinks, error: criteriaError } = await supabase
+        .from('environment_criteria')
+        .select('environment_id');
+      
+      if (criteriaError) throw criteriaError;
+
+      // Create set of locations with criteria
+      const locationsWithCriteriaSet = new Set(criteriaLinks?.map(l => l.environment_id) || []);
+      console.log('📋 Locations with criteria:', locationsWithCriteriaSet.size);
 
       // Build hierarchy maps
       const envMap = new Map(envData?.map(e => [e.id, e]) || []);
@@ -110,6 +124,8 @@ export function CycleAuditDialog({
 
       // Find root
       const root = envData?.find(e => !e.parent_id);
+      console.log('🏠 Root found:', root?.name);
+      
       if (!root) {
         setLocationGroups([]);
         setCycle(activeCycle);
@@ -117,7 +133,7 @@ export function CycleAuditDialog({
         return;
       }
 
-      // 3. Fetch already audited locations in this cycle
+      // 4. Fetch already audited locations in this cycle
       let auditedLocationIds: string[] = [];
       if (activeCycle) {
         const { data: audits } = await supabase
@@ -128,9 +144,10 @@ export function CycleAuditDialog({
         auditedLocationIds = audits?.map(a => a.location_id) || [];
       }
 
-      // 4. Build location groups
+      // 5. Build location groups (4-level: Root > Area > Environment > Location)
       const groups: LocationGroup[] = [];
       const areas = childrenByParent.get(root.id) || [];
+      console.log('📁 Areas found:', areas.length);
       
       for (const area of areas) {
         const areaGroup: LocationGroup = {
@@ -143,31 +160,21 @@ export function CycleAuditDialog({
         for (const env of envs) {
           const locations = childrenByParent.get(env.id) || [];
           
-          // Only include locations that have criteria linked
-          const locationsWithCriteria: CycleLocation[] = [];
-          
-          for (const loc of locations) {
-            const { count } = await supabase
-              .from('environment_criteria')
-              .select('*', { count: 'exact', head: true })
-              .eq('environment_id', loc.id);
-            
-            if (count && count > 0) {
-              locationsWithCriteria.push({
-                id: loc.id,
-                name: loc.name,
-                area_name: area.name,
-                environment_name: env.name,
-                is_audited: auditedLocationIds.includes(loc.id)
-              });
-            }
-          }
+          // Include all locations (show warning if no criteria)
+          const locationsForEnv: CycleLocation[] = locations.map((loc: any) => ({
+            id: loc.id,
+            name: loc.name,
+            area_name: area.name,
+            environment_name: env.name,
+            is_audited: auditedLocationIds.includes(loc.id),
+            has_criteria: locationsWithCriteriaSet.has(loc.id)
+          }));
 
-          if (locationsWithCriteria.length > 0) {
+          if (locationsForEnv.length > 0) {
             areaGroup.environments.push({
               envId: env.id,
               envName: env.name,
-              locations: locationsWithCriteria
+              locations: locationsForEnv
             });
           }
         }
@@ -177,9 +184,11 @@ export function CycleAuditDialog({
         }
       }
 
+      console.log('📊 Location groups:', groups.length);
+
       // Update cycle with location counts
       const totalLocations = groups.reduce((acc, g) => 
-        acc + g.environments.reduce((e, env) => e + env.locations.length, 0), 0);
+        acc + g.environments.reduce((e, env) => e + env.locations.filter(l => (l as any).has_criteria).length, 0), 0);
       const completedLocations = groups.reduce((acc, g) => 
         acc + g.environments.reduce((e, env) => e + env.locations.filter(l => l.is_audited).length, 0), 0);
 
@@ -192,11 +201,16 @@ export function CycleAuditDialog({
       setLocationGroups(groups);
       setCycle(activeCycle);
       
-      // Auto-expand first area with pending locations
-      const firstPendingArea = groups.find(g => 
-        g.environments.some(e => e.locations.some(l => !l.is_audited)));
-      if (firstPendingArea) {
-        setExpandedAreas(new Set([firstPendingArea.areaId]));
+      // Auto-expand all areas if few
+      if (groups.length <= 3) {
+        setExpandedAreas(new Set(groups.map(g => g.areaId)));
+      } else {
+        // Auto-expand first area with pending locations
+        const firstPendingArea = groups.find(g => 
+          g.environments.some(e => e.locations.some(l => !l.is_audited && (l as any).has_criteria)));
+        if (firstPendingArea) {
+          setExpandedAreas(new Set([firstPendingArea.areaId]));
+        }
       }
 
     } catch (error: any) {
@@ -222,9 +236,9 @@ export function CycleAuditDialog({
       let activeCycleId = cycleId;
       
       if (!activeCycleId) {
-        // Calculate total locations
+        // Calculate total locations with criteria
         const totalLocations = locationGroups.reduce((acc, g) => 
-          acc + g.environments.reduce((e, env) => e + env.locations.length, 0), 0);
+          acc + g.environments.reduce((e, env) => e + env.locations.filter(l => (l as any).has_criteria).length, 0), 0);
 
         const { data: newCycle, error: cycleError } = await supabase
           .from('audit_cycles')
@@ -329,15 +343,18 @@ export function CycleAuditDialog({
   };
 
   const progress = cycle 
-    ? Math.round((cycle.completed_locations / cycle.total_locations) * 100) 
+    ? Math.round((cycle.completed_locations / Math.max(cycle.total_locations, 1)) * 100) 
     : 0;
 
   const pendingCount = locationGroups.reduce((acc, g) => 
-    acc + g.environments.reduce((e, env) => e + env.locations.filter(l => !l.is_audited).length, 0), 0);
+    acc + g.environments.reduce((e, env) => e + env.locations.filter(l => !l.is_audited && (l as any).has_criteria).length, 0), 0);
+
+  const totalWithCriteria = locationGroups.reduce((acc, g) => 
+    acc + g.environments.reduce((e, env) => e + env.locations.filter(l => (l as any).has_criteria).length, 0), 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] w-[95vw] sm:max-w-[600px] p-0 flex flex-col overflow-hidden">
+      <DialogContent className="h-[100dvh] max-h-[100dvh] w-full max-w-full sm:h-auto sm:max-h-[90vh] sm:w-[95vw] sm:max-w-[600px] p-0 flex flex-col rounded-none sm:rounded-lg">
         <DialogHeader className="p-4 sm:p-6 pb-3 flex-shrink-0 border-b">
           <DialogTitle className="text-lg sm:text-xl">
             {cycleId ? 'Continuar Ciclo' : 'Novo Ciclo de Auditoria'}
@@ -346,12 +363,12 @@ export function CycleAuditDialog({
             {companyName}
           </DialogDescription>
           
-          {cycle && (
+          {cycle && totalWithCriteria > 0 && (
             <div className="space-y-2 pt-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Progresso</span>
                 <span className="font-medium">
-                  {cycle.completed_locations}/{cycle.total_locations} locais
+                  {cycle.completed_locations}/{totalWithCriteria} locais
                 </span>
               </div>
               <Progress value={progress} className="h-2" />
@@ -367,8 +384,21 @@ export function CycleAuditDialog({
           ) : locationGroups.length === 0 ? (
             <div className="text-center py-12">
               <MapPin className="h-12 w-12 mx-auto text-muted-foreground/50" />
-              <p className="mt-4 text-muted-foreground">
-                Nenhum local com critérios configurados
+              <p className="mt-4 text-muted-foreground font-medium">
+                Nenhum local encontrado
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Configure a hierarquia de ambientes (Área → Ambiente → Local) primeiro
+              </p>
+            </div>
+          ) : totalWithCriteria === 0 ? (
+            <div className="text-center py-12">
+              <AlertCircle className="h-12 w-12 mx-auto text-amber-500" />
+              <p className="mt-4 text-foreground font-medium">
+                Nenhum critério vinculado
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Vincule critérios aos locais através do gerenciamento de ambientes
               </p>
             </div>
           ) : (
@@ -386,88 +416,108 @@ export function CycleAuditDialog({
               </div>
 
               {/* Location hierarchy */}
-              {locationGroups.map((group) => (
-                <Collapsible 
-                  key={group.areaId} 
-                  open={expandedAreas.has(group.areaId)}
-                  onOpenChange={() => toggleArea(group.areaId)}
-                >
-                  <CollapsibleTrigger className="w-full">
-                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
-                      <div className="flex items-center gap-2">
-                        {expandedAreas.has(group.areaId) ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <span className="font-medium text-sm">{group.areaName}</span>
-                      </div>
-                      <Badge variant="secondary" className="text-xs">
-                        {group.environments.reduce((acc, e) => acc + e.locations.filter(l => !l.is_audited).length, 0)} pendentes
-                      </Badge>
-                    </div>
-                  </CollapsibleTrigger>
-                  
-                  <CollapsibleContent>
-                    <div className="pl-4 pt-2 space-y-2">
-                      {group.environments.map((env) => (
-                        <div key={env.envId} className="space-y-1.5">
-                          <p className="text-xs font-medium text-muted-foreground pl-2">
-                            {env.envName}
-                          </p>
-                          <div className="space-y-1">
-                            {env.locations.map((loc) => (
-                              <div 
-                                key={loc.id}
-                                className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${
-                                  loc.is_audited 
-                                    ? 'bg-green-50/50 border-green-200' 
-                                    : 'bg-background hover:bg-primary/5 border-border'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  {loc.is_audited ? (
-                                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                                  ) : (
-                                    <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                  )}
-                                  <span className={`text-sm truncate ${loc.is_audited ? 'text-green-700' : ''}`}>
-                                    {loc.name}
-                                  </span>
-                                </div>
-                                
-                                {loc.is_audited ? (
-                                  <Badge variant="outline" className="text-green-600 border-green-300 text-xs">
-                                    <Lock className="h-3 w-3 mr-1" />
-                                    Avaliado
-                                  </Badge>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs"
-                                    onClick={() => handleStartAudit(loc.id)}
-                                    disabled={isCreating}
-                                  >
-                                    {isCreating && selectedLocation === loc.id ? (
-                                      <Loader2 className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <Play className="h-3 w-3 mr-1" />
-                                        Avaliar
-                                      </>
-                                    )}
-                                  </Button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
+              {locationGroups.map((group) => {
+                const groupPendingCount = group.environments.reduce(
+                  (e, env) => e + env.locations.filter(l => !l.is_audited && (l as any).has_criteria).length, 0
+                );
+                
+                return (
+                  <Collapsible 
+                    key={group.areaId} 
+                    open={expandedAreas.has(group.areaId)}
+                    onOpenChange={() => toggleArea(group.areaId)}
+                  >
+                    <CollapsibleTrigger className="w-full">
+                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
+                        <div className="flex items-center gap-2">
+                          {expandedAreas.has(group.areaId) ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          <span className="font-medium text-sm">{group.areaName}</span>
                         </div>
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              ))}
+                        <Badge variant="secondary" className="text-xs">
+                          {groupPendingCount} pendentes
+                        </Badge>
+                      </div>
+                    </CollapsibleTrigger>
+                    
+                    <CollapsibleContent>
+                      <div className="pl-4 pt-2 space-y-2">
+                        {group.environments.map((env) => (
+                          <div key={env.envId} className="space-y-1.5">
+                            <p className="text-xs font-medium text-muted-foreground pl-2">
+                              {env.envName}
+                            </p>
+                            <div className="space-y-1">
+                              {env.locations.map((loc) => {
+                                const hasCriteria = (loc as any).has_criteria;
+                                
+                                return (
+                                  <div 
+                                    key={loc.id}
+                                    className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${
+                                      loc.is_audited 
+                                        ? 'bg-green-50/50 border-green-200' 
+                                        : !hasCriteria
+                                        ? 'bg-muted/30 border-muted'
+                                        : 'bg-background hover:bg-primary/5 border-border'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {loc.is_audited ? (
+                                        <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                      ) : !hasCriteria ? (
+                                        <AlertCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                      ) : (
+                                        <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                                      )}
+                                      <span className={`text-sm truncate ${
+                                        loc.is_audited ? 'text-green-700' : !hasCriteria ? 'text-muted-foreground' : ''
+                                      }`}>
+                                        {loc.name}
+                                      </span>
+                                    </div>
+                                    
+                                    {loc.is_audited ? (
+                                      <Badge variant="outline" className="text-green-600 border-green-300 text-xs flex-shrink-0">
+                                        <Lock className="h-3 w-3 mr-1" />
+                                        Avaliado
+                                      </Badge>
+                                    ) : !hasCriteria ? (
+                                      <Badge variant="outline" className="text-muted-foreground text-xs flex-shrink-0">
+                                        Sem critérios
+                                      </Badge>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant="default"
+                                        className="h-8 text-xs flex-shrink-0"
+                                        onClick={() => handleStartAudit(loc.id)}
+                                        disabled={isCreating}
+                                      >
+                                        {isCreating && selectedLocation === loc.id ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <>
+                                            <Play className="h-3 w-3 mr-1" />
+                                            Avaliar
+                                          </>
+                                        )}
+                                      </Button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
             </div>
           )}
         </ScrollArea>
