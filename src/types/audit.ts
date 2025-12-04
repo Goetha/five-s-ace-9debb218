@@ -6,6 +6,7 @@ export interface Audit {
   company_id: string;
   location_id: string;
   auditor_id: string;
+  cycle_id: string | null;
   status: AuditStatus;
   started_at: string;
   completed_at: string | null;

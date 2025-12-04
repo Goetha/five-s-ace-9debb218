@@ -3,16 +3,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { Calendar, CheckCircle2, Clock, AlertCircle, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { NewAuditDialog } from "@/components/auditorias/NewAuditDialog";
+import { CycleAuditDialog } from "@/components/auditorias/CycleAuditDialog";
+import { CycleProgressCard } from "@/components/auditorias/CycleProgressCard";
 import { AuditGroupedList } from "@/components/auditorias/AuditGroupedList";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import type { AuditCycleWithDetails } from "@/types/auditCycle";
 interface Company {
   id: string;
   name: string;
@@ -67,8 +69,10 @@ const Auditorias = () => {
   const [completedCount, setCompletedCount] = useState(0);
   const [inProgressCount, setInProgressCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isNewAuditDialogOpen, setIsNewAuditDialogOpen] = useState(false);
+  const [isCycleDialogOpen, setIsCycleDialogOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
+  const [companyCycles, setCompanyCycles] = useState<Map<string, AuditCycleWithDetails | null>>(new Map());
 
   // Filtros
   const [filterCompany, setFilterCompany] = useState<string>("all");
@@ -76,6 +80,7 @@ const Auditorias = () => {
   useEffect(() => {
     if (userRole === 'ifa_admin') {
       fetchData();
+      fetchCycles();
     }
   }, [userRole]);
   useEffect(() => {
@@ -386,9 +391,56 @@ const Auditorias = () => {
     } = config[level as keyof typeof config] || config.medium;
     return <Badge variant="outline" className={className}>{label}</Badge>;
   };
-  const handleNewAudit = (company: Company) => {
-    setSelectedCompany(company);
-    setIsNewAuditDialogOpen(true);
+  const fetchCycles = async () => {
+    try {
+      const { data: cycles, error } = await supabase
+        .from('audit_cycles')
+        .select('*')
+        .eq('status', 'in_progress')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+
+      // Map cycles by company_id
+      const cyclesMap = new Map<string, AuditCycleWithDetails | null>();
+      for (const cycle of cycles || []) {
+        if (!cyclesMap.has(cycle.company_id)) {
+          // Fetch audited locations for this cycle
+          const { data: audits } = await supabase
+            .from('audits')
+            .select('location_id')
+            .eq('cycle_id', cycle.id);
+          
+          cyclesMap.set(cycle.company_id, {
+            ...cycle,
+            company_name: '',
+            auditor_name: '',
+            audited_location_ids: audits?.map(a => a.location_id) || []
+          } as AuditCycleWithDetails);
+        }
+      }
+      
+      setCompanyCycles(cyclesMap);
+    } catch (error) {
+      console.error('Error fetching cycles:', error);
+    }
+  };
+
+  const handleStartCycle = (companyId: string, companyName: string) => {
+    setSelectedCompany({ id: companyId, name: companyName });
+    setSelectedCycleId(null);
+    setIsCycleDialogOpen(true);
+  };
+
+  const handleContinueCycle = (companyId: string, companyName: string, cycleId: string) => {
+    setSelectedCompany({ id: companyId, name: companyName });
+    setSelectedCycleId(cycleId);
+    setIsCycleDialogOpen(true);
+  };
+
+  const handleCycleUpdated = () => {
+    fetchData();
+    fetchCycles();
   };
   const stats = [{
     label: "Total de Auditorias",
@@ -517,20 +569,41 @@ const Auditorias = () => {
           </div>
         </Card>
 
-        {/* Nova Auditoria por Empresa */}
-        <Card className="p-4 sm:p-6">
-          <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Iniciar Nova Auditoria</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
-            {companies.map(company => <Button key={company.id} variant="outline" className="justify-start h-auto p-3 sm:p-4 text-sm" onClick={() => handleNewAudit(company)}>
-                <Plus className="h-4 w-4 mr-2 flex-shrink-0" />
-                <span className="truncate">{company.name}</span>
-              </Button>)}
+        {/* Ciclos de Auditoria por Empresa */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <RotateCcw className="h-5 w-5 text-primary" />
+            <h2 className="text-base sm:text-lg font-semibold">Ciclos de Auditoria</h2>
           </div>
-        </Card>
+          <p className="text-sm text-muted-foreground">
+            Complete todos os locais de uma empresa antes de iniciar um novo ciclo
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {companies.map(company => (
+              <CycleProgressCard
+                key={company.id}
+                companyId={company.id}
+                companyName={company.name}
+                activeCycle={companyCycles.get(company.id) || null}
+                onStartCycle={handleStartCycle}
+                onContinueCycle={handleContinueCycle}
+              />
+            ))}
+          </div>
+        </div>
       </main>
 
-      {/* Dialog Nova Auditoria */}
-      {selectedCompany && <NewAuditDialog open={isNewAuditDialogOpen} onOpenChange={setIsNewAuditDialogOpen} preSelectedCompanyId={selectedCompany.id} preSelectedCompanyName={selectedCompany.name} />}
+      {/* Dialog Ciclo de Auditoria */}
+      {selectedCompany && (
+        <CycleAuditDialog 
+          open={isCycleDialogOpen} 
+          onOpenChange={setIsCycleDialogOpen} 
+          companyId={selectedCompany.id} 
+          companyName={selectedCompany.name}
+          cycleId={selectedCycleId}
+          onCycleUpdated={handleCycleUpdated}
+        />
+      )}
     </div>;
 };
 export default Auditorias;
