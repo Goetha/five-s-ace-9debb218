@@ -16,6 +16,20 @@ interface ChecklistItemProps {
   onAnswerChange: (itemId: string, answer: boolean, photoUrls?: string[], comment?: string) => void;
 }
 
+const SENSO_LABELS: Record<string, string> = {
+  '1S': 'Utilização',
+  '2S': 'Organização',
+  '3S': 'Limpeza',
+  '4S': 'Padronização',
+  '5S': 'Disciplina'
+};
+
+const getSensoLabel = (senso: string[] | null | undefined): string => {
+  if (!senso || senso.length === 0) return 'Critério';
+  // Return the first senso's label
+  return SENSO_LABELS[senso[0]] || senso[0];
+};
+
 export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProps) {
   const [localAnswer, setLocalAnswer] = useState<boolean | null>(item.answer);
   const [showDetails, setShowDetails] = useState(item.answer !== null);
@@ -141,7 +155,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
         <div className="flex flex-col gap-3">
           <div className="flex-1 min-w-0">
             <p className="font-medium text-xs sm:text-sm text-foreground">
-              <span className="text-muted-foreground mr-1">Pergunta {index + 1}:</span>
+              <span className="text-muted-foreground mr-1">{getSensoLabel(item.senso)}:</span>
               {item.question}
             </p>
           </div>

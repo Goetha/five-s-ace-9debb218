@@ -41,12 +41,21 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
 
       const { data, error } = await supabase
         .from('audit_items')
-        .select('*')
+        .select(`
+          *,
+          company_criteria!audit_items_criterion_id_fkey(senso)
+        `)
         .eq('audit_id', auditId)
         .order('created_at');
 
       if (error) throw error;
-      setItems(data || []);
+      
+      // Map senso from company_criteria to item
+      const itemsWithSenso = (data || []).map(item => ({
+        ...item,
+        senso: item.company_criteria?.senso || null
+      }));
+      setItems(itemsWithSenso);
     } catch (error) {
       console.error('Error fetching audit items:', error);
       toast({
