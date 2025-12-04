@@ -23,4 +23,5 @@ export interface CycleLocation {
   area_name: string;
   environment_name: string;
   is_audited: boolean;
+  has_criteria?: boolean;
 }
