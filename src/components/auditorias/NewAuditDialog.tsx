@@ -279,32 +279,36 @@ export function NewAuditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]" aria-describedby="new-audit-description">
-        <DialogHeader>
-          <DialogTitle>Nova Auditoria</DialogTitle>
-          <DialogDescription id="new-audit-description">
+      <DialogContent 
+        className="max-h-[90vh] w-[95vw] sm:max-w-[500px] p-4 sm:p-6 flex flex-col overflow-hidden" 
+        aria-describedby="new-audit-description"
+      >
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="text-lg sm:text-xl">Nova Auditoria</DialogTitle>
+          <DialogDescription id="new-audit-description" className="text-sm">
             Selecione o ambiente e local para iniciar a auditoria
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        {/* Área de conteúdo com scroll */}
+        <div className="flex-1 overflow-y-auto space-y-3 sm:space-y-4 py-2 sm:py-4 pr-1">
           {/* Empresa (pré-selecionada) */}
-          <div className="space-y-2">
-            <Label>Empresa</Label>
-            <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
-              <p className="font-medium text-primary">{preSelectedCompanyName}</p>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label className="text-sm">Empresa</Label>
+            <div className="p-2.5 sm:p-3 bg-primary/5 border border-primary/20 rounded-md">
+              <p className="font-medium text-primary text-sm sm:text-base">{preSelectedCompanyName}</p>
             </div>
           </div>
 
           {/* Área */}
-          <div className="space-y-2">
-            <Label htmlFor="area">Área *</Label>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="area" className="text-sm">Área *</Label>
             <Select
               value={selectedArea}
               onValueChange={handleAreaChange}
               disabled={isLoading}
             >
-              <SelectTrigger id="area">
+              <SelectTrigger id="area" className="h-9 sm:h-10">
                 <SelectValue placeholder="Selecione a área" />
               </SelectTrigger>
               <SelectContent>
@@ -318,14 +322,14 @@ export function NewAuditDialog({
           </div>
 
           {/* Ambiente */}
-          <div className="space-y-2">
-            <Label htmlFor="environment">Ambiente *</Label>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="environment" className="text-sm">Ambiente *</Label>
             <Select
               value={selectedEnvironment}
               onValueChange={handleEnvironmentChange}
               disabled={!selectedArea || environments.length === 0}
             >
-              <SelectTrigger id="environment">
+              <SelectTrigger id="environment" className="h-9 sm:h-10">
                 <SelectValue placeholder={
                   !selectedArea 
                     ? "Selecione uma área primeiro" 
@@ -345,14 +349,14 @@ export function NewAuditDialog({
           </div>
 
           {/* Local */}
-          <div className="space-y-2">
-            <Label htmlFor="location">Local *</Label>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="location" className="text-sm">Local *</Label>
             <Select
               value={selectedLocation}
               onValueChange={handleLocationChange}
               disabled={!selectedEnvironment || locations.length === 0}
             >
-              <SelectTrigger id="location">
+              <SelectTrigger id="location" className="h-9 sm:h-10">
                 <SelectValue placeholder={
                   !selectedEnvironment 
                     ? "Selecione um ambiente primeiro" 
@@ -373,7 +377,7 @@ export function NewAuditDialog({
 
           {/* Preview de Critérios */}
           {selectedLocation && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+            <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
               {isLoadingCriteria ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -382,12 +386,12 @@ export function NewAuditDialog({
               ) : criteriaCount > 0 ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <span className="font-medium text-blue-900">
-                      Esta auditoria terá {criteriaCount} {criteriaCount === 1 ? 'critério' : 'critérios'} de avaliação
+                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                    <span className="font-medium text-blue-900 text-sm sm:text-base">
+                      Esta auditoria terá {criteriaCount} {criteriaCount === 1 ? 'critério' : 'critérios'}
                     </span>
                   </div>
-                  <div className="text-sm text-blue-700 space-y-1">
+                  <div className="text-xs sm:text-sm text-blue-700 space-y-0.5 sm:space-y-1">
                     <p>• Área: {areas.find(a => a.id === selectedArea)?.name}</p>
                     <p>• Ambiente: {environments.find(e => e.id === selectedEnvironment)?.name}</p>
                     <p>• Local: {locations.find(l => l.id === selectedLocation)?.name}</p>
@@ -395,27 +399,24 @@ export function NewAuditDialog({
                   </div>
                 </>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   <div className="flex items-center gap-2 text-amber-700">
-                    <AlertCircle className="h-5 w-5" />
-                    <span className="font-medium">Nenhum critério disponível</span>
+                    <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="font-medium text-sm sm:text-base">Nenhum critério disponível</span>
                   </div>
-                  <p className="text-sm text-amber-600">
-                    Não há critérios ativos configurados para este local ou empresa.
+                  <p className="text-xs sm:text-sm text-amber-600">
+                    Não há critérios ativos configurados para este local.
                   </p>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleLocationChange(selectedLocation)}
-                      className="text-xs"
+                      className="text-xs h-7 sm:h-8"
                     >
                       <Loader2 className="h-3 w-3 mr-1" />
                       Recarregar
                     </Button>
-                    <p className="text-xs text-muted-foreground self-center">
-                      Verifique se há modelos vinculados à empresa
-                    </p>
                   </div>
                 </div>
               )}
@@ -423,20 +424,23 @@ export function NewAuditDialog({
           )}
         </div>
 
-        <div className="flex justify-end gap-3">
+        {/* Footer fixo */}
+        <div className="flex justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t mt-auto flex-shrink-0">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isCreating}
+            className="h-9 sm:h-10 text-sm"
           >
             Cancelar
           </Button>
           <Button
             onClick={handleStartAudit}
             disabled={!selectedLocation || isCreating || criteriaCount === 0}
+            className="h-9 sm:h-10 text-sm"
           >
             {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {criteriaCount === 0 ? 'Sem critérios disponíveis' : 'Iniciar Auditoria'}
+            {criteriaCount === 0 ? 'Sem critérios' : 'Iniciar Auditoria'}
           </Button>
         </div>
       </DialogContent>
