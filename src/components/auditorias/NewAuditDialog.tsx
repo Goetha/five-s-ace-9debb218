@@ -311,7 +311,7 @@ export function NewAuditDialog({
               <SelectTrigger id="area" className="h-9 sm:h-10">
                 <SelectValue placeholder="Selecione a área" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-60 overflow-y-auto">
                 {areas.map((area) => (
                   <SelectItem key={area.id} value={area.id}>
                     {area.name}
@@ -338,7 +338,7 @@ export function NewAuditDialog({
                     : "Selecione o ambiente"
                 } />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-60 overflow-y-auto">
                 {environments.map((env) => (
                   <SelectItem key={env.id} value={env.id}>
                     {env.name}
@@ -365,7 +365,7 @@ export function NewAuditDialog({
                     : "Selecione o local"
                 } />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-60 overflow-y-auto">
                 {locations.map((loc) => (
                   <SelectItem key={loc.id} value={loc.id}>
                     {loc.name}
