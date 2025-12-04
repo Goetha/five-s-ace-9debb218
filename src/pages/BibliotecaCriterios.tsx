@@ -148,9 +148,9 @@ const BibliotecaCriterios = () => {
   const handleSaveCriterion = async (newCriterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">) => {
     try {
       if (editCriterion) {
-        // Update existing criterion
+        // Update existing criterion in company_criteria
         const { error } = await supabase
-          .from("master_criteria")
+          .from("company_criteria")
           .update({
             name: newCriterion.name,
             description: "",
@@ -171,16 +171,41 @@ const BibliotecaCriterios = () => {
 
         setEditCriterion(null);
       } else {
-        // Create new criterion
+        // For new criteria, we need a company_id - use the filter or get first company
+        let targetCompanyId = filterCompanyId;
+        
+        if (!targetCompanyId) {
+          // Get first available company
+          const { data: companies } = await supabase
+            .from("companies")
+            .select("id")
+            .limit(1)
+            .single();
+          
+          targetCompanyId = companies?.id || null;
+        }
+
+        if (!targetCompanyId) {
+          toast({
+            title: "Erro ao criar critério",
+            description: "Nenhuma empresa disponível. Crie uma empresa primeiro.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Create new criterion in company_criteria
         const { error } = await supabase
-          .from("master_criteria")
+          .from("company_criteria")
           .insert({
+            company_id: targetCompanyId,
             name: newCriterion.name,
             description: "",
             senso: newCriterion.senso,
             scoring_type: newCriterion.scoreType,
             tags: newCriterion.tags,
             status: toDbStatus(newCriterion.status),
+            origin: "custom",
           });
 
         if (error) throw error;
@@ -221,15 +246,28 @@ const BibliotecaCriterios = () => {
   // Handle duplicate criterion
   const handleDuplicateCriterion = async (criterion: Criteria) => {
     try {
+      // Get the original criterion's company_id
+      const { data: originalCriterion } = await supabase
+        .from("company_criteria")
+        .select("company_id")
+        .eq("id", criterion.id)
+        .single();
+
+      if (!originalCriterion?.company_id) {
+        throw new Error("Critério original não encontrado");
+      }
+
       const { error } = await supabase
-        .from("master_criteria")
+        .from("company_criteria")
         .insert({
+          company_id: originalCriterion.company_id,
           name: `${criterion.name} (Cópia)`,
           description: "",
           senso: criterion.senso,
           scoring_type: criterion.scoreType,
           tags: criterion.tags,
-          status: "inactive", // Duplicates start as inactive for review
+          status: "active",
+          origin: "custom",
         });
 
       if (error) throw error;
@@ -341,7 +379,7 @@ const BibliotecaCriterios = () => {
                   : [...criterion.tags, "Industrial"];
                 
                 return supabase
-                  .from("master_criteria")
+                  .from("company_criteria")
                   .update({ tags: newTags })
                   .eq("id", id);
               });
@@ -374,7 +412,7 @@ const BibliotecaCriterios = () => {
             try {
               const updates = selectedIds.map(id =>
                 supabase
-                  .from("master_criteria")
+                  .from("company_criteria")
                   .update({ status: "inactive" })
                   .eq("id", id)
               );
@@ -401,7 +439,7 @@ const BibliotecaCriterios = () => {
           onDelete={async () => {
             try {
               const { error } = await supabase
-                .from("master_criteria")
+                .from("company_criteria")
                 .delete()
                 .in("id", selectedIds);
               
