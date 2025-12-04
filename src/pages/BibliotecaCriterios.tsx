@@ -44,28 +44,12 @@ const BibliotecaCriterios = () => {
     setIsLoading(true);
     try {
       if (filterCompanyId) {
-        // If filtering by company, get criteria used by that company
-        const { data: companyCriteria, error: companyError } = await supabase
-          .from("company_criteria")
-          .select("master_criterion_id")
-          .eq("company_id", filterCompanyId)
-          .not("master_criterion_id", "is", null);
-
-        if (companyError) throw companyError;
-
-        const masterCriteriaIds = companyCriteria
-          ?.map((cc) => cc.master_criterion_id)
-          .filter((id): id is string => id !== null) || [];
-
-        if (masterCriteriaIds.length === 0) {
-          setCriteria([]);
-          return;
-        }
-
+        // If filtering by company, get criteria from that company
         const { data, error } = await supabase
-          .from("master_criteria")
+          .from("company_criteria")
           .select("*")
-          .in("id", masterCriteriaIds)
+          .eq("company_id", filterCompanyId)
+          .eq("status", "active")
           .order("created_at", { ascending: false });
 
         if (error) throw error;
@@ -83,10 +67,11 @@ const BibliotecaCriterios = () => {
 
         setCriteria(normalizedCriteria);
       } else {
-        // No filter, get all master criteria
+        // No filter - IFA Admin sees all criteria from all companies
         const { data, error } = await supabase
-          .from("master_criteria")
+          .from("company_criteria")
           .select("*")
+          .eq("status", "active")
           .order("created_at", { ascending: false });
 
         if (error) throw error;
