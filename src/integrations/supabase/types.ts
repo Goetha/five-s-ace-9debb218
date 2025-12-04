@@ -14,53 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      audit_cycles: {
-        Row: {
-          auditor_id: string
-          company_id: string
-          completed_at: string | null
-          completed_locations: number
-          created_at: string
-          id: string
-          started_at: string | null
-          status: string
-          total_locations: number
-          updated_at: string
-        }
-        Insert: {
-          auditor_id: string
-          company_id: string
-          completed_at?: string | null
-          completed_locations?: number
-          created_at?: string
-          id?: string
-          started_at?: string | null
-          status?: string
-          total_locations?: number
-          updated_at?: string
-        }
-        Update: {
-          auditor_id?: string
-          company_id?: string
-          completed_at?: string | null
-          completed_locations?: number
-          created_at?: string
-          id?: string
-          started_at?: string | null
-          status?: string
-          total_locations?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "audit_cycles_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       audit_items: {
         Row: {
           answer: boolean | null
@@ -115,7 +68,6 @@ export type Database = {
           company_id: string
           completed_at: string | null
           created_at: string
-          cycle_id: string | null
           id: string
           location_id: string
           next_audit_date: string | null
@@ -134,7 +86,6 @@ export type Database = {
           company_id: string
           completed_at?: string | null
           created_at?: string
-          cycle_id?: string | null
           id?: string
           location_id: string
           next_audit_date?: string | null
@@ -153,7 +104,6 @@ export type Database = {
           company_id?: string
           completed_at?: string | null
           created_at?: string
-          cycle_id?: string | null
           id?: string
           location_id?: string
           next_audit_date?: string | null
@@ -173,13 +123,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "audits_cycle_id_fkey"
-            columns: ["cycle_id"]
-            isOneToOne: false
-            referencedRelation: "audit_cycles"
             referencedColumns: ["id"]
           },
           {

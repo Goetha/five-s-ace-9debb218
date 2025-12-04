@@ -177,7 +177,7 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
       else scoreLevel = 'low';
 
       // Update audit
-      const { data: auditData } = await supabase
+      await supabase
         .from('audits')
         .update({
           total_questions: totalQuestions,
@@ -188,32 +188,7 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
           status: 'completed',
           completed_at: new Date().toISOString()
         })
-        .eq('id', auditId)
-        .select('cycle_id')
-        .single();
-
-      // Update cycle completed_locations count if this audit belongs to a cycle
-      if (auditData?.cycle_id) {
-        const { data: cycleData } = await supabase
-          .from('audit_cycles')
-          .select('completed_locations, total_locations')
-          .eq('id', auditData.cycle_id)
-          .single();
-        
-        if (cycleData) {
-          const newCompletedCount = cycleData.completed_locations + 1;
-          const isComplete = newCompletedCount >= cycleData.total_locations;
-          
-          await supabase
-            .from('audit_cycles')
-            .update({
-              completed_locations: newCompletedCount,
-              status: isComplete ? 'completed' : 'in_progress',
-              completed_at: isComplete ? new Date().toISOString() : null
-            })
-            .eq('id', auditData.cycle_id);
-        }
-      }
+        .eq('id', auditId);
 
       toast({
         title: "Auditoria finalizada",
