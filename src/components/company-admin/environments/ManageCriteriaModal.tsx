@@ -233,7 +233,7 @@ export function ManageCriteriaModal({
         {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col">
           {/* Search + Create Button */}
-          <div className="px-4 sm:px-5 py-3 border-b bg-background space-y-3">
+          <div className="px-4 sm:px-5 py-3 border-b bg-background">
             {/* Search Bar */}
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -256,84 +256,8 @@ export function ManageCriteriaModal({
                 </Button>
               )}
             </div>
-
-            {/* Create Button / Form Toggle */}
-            {!isCreating ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsCreating(true)}
-                className="w-full justify-start text-primary hover:text-primary hover:bg-primary/10 h-9"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Critério
-              </Button>
-            ) : (
-              <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
-                <Input
-                  placeholder="Nome do critério *"
-                  value={newCriterionName}
-                  onChange={(e) => setNewCriterionName(e.target.value)}
-                  className="h-9 bg-background"
-                  autoFocus
-                />
-                
-                <Textarea
-                  placeholder="Descrição (opcional)"
-                  value={newCriterionDescription}
-                  onChange={(e) => setNewCriterionDescription(e.target.value)}
-                  className="bg-background resize-none min-h-[56px]"
-                  rows={2}
-                />
-                
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">Senso (opcional)</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {SENSO_OPTIONS.map((senso) => (
-                      <button
-                        key={senso}
-                        type="button"
-                        onClick={() => handleToggleSenso(senso)}
-                        className={`px-2.5 py-1 rounded text-xs font-semibold transition-all ${
-                          newCriterionSenso.includes(senso)
-                            ? `${getSensoColor(senso)} text-white`
-                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        {senso}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setIsCreating(false);
-                      setNewCriterionName('');
-                      setNewCriterionDescription('');
-                      setNewCriterionSenso([]);
-                    }}
-                    disabled={isCreatingSaving}
-                    className="flex-1 h-8"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleCreateCriterion}
-                    disabled={isCreatingSaving || !newCriterionName.trim()}
-                    className="flex-1 h-8"
-                  >
-                    {isCreatingSaving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                    Criar e Vincular
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
+
           {/* Criteria List */}
           <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-3">
             {loading ? (
@@ -423,23 +347,103 @@ export function ManageCriteriaModal({
         </div>
 
         {/* Footer */}
-        <div className="px-4 sm:px-5 py-3 border-t bg-muted/30 flex flex-col sm:flex-row gap-2">
-          <Button 
-            variant="outline" 
-            onClick={onClose} 
-            disabled={saving} 
-            className="w-full sm:w-auto sm:flex-1"
-          >
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleSave} 
-            disabled={saving || loading} 
-            className="w-full sm:w-auto sm:flex-1"
-          >
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Salvar Alterações
-          </Button>
+        <div className="px-4 sm:px-5 py-3 border-t bg-muted/30 space-y-3">
+          {/* Create Form */}
+          {isCreating ? (
+            <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
+              <Input
+                placeholder="Nome do critério *"
+                value={newCriterionName}
+                onChange={(e) => setNewCriterionName(e.target.value)}
+                className="h-9 bg-background"
+                autoFocus
+              />
+              
+              <Textarea
+                placeholder="Descrição (opcional)"
+                value={newCriterionDescription}
+                onChange={(e) => setNewCriterionDescription(e.target.value)}
+                className="bg-background resize-none min-h-[56px]"
+                rows={2}
+              />
+              
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Senso (opcional)</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {SENSO_OPTIONS.map((senso) => (
+                    <button
+                      key={senso}
+                      type="button"
+                      onClick={() => handleToggleSenso(senso)}
+                      className={`px-2.5 py-1 rounded text-xs font-semibold transition-all ${
+                        newCriterionSenso.includes(senso)
+                          ? `${getSensoColor(senso)} text-white`
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      }`}
+                    >
+                      {senso}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setIsCreating(false);
+                    setNewCriterionName('');
+                    setNewCriterionDescription('');
+                    setNewCriterionSenso([]);
+                  }}
+                  disabled={isCreatingSaving}
+                  className="flex-1 h-8"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleCreateCriterion}
+                  disabled={isCreatingSaving || !newCriterionName.trim()}
+                  className="flex-1 h-8"
+                >
+                  {isCreatingSaving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                  Criar e Vincular
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsCreating(true)}
+              className="w-full justify-center text-primary border-dashed hover:bg-primary/5"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Critério
+            </Button>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              onClick={onClose} 
+              disabled={saving} 
+              className="w-full sm:w-auto sm:flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSave} 
+              disabled={saving || loading} 
+              className="w-full sm:w-auto sm:flex-1"
+            >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar Alterações
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
