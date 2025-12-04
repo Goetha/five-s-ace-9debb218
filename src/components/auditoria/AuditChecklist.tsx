@@ -229,10 +229,7 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
     <div className="space-y-3 sm:space-y-6">
       <Card className="p-3 sm:p-6">
         <div className="space-y-3 sm:space-y-4">
-          <div>
-            <h2 className="text-lg sm:text-2xl font-bold">Avalie o Nível de Gestão 5S</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Local: {locationName}</p>
-          </div>
+          <h2 className="text-lg sm:text-2xl font-bold">{locationName}</h2>
 
           <div className="space-y-2">
             <div className="flex justify-between text-xs sm:text-sm">
