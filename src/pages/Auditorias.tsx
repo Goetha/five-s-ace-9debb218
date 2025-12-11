@@ -7,7 +7,7 @@ import { Plus, Calendar, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NewAuditDialog } from "@/components/auditorias/NewAuditDialog";
-import { AuditGroupedList } from "@/components/auditorias/AuditGroupedList";
+import { AuditBoardView } from "@/components/auditorias/AuditBoardView";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
@@ -509,7 +509,7 @@ const Auditorias = () => {
             {isLoading ? (
               <p className="text-center text-muted-foreground py-8">Carregando auditorias...</p>
             ) : (
-              <AuditGroupedList
+              <AuditBoardView
                 groupedAudits={filteredGroupedAudits}
                 onAuditClick={(auditId) => navigate(`/auditor/auditoria/${auditId}`)}
               />
