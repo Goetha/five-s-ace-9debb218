@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, ChevronDown, ChevronRight, MapPin, Layers } from "lucide-react";
-import { useState } from "react";
+import { Building2, ChevronDown, ChevronRight, MapPin, Layers, ChevronsRight } from "lucide-react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 interface AuditGroupedData {
@@ -107,6 +107,13 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
   const [expandedAreas, setExpandedAreas] = useState<string[]>(
     hideCompanyHeader ? groupedAudits.flatMap(c => c.areas.map(a => a.area_id)) : []
   );
+  const [showSwipeHint, setShowSwipeHint] = useState(true);
+
+  // Esconder hint após alguns segundos ou após primeiro scroll
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSwipeHint(false), 5000);
+    return () => clearTimeout(timer);
+  }, []);
   const toggleCompany = (companyId: string) => {
     setExpandedCompanies(prev =>
       prev.includes(companyId)
@@ -193,10 +200,21 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
             {/* Quadro 5S */}
             {isExpanded && (
               <div className="relative animate-fade-in">
+                {/* Hint de swipe no mobile */}
+                {showSwipeHint && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 z-20 sm:hidden flex items-center gap-1 bg-slate-800/80 text-white px-2 py-1.5 rounded-full text-[10px] font-medium animate-pulse">
+                    <span>Deslize</span>
+                    <ChevronsRight className="h-3.5 w-3.5 animate-[bounce_1s_ease-in-out_infinite]" style={{ animationDirection: 'alternate' }} />
+                  </div>
+                )}
+                
                 {/* Indicador de scroll no mobile */}
                 <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none z-10 sm:hidden" />
                 
-                <div className="overflow-x-auto bg-white scroll-smooth snap-x snap-mandatory scrollbar-hide touch-pan-x">
+                <div 
+                  className="overflow-x-auto bg-white scroll-smooth snap-x snap-mandatory scrollbar-hide touch-pan-x"
+                  onScroll={() => showSwipeHint && setShowSwipeHint(false)}
+                >
                   <table className="w-full min-w-[480px]">
                     {/* Cabeçalho com os 5 Sensos */}
                     <thead>
