@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, ChevronDown, ChevronRight, MapPin, Layers, Check } from "lucide-react";
+import { Building2, ChevronDown, ChevronRight, MapPin, Layers } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -44,60 +44,49 @@ const SENSOS = [
   { key: '5S', name: 'Autodisciplina', shortName: 'Disc.', bgHeader: 'bg-blue-500', textHeader: 'text-white' },
 ];
 
-// Função para obter indicador visual baseado no score - agora com círculos coloridos
+// Função para obter indicador visual baseado no score - agora com emojis de rostos
 const getScoreIndicator = (score: number | null) => {
   if (score === null) return { 
     bg: 'bg-slate-100', 
     border: 'border-slate-200',
-    fill: 'bg-slate-300',
     textColor: 'text-slate-400',
     label: '-',
+    emoji: '😶',
     hasScore: false
   };
   if (score >= 80) return { 
     bg: 'bg-emerald-50', 
     border: 'border-emerald-200',
-    fill: 'bg-emerald-500',
     textColor: 'text-emerald-700',
     label: `${score.toFixed(0)}%`,
+    emoji: '😃',
     hasScore: true
   };
   if (score >= 50) return { 
     bg: 'bg-amber-50', 
     border: 'border-amber-200',
-    fill: 'bg-amber-500',
     textColor: 'text-amber-700',
     label: `${score.toFixed(0)}%`,
+    emoji: '😐',
     hasScore: true
   };
   return { 
     bg: 'bg-red-50', 
     border: 'border-red-200',
-    fill: 'bg-red-500',
     textColor: 'text-red-700',
     label: `${score.toFixed(0)}%`,
+    emoji: '😢',
     hasScore: true
   };
 };
 
-// Componente do indicador de score
+// Componente do indicador de score com emoji
 const ScoreIndicator = ({ score, showLabel = false }: { score: number | null; showLabel?: boolean }) => {
   const indicator = getScoreIndicator(score);
   
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <div 
-        className={cn(
-          "w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center border-2 transition-all",
-          indicator.fill,
-          indicator.border,
-          indicator.hasScore && score !== null && score >= 80 && "ring-2 ring-emerald-200"
-        )}
-      >
-        {indicator.hasScore && score !== null && score >= 80 && (
-          <Check className="w-4 h-4 text-white" strokeWidth={3} />
-        )}
-      </div>
+      <span className="text-2xl sm:text-3xl">{indicator.emoji}</span>
       {showLabel && (
         <span className={cn("text-[10px] sm:text-xs font-semibold", indicator.textColor)}>
           {indicator.label}
@@ -151,21 +140,19 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
         <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs sm:text-sm">
           <span className="font-medium text-muted-foreground">Legenda:</span>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
-              <Check className="w-3 h-3 text-white" strokeWidth={3} />
-            </div>
+            <span className="text-xl">😃</span>
             <span>≥ 80% (Excelente)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-amber-500" />
+            <span className="text-xl">😐</span>
             <span>50-79% (Atenção)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-red-500" />
+            <span className="text-xl">😢</span>
             <span>&lt; 50% (Crítico)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-slate-300" />
+            <span className="text-xl">😶</span>
             <span>Não avaliado</span>
           </div>
         </div>
