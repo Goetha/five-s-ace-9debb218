@@ -90,9 +90,9 @@ const ScoreIndicator = ({ score, showPercent = false }: { score: number | null; 
   
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <span className="text-2xl sm:text-3xl">{indicator.emoji}</span>
+      <span className="text-xl sm:text-2xl">{indicator.emoji}</span>
       {indicator.hasScore && (
-        <span className={cn("text-[9px] sm:text-[10px] font-semibold", indicator.textColor)}>
+        <span className={cn("text-[8px] sm:text-[10px] font-semibold leading-tight", indicator.textColor)}>
           {showPercent ? indicator.label : indicator.description}
         </span>
       )}
@@ -192,42 +192,45 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
 
             {/* Quadro 5S */}
             {isExpanded && (
-              <div className="overflow-x-auto bg-white">
-                <table className="w-full min-w-[600px]">
-                  {/* Cabeçalho com os 5 Sensos */}
-                  <thead>
-                    <tr>
-                      <th className="text-left p-2 sm:p-3 bg-slate-50 min-w-[150px] sm:min-w-[200px] border-b border-r border-slate-200">
-                        <span className="text-xs sm:text-sm font-semibold text-slate-600">
-                          Ambiente / Local
-                        </span>
-                      </th>
-                      {SENSOS.map((senso, idx) => (
-                        <th 
-                          key={senso.key} 
-                          className={cn(
-                            "p-2 sm:p-3 text-center border-b",
-                            senso.bgHeader, 
-                            senso.textHeader,
-                            idx === 0 && "rounded-tl-none",
-                            idx === SENSOS.length - 1 && "border-r border-slate-200"
-                          )}
-                        >
+              <div className="relative">
+                {/* Indicador de scroll no mobile */}
+                <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-white/90 to-transparent pointer-events-none z-10 sm:hidden" />
+                
+                <div className="overflow-x-auto bg-white">
+                  <table className="w-full min-w-[480px]">
+                    {/* Cabeçalho com os 5 Sensos */}
+                    <thead>
+                      <tr>
+                        <th className="sticky left-0 z-20 text-left p-1.5 sm:p-3 bg-slate-50 min-w-[120px] sm:min-w-[200px] border-b border-r border-slate-200">
+                          <span className="text-[10px] sm:text-sm font-semibold text-slate-600">
+                            Ambiente / Local
+                          </span>
+                        </th>
+                        {SENSOS.map((senso, idx) => (
+                          <th 
+                            key={senso.key} 
+                            className={cn(
+                              "p-1 sm:p-3 text-center border-b min-w-[50px] sm:min-w-[70px]",
+                              senso.bgHeader, 
+                              senso.textHeader,
+                              idx === 0 && "rounded-tl-none",
+                              idx === SENSOS.length - 1 && "border-r border-slate-200"
+                            )}
+                          >
+                            <div className="flex flex-col items-center">
+                              <span className="text-[10px] sm:text-sm font-bold">{senso.key}</span>
+                              <span className="text-[8px] sm:text-xs opacity-90 hidden sm:block">{senso.name}</span>
+                            </div>
+                          </th>
+                        ))}
+                        <th className="p-1 sm:p-3 text-center bg-slate-600 text-white border-b min-w-[50px] sm:min-w-[70px]">
                           <div className="flex flex-col items-center">
-                            <span className="text-xs sm:text-sm font-bold">{senso.key}</span>
-                            <span className="text-[9px] sm:text-xs opacity-90 hidden sm:block">{senso.name}</span>
-                            <span className="text-[9px] sm:hidden opacity-90">{senso.shortName}</span>
+                            <span className="text-[10px] sm:text-sm font-bold">GERAL</span>
+                            <span className="text-[8px] sm:text-xs opacity-90 hidden sm:block">Média</span>
                           </div>
                         </th>
-                      ))}
-                      <th className="p-2 sm:p-3 text-center bg-slate-600 text-white border-b">
-                        <div className="flex flex-col items-center">
-                          <span className="text-xs sm:text-sm font-bold">GERAL</span>
-                          <span className="text-[9px] sm:text-xs opacity-90 hidden sm:block">Média</span>
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
+                      </tr>
+                    </thead>
                   <tbody>
                     {company.areas.map((area) => {
                       const isAreaExpanded = expandedAreas.includes(area.area_id);
@@ -240,25 +243,25 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                             className="border-b border-amber-200 bg-amber-100 cursor-pointer hover:bg-amber-200 transition-colors"
                             onClick={() => toggleArea(area.area_id)}
                           >
-                            <td className="p-2 sm:p-3 border-r border-amber-200">
-                              <div className="flex items-center gap-2">
+                            <td className="sticky left-0 z-10 p-1.5 sm:p-3 border-r border-amber-200 bg-amber-100">
+                              <div className="flex items-center gap-1.5 sm:gap-2">
                                 {isAreaExpanded ? (
-                                  <ChevronDown className="h-4 w-4 text-amber-600" />
+                                  <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600" />
                                 ) : (
-                                  <ChevronRight className="h-4 w-4 text-amber-600" />
+                                  <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600" />
                                 )}
-                                <Layers className="h-4 w-4 text-amber-600" />
-                                <span className="font-medium text-xs sm:text-sm text-amber-900">{area.area_name}</span>
+                                <Layers className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600" />
+                                <span className="font-medium text-[10px] sm:text-sm text-amber-900 truncate">{area.area_name}</span>
                               </div>
                             </td>
                             {/* Células vazias para área */}
                             {SENSOS.map((senso) => (
-                              <td key={senso.key} className="p-2 text-center border-r border-amber-200 last:border-r-0 bg-amber-50">
-                                <span className="text-amber-300">—</span>
+                              <td key={senso.key} className="p-1.5 sm:p-2 text-center border-r border-amber-200 last:border-r-0 bg-amber-50">
+                                <span className="text-amber-300 text-xs">—</span>
                               </td>
                             ))}
-                            <td className="p-2 text-center bg-amber-50">
-                              <span className="text-amber-300">—</span>
+                            <td className="p-1.5 sm:p-2 text-center bg-amber-50">
+                              <span className="text-amber-300 text-xs">—</span>
                             </td>
                           </tr>
 
@@ -267,19 +270,19 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                             <>
                               {/* Linha do Ambiente */}
                               <tr key={env.environment_id} className="border-b border-emerald-200 bg-emerald-100">
-                                <td className="p-2 sm:p-3 pl-6 sm:pl-10 border-r border-emerald-200">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                                    <span className="text-xs sm:text-sm font-medium text-emerald-800">{env.environment_name}</span>
+                                <td className="sticky left-0 z-10 p-1.5 sm:p-3 pl-4 sm:pl-10 border-r border-emerald-200 bg-emerald-100">
+                                  <div className="flex items-center gap-1.5 sm:gap-2">
+                                    <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                                    <span className="text-[10px] sm:text-sm font-medium text-emerald-800 truncate">{env.environment_name}</span>
                                   </div>
                                 </td>
                                 {SENSOS.map((senso) => (
-                                  <td key={senso.key} className="p-2 text-center border-r border-emerald-200 last:border-r-0 bg-emerald-50">
-                                    <span className="text-emerald-300">—</span>
+                                  <td key={senso.key} className="p-1.5 sm:p-2 text-center border-r border-emerald-200 last:border-r-0 bg-emerald-50">
+                                    <span className="text-emerald-300 text-xs">—</span>
                                   </td>
                                 ))}
-                                <td className="p-2 text-center bg-emerald-50">
-                                  <span className="text-emerald-300">—</span>
+                                <td className="p-1.5 sm:p-2 text-center bg-emerald-50">
+                                  <span className="text-emerald-300 text-xs">—</span>
                                 </td>
                               </tr>
 
@@ -297,12 +300,12 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                     )}
                                     onClick={() => latestAudit && onAuditClick(latestAudit.id)}
                                   >
-                                    <td className="p-2 sm:p-3 pl-10 sm:pl-16 border-r border-blue-100">
-                                      <div className="flex items-center gap-2">
-                                        <MapPin className="h-3.5 w-3.5 text-blue-600" />
-                                        <span className="text-xs sm:text-sm font-medium text-blue-800">{local.local_name}</span>
+                                    <td className="sticky left-0 z-10 p-1.5 sm:p-3 pl-6 sm:pl-16 border-r border-blue-100 bg-blue-50/50">
+                                      <div className="flex items-center gap-1.5 sm:gap-2">
+                                        <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-600 flex-shrink-0" />
+                                        <span className="text-[10px] sm:text-sm font-medium text-blue-800 truncate">{local.local_name}</span>
                                         {local.audits.length > 0 && (
-                                          <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-600 border-blue-200">
+                                          <Badge variant="outline" className="text-[8px] sm:text-[9px] bg-blue-50 text-blue-600 border-blue-200 flex-shrink-0 px-1">
                                             {local.audits.length}
                                           </Badge>
                                         )}
@@ -310,14 +313,14 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                     </td>
                                     {/* Para cada Senso */}
                                     {SENSOS.map((senso) => (
-                                      <td key={senso.key} className="p-2 text-center border-r border-blue-100 last:border-r-0 bg-white">
+                                      <td key={senso.key} className="p-1 sm:p-2 text-center border-r border-blue-100 last:border-r-0 bg-white">
                                         <div className="flex justify-center">
                                           <ScoreIndicator score={localScore} />
                                         </div>
                                       </td>
                                     ))}
                                     {/* Coluna GERAL */}
-                                    <td className="p-2 text-center bg-white">
+                                    <td className="p-1 sm:p-2 text-center bg-white">
                                       <div className="flex justify-center">
                                         <ScoreIndicator score={localScore} showPercent />
                                       </div>
@@ -331,7 +334,8 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                       );
                     })}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
             )}
           </Card>
