@@ -90,7 +90,14 @@ const ScoreIndicator = ({ score, showPercent = false }: { score: number | null; 
   
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <span className="text-xl sm:text-2xl">{indicator.emoji}</span>
+      <div className={cn(
+        "w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center",
+        indicator.bg,
+        "border",
+        indicator.border
+      )}>
+        <span className="text-lg sm:text-xl">{indicator.emoji}</span>
+      </div>
       {indicator.hasScore && (
         <span className={cn("text-[8px] sm:text-[10px] font-semibold leading-tight", indicator.textColor)}>
           {showPercent ? indicator.label : indicator.description}
