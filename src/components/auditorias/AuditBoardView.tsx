@@ -32,6 +32,7 @@ interface AuditGroupedData {
 interface AuditBoardViewProps {
   groupedAudits: AuditGroupedData[];
   onAuditClick: (auditId: string) => void;
+  hideCompanyHeader?: boolean;
 }
 
 // Configuração dos 5 Sensos com cores mais suaves no header
@@ -106,10 +107,13 @@ const ScoreIndicator = ({ score, showLabel = false }: { score: number | null; sh
   );
 };
 
-export function AuditBoardView({ groupedAudits, onAuditClick }: AuditBoardViewProps) {
-  const [expandedCompanies, setExpandedCompanies] = useState<string[]>([]);
-  const [expandedAreas, setExpandedAreas] = useState<string[]>([]);
-
+export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader = false }: AuditBoardViewProps) {
+  const [expandedCompanies, setExpandedCompanies] = useState<string[]>(
+    hideCompanyHeader ? groupedAudits.map(c => c.company_id) : []
+  );
+  const [expandedAreas, setExpandedAreas] = useState<string[]>(
+    hideCompanyHeader ? groupedAudits.flatMap(c => c.areas.map(a => a.area_id)) : []
+  );
   const toggleCompany = (companyId: string) => {
     setExpandedCompanies(prev =>
       prev.includes(companyId)

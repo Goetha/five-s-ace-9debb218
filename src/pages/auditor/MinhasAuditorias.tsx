@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Search } from "lucide-react";
 import type { Audit } from "@/types/audit";
-import { CompanyAuditCard } from "@/components/auditorias/CompanyAuditCard";
+import { AuditorCompanyCard } from "@/components/auditorias/AuditorCompanyCard";
 import { NewAuditDialog } from "@/components/auditorias/NewAuditDialog";
 import { Input } from "@/components/ui/input";
 
@@ -173,7 +173,7 @@ export default function MinhasAuditorias() {
         ) : (
           <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
             {companyGroups.map((company) => (
-              <CompanyAuditCard
+              <AuditorCompanyCard
                 key={company.company_id}
                 companyId={company.company_id}
                 companyName={company.company_name}

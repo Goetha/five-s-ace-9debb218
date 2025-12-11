@@ -7,11 +7,11 @@ import { Plus, Calendar, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NewAuditDialog } from "@/components/auditorias/NewAuditDialog";
-import { AuditBoardView } from "@/components/auditorias/AuditBoardView";
+import { CompanyAuditCard } from "@/components/auditorias/CompanyAuditCard";
+import { CompanyBoardModal } from "@/components/auditorias/CompanyBoardModal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 interface Company {
   id: string;
@@ -61,7 +61,6 @@ const Auditorias = () => {
   const navigate = useNavigate();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [groupedAudits, setGroupedAudits] = useState<AuditGroupedData[]>([]);
-  const [filteredGroupedAudits, setFilteredGroupedAudits] = useState<AuditGroupedData[]>([]);
   const [scheduledAudits, setScheduledAudits] = useState<ScheduledAudit[]>([]);
   const [totalAudits, setTotalAudits] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
@@ -69,18 +68,13 @@ const Auditorias = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isNewAuditDialogOpen, setIsNewAuditDialogOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-
-  // Filtros
-  const [filterCompany, setFilterCompany] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [selectedCompanyForBoard, setSelectedCompanyForBoard] = useState<AuditGroupedData | null>(null);
+  const [isBoardModalOpen, setIsBoardModalOpen] = useState(false);
   useEffect(() => {
     if (userRole === 'ifa_admin') {
       fetchData();
     }
   }, [userRole]);
-  useEffect(() => {
-    applyFilters();
-  }, [groupedAudits, filterCompany, filterStatus]);
   const fetchData = async () => {
     setIsLoading(true);
     try {
@@ -313,7 +307,6 @@ const Auditorias = () => {
 
       const groupedArray = Object.values(grouped);
       setGroupedAudits(groupedArray);
-      setFilteredGroupedAudits(groupedArray);
       setScheduledAudits(scheduled);
       setTotalAudits(total);
       setCompletedCount(completed);
@@ -329,31 +322,32 @@ const Auditorias = () => {
       setIsLoading(false);
     }
   };
-  const applyFilters = () => {
-    let filtered = [...groupedAudits];
-    
-    if (filterCompany !== "all") {
-      filtered = filtered.filter(group => group.company_id === filterCompany);
-    }
-    
-    if (filterStatus !== "all") {
-      filtered = filtered.map(group => ({
-        ...group,
-        areas: group.areas.map(area => ({
-          ...area,
-          environments: area.environments.map(env => ({
-            ...env,
-            locals: env.locals.map(local => ({
-              ...local,
-              audits: local.audits.filter(audit => audit.status === filterStatus)
-            })).filter(local => local.audits.length > 0)
-          })).filter(env => env.locals.length > 0)
-        })).filter(area => area.environments.length > 0)
-      })).filter(group => group.areas.length > 0);
-    }
-    
-    setFilteredGroupedAudits(filtered);
+  
+  const handleOpenBoard = (companyData: AuditGroupedData) => {
+    setSelectedCompanyForBoard(companyData);
+    setIsBoardModalOpen(true);
   };
+  
+  const getCompanyStats = (company: AuditGroupedData) => {
+    let total = 0;
+    let completed = 0;
+    let inProgress = 0;
+    
+    company.areas.forEach(area => {
+      area.environments.forEach(env => {
+        env.locals.forEach(local => {
+          local.audits.forEach(audit => {
+            total++;
+            if (audit.status === 'completed') completed++;
+            if (audit.status === 'in_progress') inProgress++;
+          });
+        });
+      });
+    });
+    
+    return { total, completed, inProgress };
+  };
+  
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'in_progress':
@@ -472,65 +466,73 @@ const Auditorias = () => {
             </div>
           </Card>}
 
-        {/* Filtros e Lista de Auditorias */}
-        <Card className="p-3 sm:p-6">
-          <div className="space-y-3 sm:space-y-4">
-            {/* Filtros */}
-            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4">
-              <div className="flex-1">
-                <Select value={filterCompany} onValueChange={setFilterCompany}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todas as empresas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as empresas</SelectItem>
-                    {companies.map(company => <SelectItem key={company.id} value={company.id}>
-                        {company.name}
-                      </SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex-1">
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os status</SelectItem>
-                    <SelectItem value="in_progress">Em Andamento</SelectItem>
-                    <SelectItem value="completed">Concluída</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        {/* Cards das Empresas */}
+        <div className="space-y-3 sm:space-y-4">
+          <h2 className="text-base sm:text-lg font-semibold">Empresas</h2>
+          {isLoading ? (
+            <Card className="p-6">
+              <p className="text-center text-muted-foreground">Carregando...</p>
+            </Card>
+          ) : groupedAudits.length === 0 ? (
+            <Card className="p-6">
+              <p className="text-center text-muted-foreground">Nenhuma empresa encontrada</p>
+            </Card>
+          ) : (
+            <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {groupedAudits.map((company) => {
+                const stats = getCompanyStats(company);
+                return (
+                  <CompanyAuditCard
+                    key={company.company_id}
+                    companyId={company.company_id}
+                    companyName={company.company_name}
+                    totalAudits={stats.total}
+                    completedAudits={stats.completed}
+                    inProgressAudits={stats.inProgress}
+                    onClick={() => handleOpenBoard(company)}
+                  />
+                );
+              })}
             </div>
-
-            {/* Lista Hierárquica de Auditorias */}
-            {isLoading ? (
-              <p className="text-center text-muted-foreground py-8">Carregando auditorias...</p>
-            ) : (
-              <AuditBoardView
-                groupedAudits={filteredGroupedAudits}
-                onAuditClick={(auditId) => navigate(`/auditor/auditoria/${auditId}`)}
-              />
-            )}
-          </div>
-        </Card>
+          )}
+        </div>
 
         {/* Nova Auditoria por Empresa */}
         <Card className="p-4 sm:p-6">
           <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Iniciar Nova Auditoria</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
-            {companies.map(company => <Button key={company.id} variant="outline" className="justify-start h-auto p-3 sm:p-4 text-sm" onClick={() => handleNewAudit(company)}>
+            {companies.map(company => (
+              <Button 
+                key={company.id} 
+                variant="outline" 
+                className="justify-start h-auto p-3 sm:p-4 text-sm" 
+                onClick={() => handleNewAudit(company)}
+              >
                 <Plus className="h-4 w-4 mr-2 flex-shrink-0" />
                 <span className="truncate">{company.name}</span>
-              </Button>)}
+              </Button>
+            ))}
           </div>
         </Card>
       </main>
 
+      {/* Modal Fullscreen do Quadro 5S */}
+      <CompanyBoardModal
+        open={isBoardModalOpen}
+        onOpenChange={setIsBoardModalOpen}
+        companyData={selectedCompanyForBoard}
+        onAuditClick={(auditId) => navigate(`/auditor/auditoria/${auditId}`)}
+      />
+
       {/* Dialog Nova Auditoria */}
-      {selectedCompany && <NewAuditDialog open={isNewAuditDialogOpen} onOpenChange={setIsNewAuditDialogOpen} preSelectedCompanyId={selectedCompany.id} preSelectedCompanyName={selectedCompany.name} />}
+      {selectedCompany && (
+        <NewAuditDialog 
+          open={isNewAuditDialogOpen} 
+          onOpenChange={setIsNewAuditDialogOpen} 
+          preSelectedCompanyId={selectedCompany.id} 
+          preSelectedCompanyName={selectedCompany.name} 
+        />
+      )}
     </div>;
 };
 export default Auditorias;
