@@ -192,11 +192,11 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
 
             {/* Quadro 5S */}
             {isExpanded && (
-              <div className="relative">
+              <div className="relative animate-fade-in">
                 {/* Indicador de scroll no mobile */}
-                <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-white/90 to-transparent pointer-events-none z-10 sm:hidden" />
+                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none z-10 sm:hidden" />
                 
-                <div className="overflow-x-auto bg-white">
+                <div className="overflow-x-auto bg-white scroll-smooth snap-x snap-mandatory scrollbar-hide touch-pan-x">
                   <table className="w-full min-w-[480px]">
                     {/* Cabeçalho com os 5 Sensos */}
                     <thead>
