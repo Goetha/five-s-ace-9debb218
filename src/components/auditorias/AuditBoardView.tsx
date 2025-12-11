@@ -212,10 +212,11 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                 <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none z-10 sm:hidden" />
                 
                 <div 
-                  className="overflow-x-auto bg-white scroll-smooth snap-x snap-mandatory scrollbar-hide touch-pan-x"
+                  className="overflow-x-auto bg-white scrollbar-hide overscroll-x-contain"
+                  style={{ WebkitOverflowScrolling: 'touch' }}
                   onScroll={() => showSwipeHint && setShowSwipeHint(false)}
                 >
-                  <table className="w-full min-w-[480px]">
+                  <table className="w-full min-w-[480px]" style={{ touchAction: 'pan-x pan-y' }}>
                     {/* Cabeçalho com os 5 Sensos */}
                     <thead>
                       <tr>
