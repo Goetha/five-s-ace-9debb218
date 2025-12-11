@@ -242,10 +242,10 @@ export function AuditBoardView({ groupedAudits, onAuditClick }: AuditBoardViewPr
                           {/* Linha da Área */}
                           <tr 
                             key={area.area_id} 
-                            className="border-b border-slate-100 bg-amber-50/60 cursor-pointer hover:bg-amber-100/60 transition-colors"
+                            className="border-b border-amber-200 bg-amber-100 cursor-pointer hover:bg-amber-200 transition-colors"
                             onClick={() => toggleArea(area.area_id)}
                           >
-                            <td className="p-2 sm:p-3 border-r border-slate-100">
+                            <td className="p-2 sm:p-3 border-r border-amber-200">
                               <div className="flex items-center gap-2">
                                 {isAreaExpanded ? (
                                   <ChevronDown className="h-4 w-4 text-amber-600" />
@@ -258,12 +258,12 @@ export function AuditBoardView({ groupedAudits, onAuditClick }: AuditBoardViewPr
                             </td>
                             {/* Células vazias para área */}
                             {SENSOS.map((senso) => (
-                              <td key={senso.key} className="p-2 text-center border-r border-slate-100 last:border-r-0">
-                                <span className="text-slate-300">—</span>
+                              <td key={senso.key} className="p-2 text-center border-r border-amber-200 last:border-r-0 bg-amber-50">
+                                <span className="text-amber-300">—</span>
                               </td>
                             ))}
-                            <td className="p-2 text-center">
-                              <span className="text-slate-300">—</span>
+                            <td className="p-2 text-center bg-amber-50">
+                              <span className="text-amber-300">—</span>
                             </td>
                           </tr>
 
@@ -271,20 +271,20 @@ export function AuditBoardView({ groupedAudits, onAuditClick }: AuditBoardViewPr
                           {isAreaExpanded && area.environments.map((env) => (
                             <>
                               {/* Linha do Ambiente */}
-                              <tr key={env.environment_id} className="border-b border-slate-100 bg-emerald-50/40">
-                                <td className="p-2 sm:p-3 pl-6 sm:pl-10 border-r border-slate-100">
+                              <tr key={env.environment_id} className="border-b border-emerald-200 bg-emerald-100">
+                                <td className="p-2 sm:p-3 pl-6 sm:pl-10 border-r border-emerald-200">
                                   <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                    <span className="text-xs sm:text-sm text-emerald-800">{env.environment_name}</span>
+                                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                                    <span className="text-xs sm:text-sm font-medium text-emerald-800">{env.environment_name}</span>
                                   </div>
                                 </td>
                                 {SENSOS.map((senso) => (
-                                  <td key={senso.key} className="p-2 text-center border-r border-slate-100 last:border-r-0">
-                                    <span className="text-slate-300">—</span>
+                                  <td key={senso.key} className="p-2 text-center border-r border-emerald-200 last:border-r-0 bg-emerald-50">
+                                    <span className="text-emerald-300">—</span>
                                   </td>
                                 ))}
-                                <td className="p-2 text-center">
-                                  <span className="text-slate-300">—</span>
+                                <td className="p-2 text-center bg-emerald-50">
+                                  <span className="text-emerald-300">—</span>
                                 </td>
                               </tr>
 
@@ -297,15 +297,15 @@ export function AuditBoardView({ groupedAudits, onAuditClick }: AuditBoardViewPr
                                   <tr 
                                     key={local.local_id} 
                                     className={cn(
-                                      "border-b border-slate-100 bg-white hover:bg-slate-50 transition-colors",
+                                      "border-b border-blue-100 bg-blue-50/50 hover:bg-blue-100/50 transition-colors",
                                       latestAudit && "cursor-pointer"
                                     )}
                                     onClick={() => latestAudit && onAuditClick(latestAudit.id)}
                                   >
-                                    <td className="p-2 sm:p-3 pl-10 sm:pl-16 border-r border-slate-100">
+                                    <td className="p-2 sm:p-3 pl-10 sm:pl-16 border-r border-blue-100">
                                       <div className="flex items-center gap-2">
-                                        <MapPin className="h-3.5 w-3.5 text-blue-500" />
-                                        <span className="text-xs sm:text-sm font-medium text-slate-700">{local.local_name}</span>
+                                        <MapPin className="h-3.5 w-3.5 text-blue-600" />
+                                        <span className="text-xs sm:text-sm font-medium text-blue-800">{local.local_name}</span>
                                         {local.audits.length > 0 && (
                                           <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-600 border-blue-200">
                                             {local.audits.length}
@@ -315,14 +315,14 @@ export function AuditBoardView({ groupedAudits, onAuditClick }: AuditBoardViewPr
                                     </td>
                                     {/* Para cada Senso */}
                                     {SENSOS.map((senso) => (
-                                      <td key={senso.key} className="p-2 text-center border-r border-slate-100 last:border-r-0">
+                                      <td key={senso.key} className="p-2 text-center border-r border-blue-100 last:border-r-0 bg-white">
                                         <div className="flex justify-center">
                                           <ScoreIndicator score={localScore} />
                                         </div>
                                       </td>
                                     ))}
                                     {/* Coluna GERAL */}
-                                    <td className="p-2 text-center">
+                                    <td className="p-2 text-center bg-white">
                                       <div className="flex justify-center">
                                         <ScoreIndicator score={localScore} showLabel />
                                       </div>
