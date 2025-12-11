@@ -51,6 +51,7 @@ const getScoreIndicator = (score: number | null) => {
     border: 'border-slate-200',
     textColor: 'text-slate-400',
     label: '-',
+    description: '',
     emoji: '😶',
     hasScore: false
   };
@@ -59,6 +60,7 @@ const getScoreIndicator = (score: number | null) => {
     border: 'border-emerald-200',
     textColor: 'text-emerald-700',
     label: `${score.toFixed(0)}%`,
+    description: 'Excelente',
     emoji: '😃',
     hasScore: true
   };
@@ -67,6 +69,7 @@ const getScoreIndicator = (score: number | null) => {
     border: 'border-amber-200',
     textColor: 'text-amber-700',
     label: `${score.toFixed(0)}%`,
+    description: 'Atenção',
     emoji: '😐',
     hasScore: true
   };
@@ -75,21 +78,22 @@ const getScoreIndicator = (score: number | null) => {
     border: 'border-red-200',
     textColor: 'text-red-700',
     label: `${score.toFixed(0)}%`,
+    description: 'Crítico',
     emoji: '😢',
     hasScore: true
   };
 };
 
 // Componente do indicador de score com emoji
-const ScoreIndicator = ({ score, showLabel = false }: { score: number | null; showLabel?: boolean }) => {
+const ScoreIndicator = ({ score, showPercent = false }: { score: number | null; showPercent?: boolean }) => {
   const indicator = getScoreIndicator(score);
   
   return (
     <div className="flex flex-col items-center gap-0.5">
       <span className="text-2xl sm:text-3xl">{indicator.emoji}</span>
-      {showLabel && (
-        <span className={cn("text-[10px] sm:text-xs font-semibold", indicator.textColor)}>
-          {indicator.label}
+      {indicator.hasScore && (
+        <span className={cn("text-[9px] sm:text-[10px] font-semibold", indicator.textColor)}>
+          {showPercent ? indicator.label : indicator.description}
         </span>
       )}
     </div>
@@ -315,7 +319,7 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                     {/* Coluna GERAL */}
                                     <td className="p-2 text-center bg-white">
                                       <div className="flex justify-center">
-                                        <ScoreIndicator score={localScore} showLabel />
+                                        <ScoreIndicator score={localScore} showPercent />
                                       </div>
                                     </td>
                                   </tr>
