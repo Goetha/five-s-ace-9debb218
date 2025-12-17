@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Search, Loader2, Plus, X, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getOrCreateCompanyModel } from '@/lib/modelHelpers';
 
 interface Criterion {
   id: string;
@@ -377,6 +378,9 @@ function NewCriterionDialog({ isOpen, onClose, companyId, onCreated }: NewCriter
 
     setSaving(true);
     try {
+      // Buscar ou criar modelo mestre para a empresa
+      const companyModel = await getOrCreateCompanyModel(companyId);
+
       const { data: newCriterion, error } = await supabase
         .from('company_criteria')
         .insert({
@@ -385,6 +389,8 @@ function NewCriterionDialog({ isOpen, onClose, companyId, onCreated }: NewCriter
           description: description.trim() || null,
           senso: senso.length > 0 ? senso : null,
           origin: 'custom',
+          origin_model_id: companyModel?.id || null,
+          origin_model_name: companyModel?.name || null,
           scoring_type: 'conform-non-conform',
           status: 'active'
         })

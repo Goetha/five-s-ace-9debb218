@@ -15,6 +15,7 @@ import { Criteria, CriteriaFilters, SensoType } from "@/types/criteria";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { toUiStatus, toDbStatus, normalizeSenso } from "@/lib/formatters";
+import { getOrCreateCompanyModel } from "@/lib/modelHelpers";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const BibliotecaCriterios = () => {
@@ -194,6 +195,9 @@ const BibliotecaCriterios = () => {
           return;
         }
 
+        // Buscar ou criar modelo mestre para a empresa
+        const companyModel = await getOrCreateCompanyModel(targetCompanyId);
+
         // Create new criterion in company_criteria
         const { error } = await supabase
           .from("company_criteria")
@@ -206,6 +210,8 @@ const BibliotecaCriterios = () => {
             tags: newCriterion.tags,
             status: toDbStatus(newCriterion.status),
             origin: "custom",
+            origin_model_id: companyModel?.id || null,
+            origin_model_name: companyModel?.name || null,
           });
 
         if (error) throw error;
@@ -249,12 +255,22 @@ const BibliotecaCriterios = () => {
       // Get the original criterion's company_id
       const { data: originalCriterion } = await supabase
         .from("company_criteria")
-        .select("company_id")
+        .select("company_id, origin_model_id, origin_model_name")
         .eq("id", criterion.id)
         .single();
 
       if (!originalCriterion?.company_id) {
         throw new Error("Critério original não encontrado");
+      }
+
+      // Se não tiver modelo vinculado, buscar/criar
+      let modelId = originalCriterion.origin_model_id;
+      let modelName = originalCriterion.origin_model_name;
+      
+      if (!modelId) {
+        const companyModel = await getOrCreateCompanyModel(originalCriterion.company_id);
+        modelId = companyModel?.id || null;
+        modelName = companyModel?.name || null;
       }
 
       const { error } = await supabase
@@ -268,6 +284,8 @@ const BibliotecaCriterios = () => {
           tags: criterion.tags,
           status: "active",
           origin: "custom",
+          origin_model_id: modelId,
+          origin_model_name: modelName,
         });
 
       if (error) throw error;
