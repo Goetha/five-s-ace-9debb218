@@ -58,13 +58,15 @@ export default function Empresas() {
       } else {
         console.log('✅ Empresas carregadas do backend:', data);
         
-        // For each company, fetch the actual company admin user and assigned auditor
+        // For each company, fetch the actual company admin user, assigned auditor, and 5S data
         const backendCompanies: Company[] = await Promise.all(
           data.map(async (c: any) => {
             // Fetch company admin for this company
             const adminData = await fetchCompanyAdmin(c.id);
             // Fetch assigned auditor for this company
             const auditorData = await fetchAssignedAuditor(c.id);
+            // Fetch 5S data for this company
+            const fiveSData = await fetchCompany5SData(c.id);
             
             return {
               id: c.id,
@@ -82,6 +84,7 @@ export default function Empresas() {
               phone: c.phone || '-',
               email: c.email, // Contact email of the company
               assigned_auditor: auditorData,
+              fiveSData: fiveSData,
             };
           })
         );
@@ -185,6 +188,84 @@ export default function Empresas() {
     } catch (error) {
       console.error('Error fetching assigned auditor:', error);
       return null;
+    }
+  };
+
+  // Helper function to fetch 5S data for a company
+  const fetchCompany5SData = async (companyId: string): Promise<Company['fiveSData']> => {
+    try {
+      // Fetch completed audits for this company
+      const { data: audits, error: auditsError } = await supabase
+        .from('audits')
+        .select('*')
+        .eq('company_id', companyId);
+
+      if (auditsError || !audits || audits.length === 0) {
+        return undefined;
+      }
+
+      // Fetch linked models
+      const { data: linkedModelsData } = await supabase
+        .from('company_models')
+        .select('model_id')
+        .eq('company_id', companyId);
+
+      const linkedModels = linkedModelsData?.map(m => m.model_id) || [];
+
+      // Calculate audit statistics
+      const completedAudits = audits.filter(a => a.status === 'completed');
+      const pendingAudits = audits.filter(a => a.status === 'in_progress');
+      
+      // Calculate average score from completed audits
+      const scoresArray = completedAudits
+        .filter(a => a.score !== null)
+        .map(a => Number(a.score));
+      const averageScore = scoresArray.length > 0 
+        ? scoresArray.reduce((sum, s) => sum + s, 0) / scoresArray.length 
+        : 0;
+
+      // Get most recent audit date
+      const sortedAudits = [...audits].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      const lastAuditDate = sortedAudits[0]?.completed_at || sortedAudits[0]?.created_at || null;
+
+      // Simple trend calculation based on recent audits
+      let trend: 'improving' | 'stable' | 'declining' = 'stable';
+      if (completedAudits.length >= 2) {
+        const recentAudits = completedAudits.slice(0, 5);
+        const oldScore = Number(recentAudits[recentAudits.length - 1]?.score || 0);
+        const newScore = Number(recentAudits[0]?.score || 0);
+        if (newScore > oldScore + 5) trend = 'improving';
+        else if (newScore < oldScore - 5) trend = 'declining';
+      }
+
+      return {
+        linked_models: linkedModels,
+        total_audits: audits.length,
+        pending_audits: pendingAudits.length,
+        completed_audits: completedAudits.length,
+        average_5s_score: Math.round(averageScore * 10) / 10,
+        scores_by_senso: {
+          "1S": averageScore,
+          "2S": averageScore,
+          "3S": averageScore,
+          "4S": averageScore,
+          "5S": averageScore,
+        },
+        action_plans: {
+          total: 0,
+          open: 0,
+          in_progress: 0,
+          overdue: 0,
+          closed: 0,
+        },
+        last_audit_date: lastAuditDate,
+        compliance_trend: trend,
+      };
+    } catch (error) {
+      console.error('Error fetching 5S data:', error);
+      return undefined;
     }
   };
 
