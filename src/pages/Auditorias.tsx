@@ -3,12 +3,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, Clock, AlertCircle, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { NewAuditDialog } from "@/components/auditorias/NewAuditDialog";
 import { CompanyAuditCard } from "@/components/auditorias/CompanyAuditCard";
 import { CompanyBoardModal } from "@/components/auditorias/CompanyBoardModal";
+import { ManageAuditsModal } from "@/components/auditorias/ManageAuditsModal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
@@ -70,6 +71,7 @@ const Auditorias = () => {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedCompanyForBoard, setSelectedCompanyForBoard] = useState<AuditGroupedData | null>(null);
   const [isBoardModalOpen, setIsBoardModalOpen] = useState(false);
+  const [isManageAuditsOpen, setIsManageAuditsOpen] = useState(false);
   useEffect(() => {
     if (userRole === 'ifa_admin') {
       fetchData();
@@ -426,6 +428,17 @@ const Auditorias = () => {
               Gerencie todas as auditorias realizadas
             </p>
           </div>
+          {inProgressCount > 0 && (
+            <Button 
+              variant="outline" 
+              onClick={() => setIsManageAuditsOpen(true)}
+              className="gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Gerenciar em Andamento
+              <Badge variant="secondary" className="ml-1">{inProgressCount}</Badge>
+            </Button>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -533,6 +546,13 @@ const Auditorias = () => {
           preSelectedCompanyName={selectedCompany.name} 
         />
       )}
+
+      {/* Modal Gerenciar Auditorias em Andamento */}
+      <ManageAuditsModal
+        open={isManageAuditsOpen}
+        onOpenChange={setIsManageAuditsOpen}
+        onAuditsDeleted={fetchData}
+      />
     </div>;
 };
 export default Auditorias;
