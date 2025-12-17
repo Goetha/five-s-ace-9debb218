@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { OfflineSyncProvider } from "@/components/pwa/OfflineSyncProvider";
 import Index from "./pages/Index";
 import Empresas from "./pages/Empresas";
 import Avaliadores from "./pages/Avaliadores";
@@ -28,31 +29,33 @@ const App = () => (
       <InstallPrompt />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            
-            {/* IFA Admin Routes */}
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/empresas" element={<ProtectedRoute><Empresas /></ProtectedRoute>} />
-            <Route path="/avaliadores" element={<ProtectedRoute><Avaliadores /></ProtectedRoute>} />
-            <Route path="/modelos-mestre" element={<ProtectedRoute><ModelosMestre /></ProtectedRoute>} />
-            <Route path="/criterios" element={<ProtectedRoute><BibliotecaCriterios /></ProtectedRoute>} />
-            <Route path="/auditorias" element={<ProtectedRoute><Auditorias /></ProtectedRoute>} />
-            <Route path="/ambientes" element={<ProtectedRoute><Ambientes /></ProtectedRoute>} />
-            
-            {/* Company Admin Routes */}
-            <Route path="/admin-empresa" element={<ProtectedRoute><CompanyAdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin-empresa/ambientes" element={<ProtectedRoute><CompanyAdminAmbientes /></ProtectedRoute>} />
-            <Route path="/admin-empresa/ciclos" element={<ProtectedRoute><Ciclos /></ProtectedRoute>} />
-            
-            {/* Auditor Routes */}
-            <Route path="/auditor/nova-auditoria" element={<ProtectedRoute><NovaAuditoria /></ProtectedRoute>} />
-            <Route path="/auditor/minhas-auditorias" element={<ProtectedRoute><MinhasAuditorias /></ProtectedRoute>} />
-            <Route path="/auditor/auditoria/:id" element={<ProtectedRoute><DetalhesAuditoria /></ProtectedRoute>} />
-            
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <OfflineSyncProvider>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              
+              {/* IFA Admin Routes */}
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/empresas" element={<ProtectedRoute><Empresas /></ProtectedRoute>} />
+              <Route path="/avaliadores" element={<ProtectedRoute><Avaliadores /></ProtectedRoute>} />
+              <Route path="/modelos-mestre" element={<ProtectedRoute><ModelosMestre /></ProtectedRoute>} />
+              <Route path="/criterios" element={<ProtectedRoute><BibliotecaCriterios /></ProtectedRoute>} />
+              <Route path="/auditorias" element={<ProtectedRoute><Auditorias /></ProtectedRoute>} />
+              <Route path="/ambientes" element={<ProtectedRoute><Ambientes /></ProtectedRoute>} />
+              
+              {/* Company Admin Routes */}
+              <Route path="/admin-empresa" element={<ProtectedRoute><CompanyAdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin-empresa/ambientes" element={<ProtectedRoute><CompanyAdminAmbientes /></ProtectedRoute>} />
+              <Route path="/admin-empresa/ciclos" element={<ProtectedRoute><Ciclos /></ProtectedRoute>} />
+              
+              {/* Auditor Routes */}
+              <Route path="/auditor/nova-auditoria" element={<ProtectedRoute><NovaAuditoria /></ProtectedRoute>} />
+              <Route path="/auditor/minhas-auditorias" element={<ProtectedRoute><MinhasAuditorias /></ProtectedRoute>} />
+              <Route path="/auditor/auditoria/:id" element={<ProtectedRoute><DetalhesAuditoria /></ProtectedRoute>} />
+              
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </OfflineSyncProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
