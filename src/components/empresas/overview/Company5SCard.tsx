@@ -58,10 +58,10 @@ export const Company5SCard = ({ company, models }: Company5SCardProps) => {
   }
 
   const getScoreColor = (score: number) => {
-    if (score >= 9) return { text: "text-green-600", bg: "bg-green-600", light: "bg-green-50" };
-    if (score >= 7) return { text: "text-blue-600", bg: "bg-blue-600", light: "bg-blue-50" };
-    if (score >= 4) return { text: "text-orange-600", bg: "bg-orange-600", light: "bg-orange-50" };
-    return { text: "text-red-600", bg: "bg-red-600", light: "bg-red-50" };
+    if (score >= 9) return { text: "text-green-500", bg: "bg-green-500", light: "bg-green-500/10 border border-green-500/20" };
+    if (score >= 7) return { text: "text-blue-500", bg: "bg-blue-500", light: "bg-blue-500/10 border border-blue-500/20" };
+    if (score >= 4) return { text: "text-orange-500", bg: "bg-orange-500", light: "bg-orange-500/10 border border-orange-500/20" };
+    return { text: "text-red-500", bg: "bg-red-500", light: "bg-red-500/10 border border-red-500/20" };
   };
 
   const getScoreLabel = (score: number) => {
