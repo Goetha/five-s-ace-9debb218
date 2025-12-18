@@ -145,7 +145,7 @@ const BibliotecaCriterios = () => {
   };
 
   // Handle new criterion save
-  const handleSaveCriterion = async (newCriterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">) => {
+  const handleSaveCriterion = async (newCriterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">, companyId: string) => {
     try {
       if (editCriterion) {
         // Update existing criterion in company_criteria
@@ -171,34 +171,11 @@ const BibliotecaCriterios = () => {
 
         setEditCriterion(null);
       } else {
-        // For new criteria, we need a company_id - use the filter or get first company
-        let targetCompanyId = filterCompanyId;
-        
-        if (!targetCompanyId) {
-          // Get first available company
-          const { data: companies } = await supabase
-            .from("companies")
-            .select("id")
-            .limit(1)
-            .single();
-          
-          targetCompanyId = companies?.id || null;
-        }
-
-        if (!targetCompanyId) {
-          toast({
-            title: "Erro ao criar critério",
-            description: "Nenhuma empresa disponível. Crie uma empresa primeiro.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Create new criterion in company_criteria
+        // Create new criterion with the selected company
         const { error } = await supabase
           .from("company_criteria")
           .insert({
-            company_id: targetCompanyId,
+            company_id: companyId,
             name: newCriterion.name,
             description: "",
             senso: newCriterion.senso,
@@ -210,9 +187,16 @@ const BibliotecaCriterios = () => {
 
         if (error) throw error;
 
+        // Get company name for feedback
+        const { data: company } = await supabase
+          .from("companies")
+          .select("name")
+          .eq("id", companyId)
+          .single();
+
         toast({
           title: "✓ Critério criado com sucesso!",
-          description: `${newCriterion.name} foi adicionado à biblioteca.`,
+          description: `${newCriterion.name} foi adicionado à ${company?.name || "empresa"}.`,
           duration: 3000,
         });
 
@@ -504,6 +488,7 @@ const BibliotecaCriterios = () => {
           onSave={handleSaveCriterion}
           criterion={editCriterion}
           mode={editCriterion ? "edit" : "create"}
+          preSelectedCompanyId={filterCompanyId}
         />
 
         {/* View Criterion Modal */}
