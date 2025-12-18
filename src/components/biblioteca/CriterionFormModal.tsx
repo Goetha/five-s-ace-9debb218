@@ -15,11 +15,18 @@ import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Info, Loader2, Plus, X } from "lucide-react";
+import { Building2, Info, Loader2, Plus, X } from "lucide-react";
 import { Criteria, SensoType, ScoreType, CriteriaTag } from "@/types/criteria";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Company {
+  id: string;
+  name: string;
+}
 
 // Validation Schema
 const criterionSchema = z.object({
+  companyId: z.string().min(1, "Selecione uma empresa"),
   name: z.string().min(1, "O nome é obrigatório"),
   description: z.string().optional(),
   senso: z.array(z.enum(["1S", "2S", "3S", "4S", "5S"]))
@@ -32,9 +39,10 @@ type CriterionFormValues = z.infer<typeof criterionSchema>;
 interface CriterionFormModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (criterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">) => void;
+  onSave: (criterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">, companyId: string) => void;
   criterion?: Criteria | null;
   mode?: "create" | "edit";
+  preSelectedCompanyId?: string | null;
 }
 const sensoDescriptions: Record<SensoType, string> = {
   "1S": "Separar o necessário do desnecessário",
@@ -56,16 +64,20 @@ const CriterionFormModal = ({
   onClose,
   onSave,
   criterion,
-  mode = "create"
+  mode = "create",
+  preSelectedCompanyId
 }: CriterionFormModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState("");
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+
 const form = useForm<CriterionFormValues>({
   resolver: zodResolver(criterionSchema),
   mode: "onChange",
-  // Validate on change to enable button in real-time
   defaultValues: {
+    companyId: "",
     name: "",
     description: "",
     senso: [],
@@ -77,13 +89,39 @@ const form = useForm<CriterionFormValues>({
 const selectedSensos = form.watch("senso");
 const description = form.watch("description");
 const selectedTags = form.watch("tags");
+const selectedCompanyId = form.watch("companyId");
+
+  // Load companies when modal opens
+  useEffect(() => {
+    if (open && mode === "create") {
+      loadCompanies();
+    }
+  }, [open, mode]);
+
+  const loadCompanies = async () => {
+    setLoadingCompanies(true);
+    try {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id, name")
+        .eq("status", "active")
+        .order("name");
+      
+      if (error) throw error;
+      setCompanies(data || []);
+    } catch (error) {
+      console.error("Error loading companies:", error);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
 
   // Reset form or load criterion data when modal opens
   useEffect(() => {
     if (open) {
       if (mode === "edit" && criterion) {
-        // Load criterion data for editing (sempre força conform-non-conform)
         form.reset({
+          companyId: preSelectedCompanyId || "",
           name: criterion.name,
           description: "",
           senso: Array.isArray(criterion.senso) ? criterion.senso : [criterion.senso],
@@ -92,8 +130,8 @@ const selectedTags = form.watch("tags");
           status: criterion.status
         });
       } else {
-        // Reset form for new criterion
         form.reset({
+          companyId: preSelectedCompanyId || "",
           name: "",
           description: "",
           senso: undefined,
@@ -105,7 +143,7 @@ const selectedTags = form.watch("tags");
       setCustomTags([]);
       setNewTagInput("");
     }
-  }, [open, mode, criterion, form]);
+  }, [open, mode, criterion, form, preSelectedCompanyId]);
   const handleAddCustomTag = () => {
     if (newTagInput.trim() && !customTags.includes(newTagInput.trim())) {
       const newTag = newTagInput.trim();
@@ -124,15 +162,14 @@ const selectedTags = form.watch("tags");
   const onSubmit = async (data: CriterionFormValues) => {
     setIsSubmitting(true);
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 300));
     onSave({
       name: data.name,
       senso: data.senso,
       scoreType: data.scoreType,
       tags: data.tags as CriteriaTag[],
       status: data.status
-    });
+    }, data.companyId);
     setIsSubmitting(false);
     onClose();
   };
@@ -157,7 +194,43 @@ const selectedTags = form.watch("tags");
           <div className="md:col-span-2">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* SEÇÃO 1: Informações Básicas */}
+                {/* SEÇÃO 1: Empresa Destino (apenas para criação) */}
+                {mode === "create" && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <Building2 className="h-5 w-5" />
+                      Empresa Destino
+                    </h3>
+
+                    <FormField control={form.control} name="companyId" render={({
+                      field
+                    }) => <FormItem>
+                            <FormLabel>
+                              Empresa <span className="text-destructive">*</span>
+                            </FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={loadingCompanies}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={loadingCompanies ? "Carregando..." : "Selecione a empresa"} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {companies.map((company) => (
+                                  <SelectItem key={company.id} value={company.id}>
+                                    {company.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              O critério ficará disponível apenas para esta empresa
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>} />
+                  </div>
+                )}
+
+                {/* SEÇÃO 2: Informações Básicas */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-foreground">
                     Informações Básicas
@@ -286,6 +359,16 @@ const selectedTags = form.watch("tags");
               </h3>
               
               <div className="space-y-4">
+                {/* Company */}
+                {mode === "create" && selectedCompanyId && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Empresa: </span>
+                    <Badge variant="secondary" className="text-xs">
+                      {companies.find(c => c.id === selectedCompanyId)?.name || ""}
+                    </Badge>
+                  </div>
+                )}
+
                 {/* Senso Badges */}
                 {selectedSensos && selectedSensos.length > 0 && (
                   <div className="flex flex-wrap gap-1">
