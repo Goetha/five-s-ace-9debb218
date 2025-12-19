@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 import { OfflineSyncProvider } from "@/components/pwa/OfflineSyncProvider";
 import Index from "./pages/Index";
 import Empresas from "./pages/Empresas";
@@ -27,6 +28,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <InstallPrompt />
+      <UpdatePrompt />
       <BrowserRouter>
         <AuthProvider>
           <OfflineSyncProvider>
