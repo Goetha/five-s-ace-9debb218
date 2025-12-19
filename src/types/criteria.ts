@@ -12,6 +12,7 @@ export interface Criteria {
   companiesUsing: number;
   modelsUsing: number;
   status: CriteriaStatus;
+  isGlobal?: boolean; // true se for critério global (master_criteria)
 }
 
 export interface CriteriaFilters {

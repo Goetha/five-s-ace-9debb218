@@ -134,7 +134,7 @@ const selectedCompanyId = form.watch("companyId");
           companyId: preSelectedCompanyId || "",
           name: "",
           description: "",
-          senso: undefined,
+          senso: [],
           scoreType: "conform-non-conform",
           tags: [],
           status: "Ativo"
@@ -188,7 +188,14 @@ const selectedCompanyId = form.watch("companyId");
   
   return <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        
+        <DialogHeader>
+          <DialogTitle>{mode === "edit" ? "Editar Critério" : "Novo Critério"}</DialogTitle>
+          <DialogDescription>
+            {mode === "edit" 
+              ? "Atualize as informações do critério" 
+              : "Preencha os campos para criar um novo critério 5S"}
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Form Section - 2 columns */}

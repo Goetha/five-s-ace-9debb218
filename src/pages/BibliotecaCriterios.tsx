@@ -44,7 +44,7 @@ const BibliotecaCriterios = () => {
     setIsLoading(true);
     try {
       if (filterCompanyId) {
-        // If filtering by company, get criteria from that company
+        // If filtering by company, get criteria from that company only
         const { data, error } = await supabase
           .from("company_criteria")
           .select("*")
@@ -63,20 +63,29 @@ const BibliotecaCriterios = () => {
           status: toUiStatus(c.status),
           companiesUsing: 0,
           modelsUsing: 0,
+          isGlobal: false,
         }));
 
         setCriteria(normalizedCriteria);
       } else {
-        // No filter - IFA Admin sees all criteria from all companies
-        const { data, error } = await supabase
-          .from("company_criteria")
-          .select("*")
-          .eq("status", "active")
-          .order("created_at", { ascending: false });
+        // No filter - Load both master_criteria (global) and company_criteria
+        const [masterResult, companyResult] = await Promise.all([
+          supabase
+            .from("master_criteria")
+            .select("*")
+            .eq("status", "active")
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("company_criteria")
+            .select("*")
+            .eq("status", "active")
+            .order("created_at", { ascending: false })
+        ]);
 
-        if (error) throw error;
+        if (masterResult.error) throw masterResult.error;
+        if (companyResult.error) throw companyResult.error;
 
-        const normalizedCriteria: Criteria[] = (data || []).map((c: any): Criteria => ({
+        const masterCriteria: Criteria[] = (masterResult.data || []).map((c: any): Criteria => ({
           id: c.id,
           name: c.name,
           senso: normalizeSenso(c.senso) as SensoType[],
@@ -85,9 +94,23 @@ const BibliotecaCriterios = () => {
           status: toUiStatus(c.status),
           companiesUsing: 0,
           modelsUsing: 0,
+          isGlobal: true,
         }));
 
-        setCriteria(normalizedCriteria);
+        const companyCriteria: Criteria[] = (companyResult.data || []).map((c: any): Criteria => ({
+          id: c.id,
+          name: c.name,
+          senso: normalizeSenso(c.senso) as SensoType[],
+          scoreType: c.scoring_type,
+          tags: c.tags || [],
+          status: toUiStatus(c.status),
+          companiesUsing: 0,
+          modelsUsing: 0,
+          isGlobal: false,
+        }));
+
+        // Combine: global first, then company-specific
+        setCriteria([...masterCriteria, ...companyCriteria]);
       }
     } catch (error) {
       console.error("Error loading criteria:", error);
