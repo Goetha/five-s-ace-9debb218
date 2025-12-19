@@ -170,8 +170,8 @@ const BibliotecaCriterios = () => {
         });
 
         setEditCriterion(null);
-      } else {
-        // Create new criterion with the selected company
+      } else if (companyId) {
+        // Create new criterion for specific company
         const { error } = await supabase
           .from("company_criteria")
           .insert({
@@ -197,6 +197,29 @@ const BibliotecaCriterios = () => {
         toast({
           title: "✓ Critério criado com sucesso!",
           description: `${newCriterion.name} foi adicionado à ${company?.name || "empresa"}.`,
+          duration: 3000,
+        });
+
+        setSelectedIds([]);
+        setCurrentPage(1);
+      } else {
+        // Create global criterion in master_criteria (all companies)
+        const { error } = await supabase
+          .from("master_criteria")
+          .insert({
+            name: newCriterion.name,
+            description: "",
+            senso: newCriterion.senso,
+            scoring_type: newCriterion.scoreType,
+            tags: newCriterion.tags,
+            status: toDbStatus(newCriterion.status),
+          });
+
+        if (error) throw error;
+
+        toast({
+          title: "✓ Critério global criado!",
+          description: `${newCriterion.name} está disponível para todas as empresas.`,
           duration: 3000,
         });
 
