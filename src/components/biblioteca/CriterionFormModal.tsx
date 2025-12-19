@@ -26,7 +26,7 @@ interface Company {
 
 // Validation Schema
 const criterionSchema = z.object({
-  companyId: z.string().min(1, "Selecione uma empresa"),
+  companyId: z.string().optional().default(""),
   name: z.string().min(1, "O nome é obrigatório"),
   description: z.string().optional(),
   senso: z.array(z.enum(["1S", "2S", "3S", "4S", "5S"]))
@@ -163,13 +163,14 @@ const selectedCompanyId = form.watch("companyId");
     setIsSubmitting(true);
 
     await new Promise(resolve => setTimeout(resolve, 300));
+    const companyId = data.companyId === "all" ? "" : (data.companyId || "");
     onSave({
       name: data.name,
       senso: data.senso,
       scoreType: data.scoreType,
       tags: data.tags as CriteriaTag[],
       status: data.status
-    }, data.companyId);
+    }, companyId);
     setIsSubmitting(false);
     onClose();
   };
@@ -206,15 +207,18 @@ const selectedCompanyId = form.watch("companyId");
                       field
                     }) => <FormItem>
                             <FormLabel>
-                              Empresa <span className="text-destructive">*</span>
+                              Empresa <span className="text-muted-foreground text-xs">(opcional)</span>
                             </FormLabel>
                             <Select onValueChange={field.onChange} value={field.value} disabled={loadingCompanies}>
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder={loadingCompanies ? "Carregando..." : "Selecione a empresa"} />
+                                  <SelectValue placeholder={loadingCompanies ? "Carregando..." : "Todas as empresas"} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
+                                <SelectItem value="all">
+                                  <span className="font-medium">Todas as empresas</span>
+                                </SelectItem>
                                 {companies.map((company) => (
                                   <SelectItem key={company.id} value={company.id}>
                                     {company.name}
@@ -223,7 +227,7 @@ const selectedCompanyId = form.watch("companyId");
                               </SelectContent>
                             </Select>
                             <FormDescription>
-                              O critério ficará disponível apenas para esta empresa
+                              Deixe em branco para disponibilizar para todas as empresas
                             </FormDescription>
                             <FormMessage />
                           </FormItem>} />
@@ -360,11 +364,13 @@ const selectedCompanyId = form.watch("companyId");
               
               <div className="space-y-4">
                 {/* Company */}
-                {mode === "create" && selectedCompanyId && (
+                {mode === "create" && (
                   <div className="text-sm">
                     <span className="text-muted-foreground">Empresa: </span>
                     <Badge variant="secondary" className="text-xs">
-                      {companies.find(c => c.id === selectedCompanyId)?.name || ""}
+                      {selectedCompanyId && selectedCompanyId !== "all" 
+                        ? companies.find(c => c.id === selectedCompanyId)?.name 
+                        : "Todas as empresas"}
                     </Badge>
                   </div>
                 )}
