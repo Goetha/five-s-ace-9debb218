@@ -135,7 +135,7 @@ export default function Ambientes() {
       
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground">
+        <nav className="animate-element flex items-center gap-2 text-sm text-muted-foreground">
           <Link to="/" className="hover:text-primary transition-colors">
             Dashboard
           </Link>
@@ -146,7 +146,7 @@ export default function Ambientes() {
         </nav>
 
         {/* Page Header */}
-        <div>
+        <div className="animate-element animate-delay-100">
           <h1 className="text-3xl font-bold text-foreground mb-2">Ambientes e Locais</h1>
           <p className="text-muted-foreground">
             Gerencie ambientes e locais de todas as empresas do sistema
@@ -155,10 +155,10 @@ export default function Ambientes() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Card className="bg-card border-border">
+          <Card className="animate-element animate-delay-200 bg-card border-border card-hover touch-feedback">
             <CardContent className="p-3">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500/10 rounded-lg">
+                <div className="p-2 bg-orange-500/10 rounded-lg group-hover:scale-110 transition-transform">
                   <Factory className="h-5 w-5 text-orange-500" />
                 </div>
                 <div>
@@ -172,10 +172,10 @@ export default function Ambientes() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card border-border">
+          <Card className="animate-element animate-delay-300 bg-card border-border card-hover touch-feedback">
             <CardContent className="p-3">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-500/10 rounded-lg">
+                <div className="p-2 bg-green-500/10 rounded-lg group-hover:scale-110 transition-transform">
                   <MapPin className="h-5 w-5 text-green-500" />
                 </div>
                 <div>
@@ -191,10 +191,10 @@ export default function Ambientes() {
         </div>
 
         {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="animate-slide-right animate-delay-300 flex flex-col sm:flex-row gap-3">
           {/* Company Selector - MANDATORY for IFA Admin */}
           <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-            <SelectTrigger className="w-full sm:w-[280px]">
+            <SelectTrigger className="w-full sm:w-[280px] transition-all duration-200 hover:border-primary/50">
               <Building2 className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Selecione a empresa" />
             </SelectTrigger>
@@ -211,12 +211,12 @@ export default function Ambientes() {
             placeholder="Buscar ambientes..." 
             value={searchTerm} 
             onChange={e => setSearchTerm(e.target.value)} 
-            className="flex-1"
+            className="flex-1 transition-all duration-200 focus:ring-2 focus:ring-primary/30"
             disabled={!selectedCompanyId}
           />
           
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px] transition-all duration-200 hover:border-primary/50">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -229,9 +229,9 @@ export default function Ambientes() {
 
         {/* Company Selection Required Message */}
         {!selectedCompanyId && (
-          <Card>
+          <Card className="animate-element animate-delay-400">
             <CardContent className="p-12 text-center">
-              <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4 animate-pulse" />
               <h3 className="text-lg font-semibold mb-2">Selecione uma empresa</h3>
               <p className="text-muted-foreground">
                 Escolha uma empresa acima para gerenciar seus ambientes e locais
@@ -245,37 +245,44 @@ export default function Ambientes() {
           <div className="space-y-2">
             {/* Company Card (nível 0) */}
             {company && (
-              <CompanyCard 
-                company={company} 
-                totalEnvironments={totalEnvironments} 
-                totalLocations={totalLocations} 
-                onAddEnvironment={() => setIsNewModalOpen(true)}
-                isExpanded={allExpanded}
-                onToggleExpand={() => setAllExpanded(!allExpanded)}
-              />
+              <div className="animate-element animate-delay-400">
+                <CompanyCard 
+                  company={company} 
+                  totalEnvironments={totalEnvironments} 
+                  totalLocations={totalLocations} 
+                  onAddEnvironment={() => setIsNewModalOpen(true)}
+                  isExpanded={allExpanded}
+                  onToggleExpand={() => setAllExpanded(!allExpanded)}
+                />
+              </div>
             )}
 
             {/* Ambientes (nível 1) e seus Locais (nível 2) */}
-            {allExpanded && environmentsList.map(env => (
-              <EnvironmentCard 
-                key={env.id} 
-                environment={env}
-                locations={environments}
-                onEdit={environment => {
-                  setEditingEnvironment(environment);
-                  setEditingEnvironment(environment);
-                  setIsNewModalOpen(true);
-                }}
-                onAddLocation={parentId => {
-                  setNewLocationParentId(parentId);
-                  setIsNewModalOpen(true);
-                }}
-                onRefresh={fetchEnvironments}
-              />
-            ))}
+            {allExpanded && (
+              <div className="stagger-children space-y-2">
+                {environmentsList.map((env, index) => (
+                  <EnvironmentCard 
+                    key={env.id} 
+                    environment={env}
+                    locations={environments}
+                    onEdit={environment => {
+                      setEditingEnvironment(environment);
+                      setEditingEnvironment(environment);
+                      setIsNewModalOpen(true);
+                    }}
+                    onAddLocation={parentId => {
+                      setNewLocationParentId(parentId);
+                      setIsNewModalOpen(true);
+                    }}
+                    onRefresh={fetchEnvironments}
+                    animationDelay={index * 50}
+                  />
+                ))}
+              </div>
+            )}
 
             {environmentsList.length === 0 && (
-              <Card>
+              <Card className="animate-element animate-delay-500">
                 <CardContent className="p-12 text-center">
                   <Factory className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Nenhum ambiente encontrado</h3>
@@ -284,7 +291,7 @@ export default function Ambientes() {
                   </p>
                   <Button 
                     onClick={() => setIsNewModalOpen(true)}
-                    className="bg-primary hover:bg-primary-hover text-primary-foreground"
+                    className="bg-primary hover:bg-primary-hover text-primary-foreground btn-hover"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Criar Primeiro Ambiente
