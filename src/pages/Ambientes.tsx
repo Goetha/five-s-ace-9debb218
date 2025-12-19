@@ -9,6 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EnvironmentCard } from "@/components/company-admin/environments/EnvironmentCard";
 import { CompanyCard } from "@/components/company-admin/environments/CompanyCard";
 import { NewEnvironmentModal } from "@/components/company-admin/environments/NewEnvironmentModal";
+import { CompanyCardSkeleton, EnvironmentCardsSkeleton } from "@/components/biblioteca/SkeletonCards";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -155,39 +157,70 @@ export default function Ambientes() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Card className="animate-element animate-delay-200 bg-card border-border card-hover touch-feedback">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500/10 rounded-lg group-hover:scale-110 transition-transform">
-                  <Factory className="h-5 w-5 text-orange-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total de Ambientes</p>
-                  <p className="text-2xl font-bold">{totalEnvironments}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {activeEnvironments} ativos
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {loading ? (
+            <>
+              <Card className="animate-element bg-card border-border">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-9 w-9 rounded-lg" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-7 w-12" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="animate-element animate-delay-100 bg-card border-border">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-9 w-9 rounded-lg" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-7 w-12" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <>
+              <Card className="animate-element animate-delay-200 bg-card border-border card-hover touch-feedback">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-500/10 rounded-lg group-hover:scale-110 transition-transform">
+                      <Factory className="h-5 w-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total de Ambientes</p>
+                      <p className="text-2xl font-bold">{totalEnvironments}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {activeEnvironments} ativos
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="animate-element animate-delay-300 bg-card border-border card-hover touch-feedback">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-500/10 rounded-lg group-hover:scale-110 transition-transform">
-                  <MapPin className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total de Locais</p>
-                  <p className="text-2xl font-bold">{totalLocations}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {activeLocations} ativos
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="animate-element animate-delay-300 bg-card border-border card-hover touch-feedback">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-500/10 rounded-lg group-hover:scale-110 transition-transform">
+                      <MapPin className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total de Locais</p>
+                      <p className="text-2xl font-bold">{totalLocations}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {activeLocations} ativos
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* Actions Bar */}
@@ -243,8 +276,16 @@ export default function Ambientes() {
         {/* Environments Hierarchy */}
         {selectedCompanyId && (
           <div className="space-y-2">
-            {/* Company Card (nível 0) */}
-            {company && (
+            {/* Loading State */}
+            {loading ? (
+              <>
+                <CompanyCardSkeleton />
+                <EnvironmentCardsSkeleton count={3} />
+              </>
+            ) : (
+              <>
+                {/* Company Card (nível 0) */}
+                {company && (
               <div className="animate-element animate-delay-400">
                 <CompanyCard 
                   company={company} 
@@ -281,7 +322,7 @@ export default function Ambientes() {
               </div>
             )}
 
-            {environmentsList.length === 0 && (
+            {environmentsList.length === 0 && !loading && (
               <Card className="animate-element animate-delay-500">
                 <CardContent className="p-12 text-center">
                   <Factory className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -298,6 +339,8 @@ export default function Ambientes() {
                   </Button>
                 </CardContent>
               </Card>
+            )}
+              </>
             )}
           </div>
         )}

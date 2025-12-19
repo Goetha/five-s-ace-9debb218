@@ -15,7 +15,7 @@ import { Criteria, CriteriaFilters, SensoType } from "@/types/criteria";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { toUiStatus, toDbStatus, normalizeSenso } from "@/lib/formatters";
-import { Skeleton } from "@/components/ui/skeleton";
+import { StatsCardsSkeleton, CriteriaCardsSkeleton } from "@/components/biblioteca/SkeletonCards";
 
 const BibliotecaCriterios = () => {
   const { toast } = useToast();
@@ -286,7 +286,7 @@ const BibliotecaCriterios = () => {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground">
+        <nav className="animate-element flex items-center gap-2 text-sm text-muted-foreground">
           <Link to="/" className="hover:text-primary transition-colors">
             Dashboard
           </Link>
@@ -297,7 +297,7 @@ const BibliotecaCriterios = () => {
         </nav>
 
         {/* Page Header */}
-        <div>
+        <div className="animate-element animate-delay-100">
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Biblioteca de Critérios Mestre
           </h1>
@@ -308,13 +308,11 @@ const BibliotecaCriterios = () => {
 
         {/* Stats Cards */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-24 rounded-lg" />
-            ))}
-          </div>
+          <StatsCardsSkeleton />
         ) : (
-          <StatsCards criteria={criteria} />
+          <div className="animate-element animate-delay-200">
+            <StatsCards criteria={criteria} />
+          </div>
         )}
 
         {/* Search and Filters */}
@@ -450,20 +448,18 @@ const BibliotecaCriterios = () => {
 
         {/* Criteria Cards */}
         {isLoading ? (
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-16 rounded-lg" />
-            ))}
-          </div>
+          <CriteriaCardsSkeleton count={6} />
         ) : (
-          <CriteriaCards
-            criteria={paginatedCriteria}
-            selectedIds={selectedIds}
-            onSelectOne={handleSelectOne}
-            onView={handleViewCriterion}
-            onEdit={handleEditCriterion}
-            onDuplicate={handleDuplicateCriterion}
-          />
+          <div className="animate-element animate-delay-400">
+            <CriteriaCards
+              criteria={paginatedCriteria}
+              selectedIds={selectedIds}
+              onSelectOne={handleSelectOne}
+              onView={handleViewCriterion}
+              onEdit={handleEditCriterion}
+              onDuplicate={handleDuplicateCriterion}
+            />
+          </div>
         )}
 
         {/* Pagination */}
