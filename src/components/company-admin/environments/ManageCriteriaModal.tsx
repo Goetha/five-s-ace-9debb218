@@ -14,6 +14,7 @@ interface Criterion {
   description: string | null;
   senso: string[] | null;
   scoring_type: string;
+  isGlobal?: boolean;
 }
 
 interface ManageCriteriaModalProps {
@@ -64,24 +65,46 @@ export function ManageCriteriaModal({
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: criteria, error: criteriaError } = await supabase
-        .from('company_criteria')
-        .select('id, name, description, senso, scoring_type')
-        .eq('company_id', companyId)
-        .eq('status', 'active')
-        .order('name');
+      // Buscar critérios da empresa E critérios globais (master_criteria)
+      const [companyResult, masterResult, linkedResult] = await Promise.all([
+        supabase
+          .from('company_criteria')
+          .select('id, name, description, senso, scoring_type')
+          .eq('company_id', companyId)
+          .eq('status', 'active')
+          .order('name'),
+        supabase
+          .from('master_criteria')
+          .select('id, name, description, senso, scoring_type')
+          .eq('status', 'active')
+          .order('name'),
+        supabase
+          .from('environment_criteria')
+          .select('criterion_id')
+          .eq('environment_id', localId)
+      ]);
 
-      if (criteriaError) throw criteriaError;
+      if (companyResult.error) throw companyResult.error;
+      if (masterResult.error) throw masterResult.error;
+      if (linkedResult.error) throw linkedResult.error;
 
-      const { data: linked, error: linkedError } = await supabase
-        .from('environment_criteria')
-        .select('criterion_id')
-        .eq('environment_id', localId);
+      // Marcar critérios da empresa
+      const companyCriteria = (companyResult.data || []).map(c => ({
+        ...c,
+        isGlobal: false
+      }));
 
-      if (linkedError) throw linkedError;
+      // Marcar critérios globais
+      const masterCriteria = (masterResult.data || []).map(c => ({
+        ...c,
+        isGlobal: true
+      }));
 
-      setAllCriteria(criteria || []);
-      setLinkedCriteriaIds(new Set(linked?.map(l => l.criterion_id) || []));
+      // Combinar: globais primeiro, depois os da empresa
+      const allCriteriaData = [...masterCriteria, ...companyCriteria];
+
+      setAllCriteria(allCriteriaData);
+      setLinkedCriteriaIds(new Set(linkedResult.data?.map(l => l.criterion_id) || []));
     } catch (error) {
       console.error('Error fetching criteria:', error);
       toast.error('Erro ao carregar critérios');
@@ -252,9 +275,16 @@ export function ManageCriteriaModal({
                         </div>
                         <div className="flex-1 min-w-0 space-y-1.5">
                           <div className="flex items-start justify-between gap-2">
-                            <p className={`text-sm leading-tight ${isSelected ? 'font-medium' : ''}`}>
-                              {criterion.name}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className={`text-sm leading-tight ${isSelected ? 'font-medium' : ''}`}>
+                                {criterion.name}
+                              </p>
+                              {criterion.isGlobal && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 font-medium">
+                                  Global
+                                </span>
+                              )}
+                            </div>
                             {criterion.senso && criterion.senso.length > 0 && (
                               <div className="flex gap-1 shrink-0">
                                 {criterion.senso.map((s) => (
