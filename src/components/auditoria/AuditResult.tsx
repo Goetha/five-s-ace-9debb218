@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScoreLevelIndicator, getScoreLevel } from "@/components/modelos/ScoreLevelIndicator";
+import { ExportAuditButton } from "@/components/reports/ExportButtons";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, Check, Eye, Loader2, X } from "lucide-react";
 import type { Audit } from "@/types/audit";
@@ -188,7 +189,8 @@ export function AuditResult({ auditId, onNewAudit, onViewDetails }: AuditResultP
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <ExportAuditButton auditId={auditId} variant="outline" />
           <Button
             variant="outline"
             onClick={onNewAudit}

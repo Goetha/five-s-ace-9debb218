@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, ChevronRight, ClipboardCheck } from "lucide-react";
+import { ExportCompanyButton } from "@/components/reports/ExportButtons";
 
 interface CompanyAuditCardProps {
   companyId: string;
@@ -12,6 +13,7 @@ interface CompanyAuditCardProps {
 }
 
 export function CompanyAuditCard({
+  companyId,
   companyName,
   totalAudits,
   completedAudits,
@@ -19,12 +21,12 @@ export function CompanyAuditCard({
   onClick
 }: CompanyAuditCardProps) {
   return (
-    <Card 
-      className="p-4 sm:p-5 cursor-pointer hover:shadow-md hover:border-primary/50 transition-all group"
-      onClick={onClick}
-    >
+    <Card className="p-4 sm:p-5 hover:shadow-md hover:border-primary/50 transition-all group">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div 
+          className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+          onClick={onClick}
+        >
           <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
             <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
           </div>
@@ -50,7 +52,20 @@ export function CompanyAuditCard({
             </div>
           </div>
         </div>
-        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {completedAudits > 0 && (
+            <ExportCompanyButton 
+              companyId={companyId} 
+              companyName={companyName} 
+              size="sm" 
+              variant="ghost"
+            />
+          )}
+          <ChevronRight 
+            className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors cursor-pointer" 
+            onClick={onClick}
+          />
+        </div>
       </div>
     </Card>
   );

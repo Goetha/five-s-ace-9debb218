@@ -16,6 +16,7 @@ import { AuditChecklist } from "@/components/auditoria/AuditChecklist";
 import { ChecklistItemReadOnly } from "@/components/auditoria/ChecklistItemReadOnly";
 import { AuditResult } from "@/components/auditoria/AuditResult";
 import { EmptyAuditWarning } from "@/components/auditorias/EmptyAuditWarning";
+import { ExportAuditButton } from "@/components/reports/ExportButtons";
 import { cn } from "@/lib/utils";
 import type { Audit, AuditItem } from "@/types/audit";
 
@@ -174,10 +175,15 @@ export default function DetalhesAuditoria() {
   
   const content = (
     <div className="p-3 sm:p-6 max-w-4xl mx-auto space-y-3 sm:space-y-6">
-      <Button variant="ghost" onClick={() => navigate(backLink)} className="mb-2 sm:mb-4 text-xs sm:text-sm">
-        <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-        Voltar
-      </Button>
+      <div className="flex items-center justify-between gap-2">
+        <Button variant="ghost" onClick={() => navigate(backLink)} className="text-xs sm:text-sm">
+          <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+          Voltar
+        </Button>
+        {audit.status === 'completed' && (
+          <ExportAuditButton auditId={audit.id} size="sm" />
+        )}
+      </div>
 
       <Card className="p-3 sm:p-6 bg-card">
         <div className="space-y-4 sm:space-y-6">
