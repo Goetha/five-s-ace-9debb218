@@ -23,6 +23,7 @@ import { AssignAuditorsModal } from "@/components/empresas/AssignAuditorsModal";
 import { DeleteCompanyDialog } from "@/components/empresas/DeleteCompanyDialog";
 import { ToggleStatusDialog } from "@/components/empresas/ToggleStatusDialog";
 import { SendEmailModal } from "@/components/empresas/SendEmailModal";
+import { StatsCardsSkeleton4, CompanyCardsSkeleton, SearchBarSkeleton } from "@/components/biblioteca/SkeletonCards";
 import { mockCompanies } from "@/data/mockCompanies";
 import { mockModels } from "@/data/mockModels";
 import { Company, CompanyFormData } from "@/types/company";
@@ -737,7 +738,7 @@ export default function Empresas() {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Breadcrumb */}
-        <Breadcrumb className="mb-6">
+        <Breadcrumb className="mb-6 animate-element">
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
@@ -752,13 +753,13 @@ export default function Empresas() {
         </Breadcrumb>
 
         {/* Page Header */}
-        <div className="mb-8">
+        <div className="mb-8 animate-element animate-delay-100">
           <h1 className="text-3xl font-bold text-foreground mb-2">Gestão de Empresas</h1>
           <p className="text-muted-foreground">Gerencie suas empresas clientes e seus administradores</p>
         </div>
 
         {/* Tabs */}
-        <div className="mb-6">
+        <div className="mb-6 animate-element animate-delay-200">
           <EmpresasTabs activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
 
@@ -766,19 +767,31 @@ export default function Empresas() {
         {activeTab === "list" ? (
           <>
             {/* Stats Cards */}
-            <CompanyStatsCards companies={companies} />
+            {isLoadingCompanies ? (
+              <StatsCardsSkeleton4 />
+            ) : (
+              <div className="animate-element animate-delay-300">
+                <CompanyStatsCards companies={companies} />
+              </div>
+            )}
 
             {/* Search and Filters */}
             <div className="mt-8">
-              <CompanySearchBar
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                statusFilter={statusFilter}
-                onStatusFilterChange={setStatusFilter}
-                sortBy={sortBy}
-                onSortByChange={setSortBy}
-                onNewCompany={() => setShowNewCompanyModal(true)}
-              />
+              {isLoadingCompanies ? (
+                <SearchBarSkeleton />
+              ) : (
+                <div className="animate-element animate-delay-400">
+                  <CompanySearchBar
+                    searchTerm={searchTerm}
+                    onSearchChange={setSearchTerm}
+                    statusFilter={statusFilter}
+                    onStatusFilterChange={setStatusFilter}
+                    sortBy={sortBy}
+                    onSortByChange={setSortBy}
+                    onNewCompany={() => setShowNewCompanyModal(true)}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Bulk Actions */}
@@ -852,16 +865,22 @@ export default function Empresas() {
 
             {/* Companies Cards */}
             <div className="mt-6">
-              <CompanyCards
-                companies={filteredCompanies}
-                selectedCompanies={selectedCompanies}
-                onSelectionChange={handleSelectionChange}
-                onSelectAll={handleSelectAll}
-                onView={handleView}
-                onEdit={handleEdit}
-                onAssignModels={handleAssignModels}
-                onAssignAuditors={handleAssignAuditors}
-              />
+              {isLoadingCompanies ? (
+                <CompanyCardsSkeleton count={6} />
+              ) : (
+                <div className="animate-element animate-delay-500">
+                  <CompanyCards
+                    companies={filteredCompanies}
+                    selectedCompanies={selectedCompanies}
+                    onSelectionChange={handleSelectionChange}
+                    onSelectAll={handleSelectAll}
+                    onView={handleView}
+                    onEdit={handleEdit}
+                    onAssignModels={handleAssignModels}
+                    onAssignAuditors={handleAssignAuditors}
+                  />
+                </div>
+              )}
             </div>
           </>
         ) : (

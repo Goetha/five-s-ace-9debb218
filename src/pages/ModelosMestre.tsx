@@ -20,8 +20,10 @@ import NewModelModal from "@/components/modelos/NewModelModal";
 import ModelDetailsModal from "@/components/modelos/ModelDetailsModal";
 import EditModelModal from "@/components/modelos/EditModelModal";
 import LinkCompaniesModal from "@/components/modelos/LinkCompaniesModal";
+import { StatsCardsSkeleton4, ModelCardsSkeleton, SearchBarSkeleton } from "@/components/biblioteca/SkeletonCards";
 import { useToast } from "@/hooks/use-toast";
 import { MasterModel, ModelFilters } from "@/types/model";
+import { Card, CardContent } from "@/components/ui/card";
 
 const ModelosMestre = () => {
   const { toast } = useToast();
@@ -431,7 +433,7 @@ const ModelosMestre = () => {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Breadcrumb */}
-        <Breadcrumb>
+        <Breadcrumb className="animate-element">
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
@@ -446,7 +448,7 @@ const ModelosMestre = () => {
         </Breadcrumb>
 
         {/* Header */}
-        <div>
+        <div className="animate-element animate-delay-100">
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Modelos Mestre de Avaliação
           </h1>
@@ -456,44 +458,56 @@ const ModelosMestre = () => {
         </div>
 
         {/* Stats Cards */}
-        <ModelStatsCards models={models} />
+        {loading ? (
+          <StatsCardsSkeleton4 />
+        ) : (
+          <div className="animate-element animate-delay-200">
+            <ModelStatsCards models={models} />
+          </div>
+        )}
 
         {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar modelos..."
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              className="pl-9"
-            />
+        {loading ? (
+          <SearchBarSkeleton />
+        ) : (
+          <div className="animate-element animate-delay-300 flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar modelos..."
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                className="pl-9"
+              />
+            </div>
+
+            <Select
+              value={filters.status}
+              onValueChange={(value: any) => setFilters({ ...filters, status: value })}
+            >
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Todos">Status: Todos</SelectItem>
+                <SelectItem value="Ativo">Ativos</SelectItem>
+                <SelectItem value="Inativo">Inativos</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button onClick={() => setNewModelOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Modelo
+            </Button>
           </div>
-
-          <Select
-            value={filters.status}
-            onValueChange={(value: any) => setFilters({ ...filters, status: value })}
-          >
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Status: Todos</SelectItem>
-              <SelectItem value="Ativo">Ativos</SelectItem>
-              <SelectItem value="Inativo">Inativos</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Button onClick={() => setNewModelOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Modelo
-          </Button>
-        </div>
+        )}
 
         {/* Models Grid */}
-        {filteredModels.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredModels.map((model) => (
+        {loading ? (
+          <ModelCardsSkeleton count={6} />
+        ) : filteredModels.length > 0 ? (
+          <div className="animate-element animate-delay-400 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredModels.map((model, index) => (
               <ModelCard
                 key={model.id}
                 model={model}
