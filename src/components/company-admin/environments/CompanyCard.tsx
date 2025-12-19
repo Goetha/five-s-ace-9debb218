@@ -14,9 +14,8 @@ interface CompanyCardProps {
 }
 
 export function CompanyCard({ company, totalEnvironments, totalLocations, onAddEnvironment, isExpanded, onToggleExpand }: CompanyCardProps) {
-  // Note: totalEnvironments now represents Areas, totalLocations represents Environments + Locals
   return (
-    <Card className="border-2 border-primary/50 bg-primary/5">
+    <Card className="border-2 border-primary/50 bg-primary/5 card-hover touch-feedback transition-all duration-300 hover:border-primary/80 hover:shadow-lg hover:shadow-primary/10">
       <CardContent className="p-3 sm:p-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -26,19 +25,22 @@ export function CompanyCard({ company, totalEnvironments, totalLocations, onAddE
                 variant="ghost"
                 size="sm"
                 onClick={onToggleExpand}
-                className="h-6 w-6 p-0 shrink-0"
+                className="h-6 w-6 p-0 shrink-0 transition-all duration-200 hover:bg-primary/10"
               >
-                {isExpanded ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
+                <ChevronDown 
+                  className={`h-4 w-4 transition-transform duration-300 ease-out ${isExpanded ? 'rotate-0' : '-rotate-90'}`} 
+                />
               </Button>
             )}
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-base sm:text-lg font-bold truncate">{company.name}</h2>
-                <Badge variant="outline" className="text-xs shrink-0">Empresa</Badge>
+                <Badge 
+                  variant="outline" 
+                  className="text-xs shrink-0 badge-hover transition-all duration-200 hover:bg-primary/10"
+                >
+                  Empresa
+                </Badge>
               </div>
               <div className="text-xs sm:text-sm text-muted-foreground mt-1">
                 {totalEnvironments} Áreas • {totalLocations} Ambientes/Locais
@@ -48,9 +50,9 @@ export function CompanyCard({ company, totalEnvironments, totalLocations, onAddE
           <Button 
             size="sm" 
             onClick={onAddEnvironment} 
-            className="bg-primary hover:bg-primary/90 w-full sm:w-auto shrink-0"
+            className="bg-primary hover:bg-primary/90 w-full sm:w-auto shrink-0 btn-hover transition-all duration-200 hover:shadow-md hover:shadow-primary/20"
           >
-            <Plus className="h-3 w-3 mr-1" />
+            <Plus className="h-3 w-3 mr-1 transition-transform duration-200 group-hover:rotate-90" />
             Nova Área
           </Button>
         </div>

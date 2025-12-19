@@ -87,25 +87,58 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "scale-in": {
+          "0%": { opacity: "0", transform: "scale(0.95)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "slide-down": {
+          "0%": { opacity: "0", maxHeight: "0", transform: "translateY(-8px)" },
+          "100%": { opacity: "1", maxHeight: "1000px", transform: "translateY(0)" },
+        },
+        "slide-up": {
+          "0%": { opacity: "1", maxHeight: "1000px" },
+          "100%": { opacity: "0", maxHeight: "0" },
+        },
+        "bounce-in": {
+          "0%": { opacity: "0", transform: "scale(0.92)" },
+          "50%": { transform: "scale(1.02)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "slide-in-left": {
+          "0%": { opacity: "0", transform: "translateX(-16px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        "pulse-subtle": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.03)" },
+        },
+        "rotate-180": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(180deg)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "scale-in": "scale-in 0.3s ease-out forwards",
+        "slide-down": "slide-down 0.3s ease-out forwards",
+        "slide-up": "slide-up 0.25s ease-out forwards",
+        "bounce-in": "bounce-in 0.4s ease-out forwards",
+        "fade-in-up": "fade-in-up 0.35s ease-out forwards",
+        "slide-in-left": "slide-in-left 0.3s ease-out forwards",
+        "pulse-subtle": "pulse-subtle 2s ease-in-out infinite",
+        "rotate-180": "rotate-180 0.3s ease-out forwards",
       },
     },
   },
