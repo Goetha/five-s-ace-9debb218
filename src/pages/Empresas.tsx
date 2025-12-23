@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import {
@@ -30,6 +30,8 @@ import { Company, CompanyFormData } from "@/types/company";
 import { MasterModel } from "@/types/model";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { OfflineBanner } from "@/components/pwa/OfflineBanner";
+import { useOfflineData } from "@/hooks/useOfflineData";
 
 export default function Empresas() {
   const { toast } = useToast();
@@ -37,6 +39,26 @@ export default function Empresas() {
   // Load companies from backend on mount (fallback to localStorage if backend fails)
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
+
+  // Offline-aware data fetching
+  const fetchCompaniesOnline = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('companies')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }, []);
+
+  const { 
+    isOffline, 
+    isFromCache, 
+    lastSyncAt,
+    refetch: refetchOfflineData 
+  } = useOfflineData({
+    cacheKey: 'companies',
+    fetchOnline: fetchCompaniesOnline,
+  });
 
   // Load companies from backend
   useEffect(() => {
@@ -737,6 +759,17 @@ export default function Empresas() {
       <Header />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Offline Banner */}
+        <OfflineBanner 
+          isOffline={isOffline}
+          isFromCache={isFromCache}
+          lastSyncAt={lastSyncAt}
+          onRefresh={() => {
+            refetchOfflineData();
+            loadCompaniesFromBackend();
+          }}
+        />
+
         {/* Breadcrumb */}
         <Breadcrumb className="mb-6 animate-element">
           <BreadcrumbList>

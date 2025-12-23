@@ -2,6 +2,12 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { 
+  saveAuthCache, 
+  getAuthCache, 
+  clearAuthCache,
+  initDB 
+} from "@/lib/offlineStorage";
 
 type AppRole = 'ifa_admin' | 'company_admin' | 'auditor';
 
@@ -27,6 +33,7 @@ interface AuthContextType {
   activeCompanyId: string | null; // Currently selected company
   setActiveCompanyId: (companyId: string) => void;
   isLoading: boolean;
+  isOffline: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string, phone?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -43,7 +50,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [linkedCompanies, setLinkedCompanies] = useState<CompanyInfo[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const navigate = useNavigate();
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Save auth data to cache whenever it changes
+  const persistAuthData = async () => {
+    if (user && userRole) {
+      try {
+        await saveAuthCache({
+          user,
+          session,
+          userRole,
+          userProfile,
+          companyInfo,
+          linkedCompanies,
+          activeCompanyId,
+        });
+        console.log('✅ Auth data cached for offline use');
+      } catch (e) {
+        console.error('Error caching auth data:', e);
+      }
+    }
+  };
+
+  // Persist auth when relevant data changes
+  useEffect(() => {
+    if (user && userRole) {
+      persistAuthData();
+    }
+  }, [user, userRole, userProfile, companyInfo, linkedCompanies, activeCompanyId]);
+
+  // Load cached auth when offline
+  const loadCachedAuth = async (): Promise<boolean> => {
+    try {
+      await initDB();
+      const cached = await getAuthCache();
+      
+      if (cached && cached.user) {
+        console.log('📦 Loading auth from offline cache');
+        setUser(cached.user);
+        setSession(cached.session);
+        setUserRole(cached.userRole as AppRole);
+        setUserProfile(cached.userProfile);
+        setCompanyInfo(cached.companyInfo);
+        setLinkedCompanies(cached.linkedCompanies || []);
+        setActiveCompanyId(cached.activeCompanyId);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('Error loading cached auth:', e);
+      return false;
+    }
+  };
 
   // Fetch user data (role, profile, company)
   const fetchUserData = async (userId: string) => {
@@ -123,39 +196,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [activeCompanyId, linkedCompanies]);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    const initAuth = async () => {
+      try {
+        await initDB();
+      } catch (e) {
+        console.error('Error initializing offline DB:', e);
+      }
+
+      // If offline, try to load from cache first
+      if (!navigator.onLine) {
+        const hasCached = await loadCachedAuth();
+        if (hasCached) {
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Set up auth state listener FIRST
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          // Fetch user data after setting session
+          if (session?.user) {
+            setTimeout(async () => {
+              await fetchUserData(session.user.id);
+              setIsLoading(false);
+            }, 0);
+          } else {
+            setUserRole(null);
+            setUserProfile(null);
+            setCompanyInfo(null);
+            setIsLoading(false);
+          }
+        }
+      );
+
+      // THEN check for existing session
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Fetch user data after setting session
         if (session?.user) {
-          setTimeout(async () => {
-            await fetchUserData(session.user.id);
-            setIsLoading(false);
-          }, 0);
-        } else {
-          setUserRole(null);
-          setUserProfile(null);
-          setCompanyInfo(null);
-          setIsLoading(false);
+          await fetchUserData(session.user.id);
+        } else if (!navigator.onLine) {
+          // No online session but offline - try cache
+          await loadCachedAuth();
+        }
+      } catch (error) {
+        console.error('Error getting session:', error);
+        // If error (likely offline), try cache
+        if (!navigator.onLine) {
+          await loadCachedAuth();
         }
       }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
       
-      if (session?.user) {
-        await fetchUserData(session.user.id);
-      }
       setIsLoading(false);
-    });
 
-    return () => subscription.unsubscribe();
+      return () => subscription.unsubscribe();
+    };
+
+    initAuth();
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -199,6 +302,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    await clearAuthCache();
     setUser(null);
     setSession(null);
     setUserRole(null);
@@ -221,6 +325,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       activeCompanyId,
       setActiveCompanyId,
       isLoading, 
+      isOffline,
       signIn, 
       signUp, 
       signOut 
