@@ -1,7 +1,7 @@
 // IndexedDB service for offline storage and sync
 
 const DB_NAME = '5s-manager-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented version for new stores
 
 interface PendingSync {
   id: string;
@@ -9,6 +9,18 @@ interface PendingSync {
   table: string;
   data: any;
   createdAt: string;
+}
+
+interface AuthCache {
+  id: string;
+  user: any;
+  session: any;
+  userRole: string | null;
+  userProfile: any;
+  companyInfo: any;
+  linkedCompanies: any[];
+  activeCompanyId: string | null;
+  cachedAt: string;
 }
 
 let db: IDBDatabase | null = null;
@@ -49,7 +61,7 @@ export const initDB = (): Promise<IDBDatabase> => {
         itemsStore.createIndex('auditId', 'audit_id', { unique: false });
       }
 
-      // Cache for criteria
+      // Cache for criteria (company_criteria)
       if (!database.objectStoreNames.contains('criteria')) {
         database.createObjectStore('criteria', { keyPath: 'id' });
       }
@@ -57,6 +69,36 @@ export const initDB = (): Promise<IDBDatabase> => {
       // Cache for environments
       if (!database.objectStoreNames.contains('environments')) {
         database.createObjectStore('environments', { keyPath: 'id' });
+      }
+
+      // NEW: Cache for companies
+      if (!database.objectStoreNames.contains('companies')) {
+        database.createObjectStore('companies', { keyPath: 'id' });
+      }
+
+      // NEW: Cache for master_criteria (global criteria)
+      if (!database.objectStoreNames.contains('master_criteria')) {
+        database.createObjectStore('master_criteria', { keyPath: 'id' });
+      }
+
+      // NEW: Cache for master_models
+      if (!database.objectStoreNames.contains('master_models')) {
+        database.createObjectStore('master_models', { keyPath: 'id' });
+      }
+
+      // NEW: Cache for auth data
+      if (!database.objectStoreNames.contains('authCache')) {
+        database.createObjectStore('authCache', { keyPath: 'id' });
+      }
+
+      // NEW: Cache for user_roles
+      if (!database.objectStoreNames.contains('user_roles')) {
+        database.createObjectStore('user_roles', { keyPath: 'id' });
+      }
+
+      // NEW: App metadata (last sync time, etc)
+      if (!database.objectStoreNames.contains('appMetadata')) {
+        database.createObjectStore('appMetadata', { keyPath: 'key' });
       }
     };
   });
@@ -119,6 +161,18 @@ export const deleteFromStore = async (
   });
 };
 
+// Clear entire store
+export const clearStore = async (storeName: string): Promise<void> => {
+  const database = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+    const request = store.clear();
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+};
+
 // Add pending sync operation
 export const addPendingSync = async (
   type: 'create' | 'update',
@@ -149,17 +203,36 @@ export const removePendingSync = async (id: string): Promise<void> => {
 
 // Clear all pending sync operations
 export const clearPendingSync = async (): Promise<void> => {
-  const database = await initDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction('pendingSync', 'readwrite');
-    const store = transaction.objectStore('pendingSync');
-    const request = store.clear();
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+  return clearStore('pendingSync');
 };
 
-// Cache data for offline use
+// =====================
+// AUTH CACHE FUNCTIONS
+// =====================
+export const saveAuthCache = async (authData: Omit<AuthCache, 'id' | 'cachedAt'>): Promise<void> => {
+  const cache: AuthCache = {
+    id: 'current_user',
+    ...authData,
+    cachedAt: new Date().toISOString(),
+  };
+  await addToStore('authCache', cache);
+};
+
+export const getAuthCache = async (): Promise<AuthCache | undefined> => {
+  return getFromStore<AuthCache>('authCache', 'current_user');
+};
+
+export const clearAuthCache = async (): Promise<void> => {
+  try {
+    await deleteFromStore('authCache', 'current_user');
+  } catch (e) {
+    // Ignore if not found
+  }
+};
+
+// =====================
+// DATA CACHE FUNCTIONS
+// =====================
 export const cacheAudits = async (audits: any[]): Promise<void> => {
   for (const audit of audits) {
     await addToStore('audits', audit);
@@ -178,17 +251,82 @@ export const cacheEnvironments = async (environments: any[]): Promise<void> => {
   }
 };
 
-// Get cached audits
+export const cacheCompanies = async (companies: any[]): Promise<void> => {
+  for (const company of companies) {
+    await addToStore('companies', company);
+  }
+};
+
+export const cacheMasterCriteria = async (criteria: any[]): Promise<void> => {
+  for (const criterion of criteria) {
+    await addToStore('master_criteria', criterion);
+  }
+};
+
+export const cacheMasterModels = async (models: any[]): Promise<void> => {
+  for (const model of models) {
+    await addToStore('master_models', model);
+  }
+};
+
+// Get cached data functions
 export const getCachedAudits = async (): Promise<any[]> => {
   return getAllFromStore('audits');
 };
 
-// Get cached criteria
 export const getCachedCriteria = async (): Promise<any[]> => {
   return getAllFromStore('criteria');
 };
 
-// Get cached environments
 export const getCachedEnvironments = async (): Promise<any[]> => {
   return getAllFromStore('environments');
+};
+
+export const getCachedCompanies = async (): Promise<any[]> => {
+  return getAllFromStore('companies');
+};
+
+export const getCachedMasterCriteria = async (): Promise<any[]> => {
+  return getAllFromStore('master_criteria');
+};
+
+export const getCachedMasterModels = async (): Promise<any[]> => {
+  return getAllFromStore('master_models');
+};
+
+// =====================
+// METADATA FUNCTIONS
+// =====================
+export const setLastSyncTime = async (): Promise<void> => {
+  const database = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction('appMetadata', 'readwrite');
+    const store = transaction.objectStore('appMetadata');
+    const request = store.put({ key: 'lastSyncAt', value: new Date().toISOString() });
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+};
+
+export const getLastSyncTime = async (): Promise<string | null> => {
+  const database = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction('appMetadata', 'readonly');
+    const store = transaction.objectStore('appMetadata');
+    const request = store.get('lastSyncAt');
+    request.onsuccess = () => resolve(request.result?.value || null);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+// Clear all cached data (but keep pending sync)
+export const clearAllCaches = async (): Promise<void> => {
+  const stores = ['audits', 'auditItems', 'criteria', 'environments', 'companies', 'master_criteria', 'master_models'];
+  for (const store of stores) {
+    try {
+      await clearStore(store);
+    } catch (e) {
+      console.error(`Error clearing store ${store}:`, e);
+    }
+  }
 };

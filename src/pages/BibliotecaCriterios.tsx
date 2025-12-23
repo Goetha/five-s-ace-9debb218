@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import Header from "@/components/layout/Header";
@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { toUiStatus, toDbStatus, normalizeSenso } from "@/lib/formatters";
 import { StatsCardsSkeleton, CriteriaCardsSkeleton } from "@/components/biblioteca/SkeletonCards";
+import { OfflineBanner } from "@/components/pwa/OfflineBanner";
+import { useOfflineData } from "@/hooks/useOfflineData";
 
 const BibliotecaCriterios = () => {
   const { toast } = useToast();
@@ -34,7 +36,28 @@ const BibliotecaCriterios = () => {
   const [editCriterion, setEditCriterion] = useState<Criteria | null>(null);
   const [filterCompanyId, setFilterCompanyId] = useState<string | null>(null);
 
-  // Load criteria from Supabase on mount
+  // Offline-aware data fetching for master criteria
+  const fetchMasterCriteriaOnline = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("master_criteria")
+      .select("*")
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }, []);
+
+  const { 
+    isOffline, 
+    isFromCache, 
+    lastSyncAt,
+    refetch: refetchOfflineData 
+  } = useOfflineData({
+    cacheKey: 'master_criteria',
+    fetchOnline: fetchMasterCriteriaOnline,
+    enabled: !filterCompanyId, // Only cache global criteria
+  });
+
   // Load criteria from Supabase on mount and when filter changes
   useEffect(() => {
     loadCriteria();
@@ -331,6 +354,17 @@ const BibliotecaCriterios = () => {
       <Header />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Offline Banner */}
+        <OfflineBanner 
+          isOffline={isOffline}
+          isFromCache={isFromCache}
+          lastSyncAt={lastSyncAt}
+          onRefresh={() => {
+            refetchOfflineData();
+            loadCriteria();
+          }}
+        />
+
         {/* Breadcrumb */}
         <nav className="animate-element flex items-center gap-2 text-sm text-muted-foreground">
           <Link to="/" className="hover:text-primary transition-colors">
