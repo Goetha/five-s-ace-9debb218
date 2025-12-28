@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, CheckCircle2, Clock, AlertCircle, BarChart3 } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, Clock, AlertCircle, BarChart3, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { NewAuditDialog } from "@/components/auditorias/NewAuditDialog";
 import { CompanyAuditCard } from "@/components/auditorias/CompanyAuditCard";
@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-
+import { useToast } from "@/hooks/use-toast";
 interface Company {
   id: string;
   name: string;
@@ -56,6 +56,7 @@ interface ScheduledAudit {
 const Auditorias = () => {
   const { userRole } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [groupedAudits, setGroupedAudits] = useState<AuditGroupedData[]>([]);
   const [scheduledAudits, setScheduledAudits] = useState<ScheduledAudit[]>([]);
@@ -64,6 +65,7 @@ const Auditorias = () => {
   const [completedCount, setCompletedCount] = useState(0);
   const [inProgressCount, setInProgressCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isNewAuditDialogOpen, setIsNewAuditDialogOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedCompanyForBoard, setSelectedCompanyForBoard] = useState<AuditGroupedData | null>(null);
@@ -77,6 +79,7 @@ const Auditorias = () => {
 
   const fetchData = async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       // Buscar empresas
       const { data: companiesData, error: companiesError } = await supabase
@@ -327,7 +330,14 @@ const Auditorias = () => {
       setCompletedCount(completed);
       setInProgressCount(inProgress);
     } catch (error: any) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching auditorias data:', error);
+      const errorMessage = error?.message || 'Erro desconhecido ao carregar dados';
+      setLoadError(errorMessage);
+      toast({
+        title: "Erro ao carregar auditorias",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -450,6 +460,18 @@ const Auditorias = () => {
           {isLoading ? (
             <Card className="p-6">
               <p className="text-center text-muted-foreground">Carregando...</p>
+            </Card>
+          ) : loadError ? (
+            <Card className="p-6">
+              <div className="text-center space-y-3">
+                <AlertCircle className="h-10 w-10 text-destructive mx-auto" />
+                <p className="text-destructive font-medium">Erro ao carregar dados</p>
+                <p className="text-sm text-muted-foreground">{loadError}</p>
+                <Button onClick={fetchData} variant="outline" className="gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Tentar novamente
+                </Button>
+              </div>
             </Card>
           ) : groupedAudits.length === 0 ? (
             <Card className="p-6">
