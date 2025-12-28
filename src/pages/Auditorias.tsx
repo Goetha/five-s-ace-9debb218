@@ -14,34 +14,61 @@ import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import type { AuditGroupedData, AuditWithSensoScores, SensoScores } from "@/components/auditorias/AuditBoardView";
+
 interface Company {
   id: string;
   name: string;
 }
 
-interface AuditGroupedData {
-  company_id: string;
+interface ScheduledAudit {
+  id: string;
   company_name: string;
-  areas: {
-    area_id: string;
-    area_name: string;
-    environments: {
-      environment_id: string;
-      environment_name: string;
-      locals: {
-        local_id: string;
-        local_name: string;
-        audits: {
-          id: string;
-          status: string;
-          score: number | null;
-          score_level: string | null;
-          started_at: string;
-          auditor_name?: string;
-        }[];
-      }[];
-    }[];
-  }[];
+  location_name: string;
+  environment_name: string;
+  auditor_name: string;
+  next_audit_date: string;
+}
+
+// Calcula scores por senso baseado nos audit_items
+function calculateSensoScores(
+  auditItems: { answer: boolean | null; senso: string[] | null }[]
+): SensoScores {
+  const sensoData: Record<string, { conforme: number; total: number }> = {
+    '1S': { conforme: 0, total: 0 },
+    '2S': { conforme: 0, total: 0 },
+    '3S': { conforme: 0, total: 0 },
+    '4S': { conforme: 0, total: 0 },
+    '5S': { conforme: 0, total: 0 },
+  };
+
+  for (const item of auditItems) {
+    if (item.answer === null) continue;
+    const sensos = item.senso || [];
+    
+    for (const s of sensos) {
+      if (sensoData[s]) {
+        sensoData[s].total++;
+        if (item.answer === true) {
+          sensoData[s].conforme++;
+        }
+      }
+    }
+  }
+
+  const getScore = (key: string): number | null => {
+    const data = sensoData[key];
+    if (data.total === 0) return null;
+    return (data.conforme / data.total) * 100;
+  };
+
+  return {
+    score_1s: getScore('1S'),
+    score_2s: getScore('2S'),
+    score_3s: getScore('3S'),
+    score_4s: getScore('4S'),
+    score_5s: getScore('5S'),
+  };
 }
 
 interface ScheduledAudit {
@@ -100,23 +127,39 @@ const Auditorias = () => {
       if (auditsError) throw auditsError;
 
       // Buscar dados relacionados em paralelo
-      const [environmentsRes, profilesRes, auditItemsRes] = await Promise.all([
+      const [environmentsRes, profilesRes, auditItemsRes, companyCriteriaRes] = await Promise.all([
         supabase.from('environments').select('id, name, parent_id, company_id'),
         supabase.from('profiles').select('id, full_name'),
-        supabase.from('audit_items').select('audit_id, answer')
+        supabase.from('audit_items').select('audit_id, answer, criterion_id'),
+        supabase.from('company_criteria').select('id, senso')
       ]);
 
       if (environmentsRes.error) throw environmentsRes.error;
       if (profilesRes.error) throw profilesRes.error;
       if (auditItemsRes.error) throw auditItemsRes.error;
+      if (companyCriteriaRes.error) throw companyCriteriaRes.error;
 
       const envs = environmentsRes.data || [];
       const auditItems = auditItemsRes.data || [];
+      const companyCriteria = companyCriteriaRes.data || [];
       
       // Criar mapas para lookup rápido
       const companiesMap = new Map(companiesData?.map(c => [c.id, c]) || []);
       const envMap = new Map(envs.map(e => [e.id, e]));
       const profilesMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
+      const criteriaMap = new Map(companyCriteria.map(c => [c.id, c]));
+
+      // Agrupar audit_items por audit_id com senso de cada critério
+      const auditItemsByAuditId = new Map<string, { answer: boolean | null; senso: string[] | null }[]>();
+      
+      for (const item of auditItems) {
+        const criterion = criteriaMap.get(item.criterion_id);
+        const senso = criterion?.senso || null;
+        
+        const currentItems = auditItemsByAuditId.get(item.audit_id) || [];
+        currentItems.push({ answer: item.answer, senso });
+        auditItemsByAuditId.set(item.audit_id, currentItems);
+      }
 
       // Contar itens respondidos por auditoria
       const auditItemCounts = new Map<string, { answered: number; total: number }>();
@@ -309,13 +352,18 @@ const Auditorias = () => {
             envGroup.locals.push(localGroup);
           }
 
+          // Calcular scores por senso
+          const auditItemsForThisAudit = auditItemsByAuditId.get(audit.id) || [];
+          const sensoScores = calculateSensoScores(auditItemsForThisAudit);
+
           localGroup.audits.push({
             id: audit.id,
             status: audit.status,
             score: audit.score,
             score_level: audit.score_level,
             started_at: audit.started_at,
-            auditor_name: auditor?.full_name
+            auditor_name: auditor?.full_name,
+            ...sensoScores
           });
         }
       }

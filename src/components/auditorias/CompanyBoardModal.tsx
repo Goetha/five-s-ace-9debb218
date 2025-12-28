@@ -1,31 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Building2, X } from "lucide-react";
-import { AuditBoardView } from "./AuditBoardView";
-
-interface AuditGroupedData {
-  company_id: string;
-  company_name: string;
-  areas: {
-    area_id: string;
-    area_name: string;
-    environments: {
-      environment_id: string;
-      environment_name: string;
-      locals: {
-        local_id: string;
-        local_name: string;
-        audits: {
-          id: string;
-          status: string;
-          score: number | null;
-          score_level: string | null;
-          started_at: string;
-          auditor_name?: string;
-        }[];
-      }[];
-    }[];
-  }[];
-}
+import { AuditBoardView, AuditGroupedData } from "./AuditBoardView";
 
 interface CompanyBoardModalProps {
   open: boolean;

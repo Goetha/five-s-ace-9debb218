@@ -4,7 +4,25 @@ import { Building2, ChevronDown, ChevronRight, MapPin, Layers, ChevronsRight, Ch
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-interface AuditGroupedData {
+// Interface para scores por senso
+export interface SensoScores {
+  score_1s: number | null;
+  score_2s: number | null;
+  score_3s: number | null;
+  score_4s: number | null;
+  score_5s: number | null;
+}
+
+export interface AuditWithSensoScores extends SensoScores {
+  id: string;
+  status: string;
+  score: number | null;
+  score_level: string | null;
+  started_at: string;
+  auditor_name?: string;
+}
+
+export interface AuditGroupedData {
   company_id: string;
   company_name: string;
   areas: {
@@ -16,14 +34,7 @@ interface AuditGroupedData {
       locals: {
         local_id: string;
         local_name: string;
-        audits: {
-          id: string;
-          status: string;
-          score: number | null;
-          score_level: string | null;
-          started_at: string;
-          auditor_name?: string;
-        }[];
+        audits: AuditWithSensoScores[];
       }[];
     }[];
   }[];
@@ -175,7 +186,28 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
     return audits.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())[0];
   };
 
-  // Calcular média de scores dos locais em um ambiente
+  // Obter score de um senso específico de uma auditoria
+  const getSensoScore = (audit: AuditWithSensoScores | null, sensoKey: string): number | null => {
+    if (!audit) return null;
+    const key = `score_${sensoKey.toLowerCase()}` as keyof SensoScores;
+    return audit[key];
+  };
+
+  // Calcular média de scores de um senso específico dos locais em um ambiente
+  const getEnvironmentSensoAvgScore = (env: AuditGroupedData['areas'][0]['environments'][0], sensoKey: string): number | null => {
+    const scores: number[] = [];
+    for (const local of env.locals) {
+      const latestAudit = getLatestAudit(local.audits);
+      const sensoScore = getSensoScore(latestAudit, sensoKey);
+      if (sensoScore !== null) {
+        scores.push(sensoScore);
+      }
+    }
+    if (scores.length === 0) return null;
+    return scores.reduce((sum, s) => sum + s, 0) / scores.length;
+  };
+
+  // Calcular média geral de scores dos locais em um ambiente
   const getEnvironmentAvgScore = (env: AuditGroupedData['areas'][0]['environments'][0]): number | null => {
     const scores: number[] = [];
     for (const local of env.locals) {
@@ -188,7 +220,20 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
     return scores.reduce((sum, s) => sum + s, 0) / scores.length;
   };
 
-  // Calcular média de scores dos ambientes em uma área
+  // Calcular média de scores de um senso específico dos ambientes em uma área
+  const getAreaSensoAvgScore = (area: AuditGroupedData['areas'][0], sensoKey: string): number | null => {
+    const scores: number[] = [];
+    for (const env of area.environments) {
+      const envScore = getEnvironmentSensoAvgScore(env, sensoKey);
+      if (envScore !== null) {
+        scores.push(envScore);
+      }
+    }
+    if (scores.length === 0) return null;
+    return scores.reduce((sum, s) => sum + s, 0) / scores.length;
+  };
+
+  // Calcular média geral de scores dos ambientes em uma área
   const getAreaAvgScore = (area: AuditGroupedData['areas'][0]): number | null => {
     const scores: number[] = [];
     for (const env of area.environments) {
@@ -339,18 +384,21 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                 <span className="font-medium text-[10px] sm:text-sm text-amber-900 truncate">{area.area_name}</span>
                               </div>
                             </td>
-                            {/* Scores agregados da área (mesmo score em todas as colunas por enquanto) */}
-                            {SENSOS.map((senso) => (
-                              <td key={senso.key} className="p-1.5 sm:p-2 text-center border-r border-amber-200 last:border-r-0 bg-amber-50">
-                                {areaAvgScore !== null ? (
-                                  <div className="flex justify-center">
-                                    <ScoreIndicator score={areaAvgScore} />
-                                  </div>
-                                ) : (
-                                  <span className="text-amber-300 text-xs">—</span>
-                                )}
-                              </td>
-                            ))}
+                            {/* Scores agregados da área por senso */}
+                            {SENSOS.map((senso) => {
+                              const areaSensoScore = getAreaSensoAvgScore(area, senso.key);
+                              return (
+                                <td key={senso.key} className="p-1.5 sm:p-2 text-center border-r border-amber-200 last:border-r-0 bg-amber-50">
+                                  {areaSensoScore !== null ? (
+                                    <div className="flex justify-center">
+                                      <ScoreIndicator score={areaSensoScore} />
+                                    </div>
+                                  ) : (
+                                    <span className="text-amber-300 text-xs">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
                             <td className="p-1.5 sm:p-2 text-center bg-amber-50">
                               {areaAvgScore !== null ? (
                                 <div className="flex justify-center">
@@ -376,18 +424,21 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                     <span className="text-[10px] sm:text-sm font-medium text-emerald-800 truncate">{env.environment_name}</span>
                                   </div>
                                 </td>
-                                {/* Scores agregados do ambiente */}
-                                {SENSOS.map((senso) => (
-                                  <td key={senso.key} className="p-1.5 sm:p-2 text-center border-r border-emerald-200 last:border-r-0 bg-emerald-50">
-                                    {envAvgScore !== null ? (
-                                      <div className="flex justify-center">
-                                        <ScoreIndicator score={envAvgScore} />
-                                      </div>
-                                    ) : (
-                                      <span className="text-emerald-300 text-xs">—</span>
-                                    )}
-                                  </td>
-                                ))}
+                                {/* Scores agregados do ambiente por senso */}
+                                {SENSOS.map((senso) => {
+                                  const envSensoScore = getEnvironmentSensoAvgScore(env, senso.key);
+                                  return (
+                                    <td key={senso.key} className="p-1.5 sm:p-2 text-center border-r border-emerald-200 last:border-r-0 bg-emerald-50">
+                                      {envSensoScore !== null ? (
+                                        <div className="flex justify-center">
+                                          <ScoreIndicator score={envSensoScore} />
+                                        </div>
+                                      ) : (
+                                        <span className="text-emerald-300 text-xs">—</span>
+                                      )}
+                                    </td>
+                                  );
+                                })}
                                 <td className="p-1.5 sm:p-2 text-center bg-emerald-50">
                                   {envAvgScore !== null ? (
                                     <div className="flex justify-center">
@@ -424,14 +475,17 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                         )}
                                       </div>
                                     </td>
-                                    {/* Para cada Senso */}
-                                    {SENSOS.map((senso) => (
-                                      <td key={senso.key} className="p-1 sm:p-2 text-center border-r border-blue-100 last:border-r-0 bg-white">
-                                        <div className="flex justify-center">
-                                          <ScoreIndicator score={localScore} isLocal />
-                                        </div>
-                                      </td>
-                                    ))}
+                                    {/* Para cada Senso - usar score específico do senso */}
+                                    {SENSOS.map((senso) => {
+                                      const sensoScore = getSensoScore(latestAudit, senso.key);
+                                      return (
+                                        <td key={senso.key} className="p-1 sm:p-2 text-center border-r border-blue-100 last:border-r-0 bg-white">
+                                          <div className="flex justify-center">
+                                            <ScoreIndicator score={sensoScore} isLocal />
+                                          </div>
+                                        </td>
+                                      );
+                                    })}
                                     {/* Coluna GERAL */}
                                     <td className="p-1 sm:p-2 text-center bg-white">
                                       <div className="flex justify-center">
