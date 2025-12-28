@@ -1,11 +1,22 @@
 import { Link } from "react-router-dom";
-import { Building2, BookOpen, Users, ClipboardList, TrendingUp, Activity, Trash2, Loader2 } from "lucide-react";
+import { Building2, BookOpen, Users, ClipboardList, TrendingUp, Activity, Trash2, Loader2, CheckCircle } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+interface ActivityItem {
+  id: string;
+  type: 'company' | 'criteria' | 'model' | 'audit';
+  action: string;
+  name: string;
+  timestamp: string;
+  color: string;
+}
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -19,7 +30,9 @@ const Dashboard = () => {
     activeModels: 0,
     totalUsers: 0,
   });
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingActivities, setIsLoadingActivities] = useState(true);
   const [isCleaningAuth, setIsCleaningAuth] = useState(false);
 
   const handleCleanupAuthUsers = async () => {
@@ -100,7 +113,111 @@ const Dashboard = () => {
       }
     };
 
+    const fetchActivities = async () => {
+      setIsLoadingActivities(true);
+      try {
+        const allActivities: ActivityItem[] = [];
+
+        // Fetch recent companies
+        const { data: recentCompanies } = await supabase
+          .from('companies')
+          .select('id, name, created_at, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(5);
+
+        recentCompanies?.forEach(company => {
+          const isNew = company.created_at === company.updated_at;
+          allActivities.push({
+            id: `company-${company.id}`,
+            type: 'company',
+            action: isNew ? 'Nova empresa cadastrada' : 'Empresa atualizada',
+            name: company.name,
+            timestamp: company.updated_at,
+            color: 'bg-green-500'
+          });
+        });
+
+        // Fetch recent criteria
+        const { data: recentCriteria } = await supabase
+          .from('master_criteria')
+          .select('id, name, created_at, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(5);
+
+        recentCriteria?.forEach(criterion => {
+          const isNew = criterion.created_at === criterion.updated_at;
+          allActivities.push({
+            id: `criteria-${criterion.id}`,
+            type: 'criteria',
+            action: isNew ? 'Critério criado' : 'Critério atualizado',
+            name: criterion.name,
+            timestamp: criterion.updated_at,
+            color: 'bg-blue-500'
+          });
+        });
+
+        // Fetch recent models
+        const { data: recentModels } = await supabase
+          .from('master_models')
+          .select('id, name, created_at, updated_at')
+          .order('updated_at', { ascending: false })
+          .limit(5);
+
+        recentModels?.forEach(model => {
+          const isNew = model.created_at === model.updated_at;
+          allActivities.push({
+            id: `model-${model.id}`,
+            type: 'model',
+            action: isNew ? 'Modelo criado' : 'Modelo atualizado',
+            name: model.name,
+            timestamp: model.updated_at,
+            color: 'bg-purple-500'
+          });
+        });
+
+        // Fetch recent audits
+        const { data: recentAudits } = await supabase
+          .from('audits')
+          .select(`
+            id, 
+            status, 
+            created_at, 
+            completed_at,
+            environments!audits_location_id_fkey(name),
+            companies!audits_company_id_fkey(name)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        recentAudits?.forEach(audit => {
+          const envName = (audit.environments as any)?.name || 'Ambiente';
+          const companyName = (audit.companies as any)?.name || 'Empresa';
+          allActivities.push({
+            id: `audit-${audit.id}`,
+            type: 'audit',
+            action: audit.status === 'completed' ? 'Auditoria concluída' : 'Auditoria iniciada',
+            name: `${envName} - ${companyName}`,
+            timestamp: audit.completed_at || audit.created_at,
+            color: audit.status === 'completed' ? 'bg-emerald-500' : 'bg-orange-500'
+          });
+        });
+
+        // Sort all activities by timestamp
+        allActivities.sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+
+        // Take the 10 most recent
+        setActivities(allActivities.slice(0, 10));
+      } catch (error) {
+        console.error('Error fetching activities:', error);
+      } finally {
+        setIsLoadingActivities(false);
+      }
+    };
+
     fetchStats();
+    fetchActivities();
   }, []);
 
   return (
@@ -343,33 +460,40 @@ const Dashboard = () => {
         {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <CardTitle>Atividade Recente</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Atividade Recente
+            </CardTitle>
             <CardDescription>Últimas ações realizadas no sistema</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start gap-4 text-sm">
-                <div className="w-2 h-2 mt-2 rounded-full bg-green-500" />
-                <div className="flex-1">
-                  <p className="font-medium">Nova empresa cadastrada</p>
-                  <p className="text-muted-foreground">Escritório Contábil Beta - há 2 horas</p>
-                </div>
+            {isLoadingActivities ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-              <div className="flex items-start gap-4 text-sm">
-                <div className="w-2 h-2 mt-2 rounded-full bg-blue-500" />
-                <div className="flex-1">
-                  <p className="font-medium">Critério atualizado</p>
-                  <p className="text-muted-foreground">Organização de Ferramentas - há 4 horas</p>
-                </div>
+            ) : activities.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Activity className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>Nenhuma atividade registrada ainda</p>
               </div>
-              <div className="flex items-start gap-4 text-sm">
-                <div className="w-2 h-2 mt-2 rounded-full bg-blue-500" />
-                <div className="flex-1">
-                  <p className="font-medium">Modelo criado</p>
-                  <p className="text-muted-foreground">5S Industrial Completo - há 1 dia</p>
-                </div>
+            ) : (
+              <div className="space-y-4">
+                {activities.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-4 text-sm">
+                    <div className={`w-2 h-2 mt-2 rounded-full ${activity.color}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium">{activity.action}</p>
+                      <p className="text-muted-foreground truncate">
+                        {activity.name} - {formatDistanceToNow(new Date(activity.timestamp), { 
+                          addSuffix: true, 
+                          locale: ptBR 
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </main>
