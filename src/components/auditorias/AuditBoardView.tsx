@@ -89,11 +89,14 @@ const getScoreIndicator = (score: number | null) => {
 };
 
 // Componente do indicador de score com ícones
-const ScoreIndicator = ({ score, showPercent = false }: { score: number | null; showPercent?: boolean }) => {
+const ScoreIndicator = ({ score, showPercent = false, isGeneral = false }: { score: number | null; showPercent?: boolean; isGeneral?: boolean }) => {
   const indicator = getScoreIndicator(score);
   
   const renderIcon = () => {
-    const iconClass = cn("h-5 w-5 sm:h-6 sm:w-6", indicator.iconColor);
+    const iconClass = cn(
+      isGeneral ? "h-6 w-6 sm:h-7 sm:w-7" : "h-5 w-5 sm:h-6 sm:w-6", 
+      indicator.iconColor
+    );
     switch (indicator.icon) {
       case 'check':
         return <CheckCircle2 className={iconClass} />;
@@ -102,7 +105,7 @@ const ScoreIndicator = ({ score, showPercent = false }: { score: number | null; 
       case 'critical':
         return <XCircle className={iconClass} />;
       default:
-        return <Minus className={cn("h-4 w-4 sm:h-5 sm:w-5", indicator.iconColor)} />;
+        return <Minus className={cn(isGeneral ? "h-5 w-5 sm:h-6 sm:w-6" : "h-4 w-4 sm:h-5 sm:w-5", indicator.iconColor)} />;
     }
   };
   
@@ -110,7 +113,11 @@ const ScoreIndicator = ({ score, showPercent = false }: { score: number | null; 
     <div className="flex flex-col items-center gap-0.5">
       {renderIcon()}
       {indicator.hasScore && (
-        <span className={cn("text-[8px] sm:text-[10px] font-semibold leading-tight", indicator.textColor)}>
+        <span className={cn(
+          "font-semibold leading-tight",
+          isGeneral ? "text-sm sm:text-base font-bold" : "text-[8px] sm:text-[10px]",
+          indicator.textColor
+        )}>
           {showPercent ? indicator.label : indicator.description}
         </span>
       )}
@@ -333,7 +340,7 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                             <td className="p-1.5 sm:p-2 text-center bg-amber-50">
                               {areaAvgScore !== null ? (
                                 <div className="flex justify-center">
-                                  <ScoreIndicator score={areaAvgScore} showPercent />
+                                  <ScoreIndicator score={areaAvgScore} showPercent isGeneral />
                                 </div>
                               ) : (
                                 <span className="text-amber-300 text-xs">—</span>
@@ -370,7 +377,7 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                 <td className="p-1.5 sm:p-2 text-center bg-emerald-50">
                                   {envAvgScore !== null ? (
                                     <div className="flex justify-center">
-                                      <ScoreIndicator score={envAvgScore} showPercent />
+                                      <ScoreIndicator score={envAvgScore} showPercent isGeneral />
                                     </div>
                                   ) : (
                                     <span className="text-emerald-300 text-xs">—</span>
@@ -414,7 +421,7 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                     {/* Coluna GERAL */}
                                     <td className="p-1 sm:p-2 text-center bg-white">
                                       <div className="flex justify-center">
-                                        <ScoreIndicator score={localScore} showPercent />
+                                        <ScoreIndicator score={localScore} showPercent isGeneral />
                                       </div>
                                     </td>
                                   </tr>
