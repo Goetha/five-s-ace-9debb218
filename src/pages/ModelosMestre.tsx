@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,8 @@ import { StatsCardsSkeleton4, ModelCardsSkeleton, SearchBarSkeleton } from "@/co
 import { useToast } from "@/hooks/use-toast";
 import { MasterModel, ModelFilters } from "@/types/model";
 import { Card, CardContent } from "@/components/ui/card";
+import { useOfflineData } from "@/hooks/useOfflineData";
+import { OfflineBanner } from "@/components/pwa/OfflineBanner";
 
 const ModelosMestre = () => {
   const { toast } = useToast();
@@ -432,6 +434,15 @@ const ModelosMestre = () => {
       <Header />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Offline Banner */}
+        <OfflineBanner 
+          isOffline={!navigator.onLine}
+          isFromCache={false}
+          lastSyncAt={null}
+          onRefresh={fetchModels}
+          isRefreshing={loading}
+        />
+
         {/* Breadcrumb */}
         <Breadcrumb className="animate-element">
           <BreadcrumbList>
