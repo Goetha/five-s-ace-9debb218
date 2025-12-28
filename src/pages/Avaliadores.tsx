@@ -13,6 +13,7 @@ import { NewAuditorModal } from "@/components/avaliadores/NewAuditorModal";
 import { Auditor } from "@/types/auditor";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { OfflineBanner } from "@/components/pwa/OfflineBanner";
 import {
   Select,
   SelectContent,
@@ -151,6 +152,15 @@ const Avaliadores = () => {
       <Header />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Offline Banner */}
+        <OfflineBanner 
+          isOffline={!navigator.onLine}
+          isFromCache={false}
+          lastSyncAt={null}
+          onRefresh={loadAuditors}
+          isRefreshing={loading}
+        />
+
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -161,7 +171,7 @@ const Avaliadores = () => {
               Gerencie auditores e suas empresas vinculadas
             </p>
           </div>
-          <Button onClick={() => setNewModalOpen(true)}>
+          <Button onClick={() => setNewModalOpen(true)} disabled={!navigator.onLine}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Avaliador
           </Button>
