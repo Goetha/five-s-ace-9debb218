@@ -8,7 +8,8 @@ import type {
   LocationRanking,
   SensoKey,
   EnvironmentNode,
-  NonConformityDetail
+  NonConformityDetail,
+  EnvironmentSensoRow
 } from "./reportTypes";
 import { SENSO_CONFIG, sanitizeTextForPDF } from "./reportTypes";
 
@@ -47,6 +48,131 @@ function buildEnvironmentTree(environments: Array<{ id: string; name: string; pa
   roots.forEach(r => setLevels(r, 0));
   
   return roots;
+}
+
+// Build environment senso table with scores per environment
+function buildEnvironmentSensoTable(
+  environments: Array<{ id: string; name: string; parent_id: string | null }>,
+  audits: Array<{ id: string; location_id: string; score: number | null }>,
+  items: Array<AuditItemReportData & { audit_id: string }>
+): EnvironmentSensoRow[] {
+  const envMap = new Map(environments.map(e => [e.id, e]));
+  
+  // Calculate level for each environment
+  function getLevel(envId: string): number {
+    let level = 0;
+    let currentId: string | null = envId;
+    while (currentId) {
+      const env = envMap.get(currentId);
+      if (!env || !env.parent_id) break;
+      currentId = env.parent_id;
+      level++;
+    }
+    return level;
+  }
+  
+  // Group items by audit location
+  const auditLocationMap = new Map<string, string>();
+  for (const audit of audits) {
+    auditLocationMap.set(audit.id, audit.location_id);
+  }
+  
+  // Group items by location
+  const locationItemsMap = new Map<string, Array<AuditItemReportData & { audit_id: string }>>();
+  for (const item of items) {
+    const locationId = auditLocationMap.get(item.audit_id);
+    if (locationId) {
+      if (!locationItemsMap.has(locationId)) {
+        locationItemsMap.set(locationId, []);
+      }
+      locationItemsMap.get(locationId)!.push(item);
+    }
+  }
+  
+  // Calculate senso scores for each environment (including aggregation from children)
+  function calculateEnvSensoScores(envId: string): {
+    '1S': { total: number; conforme: number };
+    '2S': { total: number; conforme: number };
+    '3S': { total: number; conforme: number };
+    '4S': { total: number; conforme: number };
+    '5S': { total: number; conforme: number };
+  } {
+    const scores = {
+      '1S': { total: 0, conforme: 0 },
+      '2S': { total: 0, conforme: 0 },
+      '3S': { total: 0, conforme: 0 },
+      '4S': { total: 0, conforme: 0 },
+      '5S': { total: 0, conforme: 0 },
+    };
+    
+    // Items from this location
+    const locationItems = locationItemsMap.get(envId) || [];
+    for (const item of locationItems) {
+      if (item.answer === null) continue;
+      for (const s of item.senso || []) {
+        if (scores[s as keyof typeof scores]) {
+          scores[s as keyof typeof scores].total++;
+          if (item.answer === true) {
+            scores[s as keyof typeof scores].conforme++;
+          }
+        }
+      }
+    }
+    
+    // Add scores from children
+    for (const env of environments) {
+      if (env.parent_id === envId) {
+        const childScores = calculateEnvSensoScores(env.id);
+        for (const s of ['1S', '2S', '3S', '4S', '5S'] as const) {
+          scores[s].total += childScores[s].total;
+          scores[s].conforme += childScores[s].conforme;
+        }
+      }
+    }
+    
+    return scores;
+  }
+  
+  // Build flat list ordered by hierarchy
+  const rows: EnvironmentSensoRow[] = [];
+  
+  function addEnvAndChildren(envId: string | null, parentLevel: number) {
+    const children = environments.filter(e => e.parent_id === envId);
+    for (const child of children) {
+      const level = parentLevel + 1;
+      const sensoData = calculateEnvSensoScores(child.id);
+      
+      const sensoScores = {
+        '1S': sensoData['1S'].total > 0 ? (sensoData['1S'].conforme / sensoData['1S'].total) * 100 : null,
+        '2S': sensoData['2S'].total > 0 ? (sensoData['2S'].conforme / sensoData['2S'].total) * 100 : null,
+        '3S': sensoData['3S'].total > 0 ? (sensoData['3S'].conforme / sensoData['3S'].total) * 100 : null,
+        '4S': sensoData['4S'].total > 0 ? (sensoData['4S'].conforme / sensoData['4S'].total) * 100 : null,
+        '5S': sensoData['5S'].total > 0 ? (sensoData['5S'].conforme / sensoData['5S'].total) * 100 : null,
+      };
+      
+      const totalItems = Object.values(sensoData).reduce((sum, s) => sum + s.total, 0);
+      const totalConforme = Object.values(sensoData).reduce((sum, s) => sum + s.conforme, 0);
+      const averageScore = totalItems > 0 ? (totalConforme / totalItems) * 100 : null;
+      
+      rows.push({
+        id: child.id,
+        name: sanitizeTextForPDF(child.name),
+        level,
+        parent_id: child.parent_id,
+        senso_scores: sensoScores,
+        average_score: averageScore,
+        has_audits: locationItemsMap.has(child.id) || environments.some(e => e.parent_id === child.id)
+      });
+      
+      // Recursively add children
+      addEnvAndChildren(child.id, level);
+    }
+  }
+  
+  // Start from root (null parent)
+  addEnvAndChildren(null, -1);
+  
+  return rows;
 }
 
 // Get full location path
@@ -316,6 +442,13 @@ export async function fetchCompanyReportData(
       }))
       .sort((a, b) => b.average_score - a.average_score);
 
+    // Build environment senso table
+    const environmentSensoTable = buildEnvironmentSensoTable(
+      environments || [],
+      audits || [],
+      allItems
+    );
+
     return {
       company_id: company.id,
       company_name: sanitizeTextForPDF(company.name),
@@ -327,6 +460,7 @@ export async function fetchCompanyReportData(
       senso_averages: sensoAverages,
       locations_ranking: locationsRanking,
       environment_tree: environmentTree,
+      environment_senso_table: environmentSensoTable,
       non_conformities: nonConformities,
       total_conformities: totalConformities,
       total_non_conformities: totalNonConformities

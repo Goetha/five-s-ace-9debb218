@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import type { AuditReportData, CompanyReportData, EnvironmentNode, NonConformityDetail } from './reportTypes';
+import type { AuditReportData, CompanyReportData, EnvironmentNode, NonConformityDetail, EnvironmentSensoRow } from './reportTypes';
 import { SENSO_CONFIG, SensoKey, sanitizeTextForPDF } from './reportTypes';
 import { getScoreLevelLabel, getScoreLevelColor, fetchImageAsBase64 } from './reportDataFormatter';
 import { format } from 'date-fns';
@@ -207,6 +207,166 @@ function renderEnvironmentTree(helpers: PDFHelpers, nodes: EnvironmentNode[], in
       renderEnvironmentTree(helpers, node.children, indent + 1);
     }
   }
+}
+
+// Get score indicator symbol
+function getScoreIndicator(score: number | null): { symbol: string; color: string } {
+  if (score === null) return { symbol: '-', color: '#9CA3AF' };
+  if (score >= 80) return { symbol: 'O', color: '#10B981' }; // Good - green circle
+  if (score >= 50) return { symbol: 'O', color: '#F59E0B' }; // Medium - yellow circle
+  return { symbol: 'O', color: '#EF4444' }; // Bad - red circle
+}
+
+// Render hierarchical environment senso table
+function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSensoRow[]) {
+  const { pdf, pageWidth } = helpers;
+  const colWidth = 22;
+  const nameColWidth = pageWidth - 2 * PAGE_MARGIN - (6 * colWidth); // Name column + 5 senso + 1 average
+  const tableLeft = PAGE_MARGIN;
+  
+  // Table header
+  checkPageBreak(helpers, 15);
+  const headerY = helpers.yPos;
+  
+  // Header background
+  pdf.setFillColor('#F3F4F6');
+  pdf.rect(tableLeft, headerY, pageWidth - 2 * PAGE_MARGIN, 12, 'F');
+  
+  // Header text
+  addText(helpers, 'Ambiente / Local', tableLeft + 3, headerY + 8, { fontSize: 8, fontStyle: 'bold', color: '#374151' });
+  
+  // Senso column headers with colors
+  const sensoHeaders = [
+    { key: '1S', label: '1S', subLabel: 'Utilizacao', color: SENSO_CONFIG['1S'].color },
+    { key: '2S', label: '2S', subLabel: 'Organizacao', color: SENSO_CONFIG['2S'].color },
+    { key: '3S', label: '3S', subLabel: 'Limpeza', color: SENSO_CONFIG['3S'].color },
+    { key: '4S', label: '4S', subLabel: 'Saude', color: SENSO_CONFIG['4S'].color },
+    { key: '5S', label: '5S', subLabel: 'Disciplina', color: SENSO_CONFIG['5S'].color },
+  ];
+  
+  sensoHeaders.forEach((senso, i) => {
+    const x = tableLeft + nameColWidth + (i * colWidth);
+    pdf.setFillColor(senso.color);
+    pdf.rect(x, headerY, colWidth, 12, 'F');
+    addText(helpers, senso.label, x + colWidth/2 - 3, headerY + 5, { fontSize: 8, fontStyle: 'bold', color: '#FFFFFF' });
+    addText(helpers, senso.subLabel.substring(0, 10), x + 2, headerY + 10, { fontSize: 5, color: '#FFFFFF' });
+  });
+  
+  // Average column header
+  const avgX = tableLeft + nameColWidth + (5 * colWidth);
+  pdf.setFillColor('#6B7280');
+  pdf.rect(avgX, headerY, colWidth, 12, 'F');
+  addText(helpers, 'GERAL', avgX + 3, headerY + 5, { fontSize: 7, fontStyle: 'bold', color: '#FFFFFF' });
+  addText(helpers, 'Media', avgX + 5, headerY + 10, { fontSize: 5, color: '#FFFFFF' });
+  
+  helpers.yPos += 14;
+  
+  // Render rows
+  for (const row of rows) {
+    checkPageBreak(helpers, 10);
+    
+    const rowY = helpers.yPos;
+    const indent = row.level * 8;
+    
+    // Row background based on level
+    let bgColor = '#FFFFFF';
+    if (row.level === 0) bgColor = '#F0FDF4'; // Root - light green
+    else if (row.level === 1) bgColor = '#ECFDF5'; // Area - lighter green
+    else if (row.level === 2) bgColor = '#FFFFFF'; // Environment - white
+    else bgColor = '#F9FAFB'; // Local - light gray
+    
+    pdf.setFillColor(bgColor);
+    pdf.rect(tableLeft, rowY, pageWidth - 2 * PAGE_MARGIN, 8, 'F');
+    
+    // Draw borders
+    pdf.setDrawColor('#E5E7EB');
+    pdf.rect(tableLeft, rowY, pageWidth - 2 * PAGE_MARGIN, 8, 'S');
+    
+    // Level indicator icon
+    let levelIcon = '';
+    let levelColor = '#6B7280';
+    if (row.level === 0) {
+      levelIcon = 'v '; // Root - expandable
+      levelColor = '#059669';
+    } else if (row.level === 1) {
+      levelIcon = '* '; // Area
+      levelColor = '#10B981';
+    } else if (row.level === 2) {
+      levelIcon = '@ '; // Environment
+      levelColor = '#3B82F6';
+    } else {
+      levelIcon = '> '; // Local
+      levelColor = '#6B7280';
+    }
+    
+    // Environment name with indent
+    const displayName = row.name.length > 25 ? row.name.substring(0, 22) + '...' : row.name;
+    addText(helpers, levelIcon, tableLeft + 2 + indent, rowY + 5, { fontSize: 7, color: levelColor });
+    addText(helpers, displayName, tableLeft + 10 + indent, rowY + 5, { 
+      fontSize: row.level <= 1 ? 8 : 7, 
+      fontStyle: row.level <= 1 ? 'bold' : 'normal',
+      color: row.level === 0 ? '#059669' : row.level === 1 ? '#10B981' : '#374151' 
+    });
+    
+    // Senso score cells
+    const sensoKeys = ['1S', '2S', '3S', '4S', '5S'] as const;
+    sensoKeys.forEach((key, i) => {
+      const x = tableLeft + nameColWidth + (i * colWidth);
+      const score = row.senso_scores[key];
+      const indicator = getScoreIndicator(score);
+      
+      // Draw cell border
+      pdf.setDrawColor('#E5E7EB');
+      pdf.rect(x, rowY, colWidth, 8, 'S');
+      
+      if (score !== null) {
+        // Draw colored circle indicator
+        pdf.setFillColor(indicator.color);
+        pdf.circle(x + colWidth/2, rowY + 4, 2.5, 'F');
+      } else {
+        // Draw dash for no data
+        addText(helpers, '-', x + colWidth/2 - 1, rowY + 5, { fontSize: 8, color: '#9CA3AF' });
+      }
+    });
+    
+    // Average score cell
+    pdf.setDrawColor('#E5E7EB');
+    pdf.rect(avgX, rowY, colWidth, 8, 'S');
+    
+    if (row.average_score !== null) {
+      const avgIndicator = getScoreIndicator(row.average_score);
+      pdf.setFillColor(avgIndicator.color);
+      pdf.circle(avgX + colWidth/2, rowY + 4, 2.5, 'F');
+    } else {
+      addText(helpers, '-', avgX + colWidth/2 - 1, rowY + 5, { fontSize: 8, color: '#9CA3AF' });
+    }
+    
+    helpers.yPos += 8;
+  }
+  
+  // Legend
+  helpers.yPos += 5;
+  checkPageBreak(helpers, 15);
+  
+  addText(helpers, 'Legenda:', PAGE_MARGIN, helpers.yPos, { fontSize: 7, fontStyle: 'bold', color: '#6B7280' });
+  helpers.yPos += 6;
+  
+  const legendItems = [
+    { color: '#10B981', label: 'Bom (>=80%)' },
+    { color: '#F59E0B', label: 'Regular (50-79%)' },
+    { color: '#EF4444', label: 'Critico (<50%)' },
+    { color: '#9CA3AF', label: 'Sem dados' },
+  ];
+  
+  let legendX = PAGE_MARGIN;
+  for (const item of legendItems) {
+    pdf.setFillColor(item.color);
+    pdf.circle(legendX + 3, helpers.yPos, 2, 'F');
+    addText(helpers, item.label, legendX + 8, helpers.yPos + 1.5, { fontSize: 6, color: '#6B7280' });
+    legendX += 35;
+  }
+  
+  helpers.yPos += 8;
 }
 
 export async function generateAuditPDF(data: AuditReportData): Promise<void> {
@@ -441,10 +601,10 @@ export async function generateCompanyReportPDF(data: CompanyReportData): Promise
   addLine(helpers, helpers.yPos);
   helpers.yPos += 10;
 
-  // Environment structure
-  if (data.environment_tree.length > 0) {
-    addSectionHeader(helpers, 'ESTRUTURA DE AMBIENTES');
-    renderEnvironmentTree(helpers, data.environment_tree);
+  // Environment Senso Table (hierarchical)
+  if (data.environment_senso_table.length > 0) {
+    addSectionHeader(helpers, 'DESEMPENHO POR AMBIENTE / LOCAL');
+    renderEnvironmentSensoTable(helpers, data.environment_senso_table);
     helpers.yPos += 5;
     addLine(helpers, helpers.yPos);
     helpers.yPos += 10;
