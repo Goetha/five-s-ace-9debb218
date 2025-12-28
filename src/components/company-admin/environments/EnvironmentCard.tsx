@@ -74,16 +74,15 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
 
   const fetchCriteriaCounts = async () => {
     try {
-      const localIds = locations
-        .filter(loc => getLevel(loc) === 3)
-        .map(loc => loc.id);
+      // Get all environment IDs from locations list
+      const allEnvIds = locations.map(loc => loc.id);
 
-      if (localIds.length === 0) return;
+      if (allEnvIds.length === 0) return;
 
       const { data, error } = await supabase
         .from('environment_criteria')
         .select('environment_id')
-        .in('environment_id', localIds);
+        .in('environment_id', allEnvIds);
 
       if (error) throw error;
 
