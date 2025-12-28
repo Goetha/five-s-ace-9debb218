@@ -141,6 +141,32 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
     return audits.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())[0];
   };
 
+  // Calcular média de scores dos locais em um ambiente
+  const getEnvironmentAvgScore = (env: AuditGroupedData['areas'][0]['environments'][0]): number | null => {
+    const scores: number[] = [];
+    for (const local of env.locals) {
+      const latestAudit = getLatestAudit(local.audits);
+      if (latestAudit?.score !== null && latestAudit?.score !== undefined) {
+        scores.push(latestAudit.score);
+      }
+    }
+    if (scores.length === 0) return null;
+    return scores.reduce((sum, s) => sum + s, 0) / scores.length;
+  };
+
+  // Calcular média de scores dos ambientes em uma área
+  const getAreaAvgScore = (area: AuditGroupedData['areas'][0]): number | null => {
+    const scores: number[] = [];
+    for (const env of area.environments) {
+      const envScore = getEnvironmentAvgScore(env);
+      if (envScore !== null) {
+        scores.push(envScore);
+      }
+    }
+    if (scores.length === 0) return null;
+    return scores.reduce((sum, s) => sum + s, 0) / scores.length;
+  };
+
   if (groupedAudits.length === 0) {
     return (
       <Card className="p-6">
@@ -258,6 +284,7 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                   <tbody>
                     {company.areas.map((area) => {
                       const isAreaExpanded = expandedAreas.includes(area.area_id);
+                      const areaAvgScore = getAreaAvgScore(area);
                       
                       return (
                         <>
@@ -278,19 +305,34 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                 <span className="font-medium text-[10px] sm:text-sm text-amber-900 truncate">{area.area_name}</span>
                               </div>
                             </td>
-                            {/* Células vazias para área */}
+                            {/* Scores agregados da área (mesmo score em todas as colunas por enquanto) */}
                             {SENSOS.map((senso) => (
                               <td key={senso.key} className="p-1.5 sm:p-2 text-center border-r border-amber-200 last:border-r-0 bg-amber-50">
-                                <span className="text-amber-300 text-xs">—</span>
+                                {areaAvgScore !== null ? (
+                                  <div className="flex justify-center">
+                                    <ScoreIndicator score={areaAvgScore} />
+                                  </div>
+                                ) : (
+                                  <span className="text-amber-300 text-xs">—</span>
+                                )}
                               </td>
                             ))}
                             <td className="p-1.5 sm:p-2 text-center bg-amber-50">
-                              <span className="text-amber-300 text-xs">—</span>
+                              {areaAvgScore !== null ? (
+                                <div className="flex justify-center">
+                                  <ScoreIndicator score={areaAvgScore} showPercent />
+                                </div>
+                              ) : (
+                                <span className="text-amber-300 text-xs">—</span>
+                              )}
                             </td>
                           </tr>
 
                           {/* Ambientes e Locais */}
-                          {isAreaExpanded && area.environments.map((env) => (
+                          {isAreaExpanded && area.environments.map((env) => {
+                            const envAvgScore = getEnvironmentAvgScore(env);
+                            
+                            return (
                             <>
                               {/* Linha do Ambiente */}
                               <tr key={env.environment_id} className="border-b border-emerald-200 bg-emerald-100">
@@ -300,13 +342,26 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                     <span className="text-[10px] sm:text-sm font-medium text-emerald-800 truncate">{env.environment_name}</span>
                                   </div>
                                 </td>
+                                {/* Scores agregados do ambiente */}
                                 {SENSOS.map((senso) => (
                                   <td key={senso.key} className="p-1.5 sm:p-2 text-center border-r border-emerald-200 last:border-r-0 bg-emerald-50">
-                                    <span className="text-emerald-300 text-xs">—</span>
+                                    {envAvgScore !== null ? (
+                                      <div className="flex justify-center">
+                                        <ScoreIndicator score={envAvgScore} />
+                                      </div>
+                                    ) : (
+                                      <span className="text-emerald-300 text-xs">—</span>
+                                    )}
                                   </td>
                                 ))}
                                 <td className="p-1.5 sm:p-2 text-center bg-emerald-50">
-                                  <span className="text-emerald-300 text-xs">—</span>
+                                  {envAvgScore !== null ? (
+                                    <div className="flex justify-center">
+                                      <ScoreIndicator score={envAvgScore} showPercent />
+                                    </div>
+                                  ) : (
+                                    <span className="text-emerald-300 text-xs">—</span>
+                                  )}
                                 </td>
                               </tr>
 
@@ -353,7 +408,8 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                 );
                               })}
                             </>
-                          ))}
+                            );
+                          })}
                         </>
                       );
                     })}
