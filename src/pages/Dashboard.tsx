@@ -1,12 +1,9 @@
 import { Link } from "react-router-dom";
-import { Building2, BookOpen, Users, ClipboardList, TrendingUp, Activity, Trash2 } from "lucide-react";
+import { Building2, BookOpen, Users, ClipboardList, TrendingUp, Activity, Trash2, Loader2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { Company } from "@/types/company";
-import { Criteria } from "@/types/criteria";
-import { MasterModel } from "@/types/model";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -19,8 +16,10 @@ const Dashboard = () => {
     activeCriteria: 0,
     inactiveCriteria: 0,
     totalModels: 0,
+    activeModels: 0,
     totalUsers: 0,
   });
+  const [isLoading, setIsLoading] = useState(true);
   const [isCleaningAuth, setIsCleaningAuth] = useState(false);
 
   const handleCleanupAuthUsers = async () => {
@@ -46,33 +45,62 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    // Load companies
-    const companiesData = localStorage.getItem("companies");
-    const companies: Company[] = companiesData ? JSON.parse(companiesData) : [];
-    
-    // Load criteria
-    const criteriaData = localStorage.getItem("criteria");
-    const criteria: Criteria[] = criteriaData ? JSON.parse(criteriaData) : [];
-    
-    // Load models
-    const modelsData = localStorage.getItem("models");
-    const models: MasterModel[] = modelsData ? JSON.parse(modelsData) : [];
+    const fetchStats = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch companies from Supabase
+        const { data: companies, error: companiesError } = await supabase
+          .from('companies')
+          .select('id, status');
+        
+        if (companiesError) throw companiesError;
 
-    // Calculate stats
-    const activeCompanies = companies.filter(c => c.status === "active").length;
-    const activeCriteria = criteria.filter(c => c.status === "Ativo").length;
-    const totalUsers = companies.reduce((sum, c) => sum + (c.total_users || 0), 0);
+        // Fetch criteria from Supabase
+        const { data: criteria, error: criteriaError } = await supabase
+          .from('master_criteria')
+          .select('id, status');
+        
+        if (criteriaError) throw criteriaError;
 
-    setStats({
-      totalCompanies: companies.length,
-      activeCompanies,
-      inactiveCompanies: companies.length - activeCompanies,
-      totalCriteria: criteria.length,
-      activeCriteria,
-      inactiveCriteria: criteria.length - activeCriteria,
-      totalModels: models.length,
-      totalUsers,
-    });
+        // Fetch models from Supabase
+        const { data: models, error: modelsError } = await supabase
+          .from('master_models')
+          .select('id, status');
+        
+        if (modelsError) throw modelsError;
+
+        // Fetch user count from profiles
+        const { count: usersCount, error: usersError } = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true });
+
+        if (usersError) throw usersError;
+
+        // Calculate stats
+        const activeCompanies = companies?.filter(c => c.status === 'active').length || 0;
+        const activeCriteria = criteria?.filter(c => c.status === 'active').length || 0;
+        const activeModels = models?.filter(m => m.status === 'active').length || 0;
+
+        setStats({
+          totalCompanies: companies?.length || 0,
+          activeCompanies,
+          inactiveCompanies: (companies?.length || 0) - activeCompanies,
+          totalCriteria: criteria?.length || 0,
+          activeCriteria,
+          inactiveCriteria: (criteria?.length || 0) - activeCriteria,
+          totalModels: models?.length || 0,
+          activeModels,
+          totalUsers: usersCount || 0,
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+        toast.error('Erro ao carregar estatísticas');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
   }, []);
 
   return (
@@ -98,10 +126,16 @@ const Dashboard = () => {
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalCompanies}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats.activeCompanies} ativas, {stats.inactiveCompanies} inativas
-              </p>
+              {isLoading ? (
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats.totalCompanies}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {stats.activeCompanies} ativas, {stats.inactiveCompanies} inativas
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -111,10 +145,16 @@ const Dashboard = () => {
               <BookOpen className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalCriteria}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats.activeCriteria} ativos, {stats.inactiveCriteria} inativos
-              </p>
+              {isLoading ? (
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats.totalCriteria}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {stats.activeCriteria} ativos, {stats.inactiveCriteria} inativos
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -124,8 +164,14 @@ const Dashboard = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1</div>
-              <p className="text-xs text-muted-foreground">IFA Admin</p>
+              {isLoading ? (
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats.totalUsers}</div>
+                  <p className="text-xs text-muted-foreground">Cadastrados no sistema</p>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -135,8 +181,16 @@ const Dashboard = () => {
               <ClipboardList className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalModels}</div>
-              <p className="text-xs text-muted-foreground">Cadastrados no sistema</p>
+              {isLoading ? (
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{stats.totalModels}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {stats.activeModels} ativos
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
