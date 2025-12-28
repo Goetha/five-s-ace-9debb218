@@ -89,7 +89,7 @@ const getScoreIndicator = (score: number | null) => {
 };
 
 // Componente do indicador de score com ícones
-const ScoreIndicator = ({ score, showPercent = false, isGeneral = false }: { score: number | null; showPercent?: boolean; isGeneral?: boolean }) => {
+const ScoreIndicator = ({ score, showPercent = false, isGeneral = false, isLocal = false }: { score: number | null; showPercent?: boolean; isGeneral?: boolean; isLocal?: boolean }) => {
   const indicator = getScoreIndicator(score);
   
   const renderIcon = () => {
@@ -108,6 +108,20 @@ const ScoreIndicator = ({ score, showPercent = false, isGeneral = false }: { sco
         return <Minus className={cn(isGeneral ? "h-5 w-5 sm:h-6 sm:w-6" : "h-4 w-4 sm:h-5 sm:w-5", indicator.iconColor)} />;
     }
   };
+  
+  // Para locais, mostrar apenas o valor percentual grande
+  if (isLocal && indicator.hasScore) {
+    return (
+      <div className="flex flex-col items-center justify-center">
+        <span className={cn(
+          "text-sm sm:text-base font-bold leading-tight",
+          indicator.textColor
+        )}>
+          {indicator.label}
+        </span>
+      </div>
+    );
+  }
   
   return (
     <div className="flex flex-col items-center gap-0.5">
@@ -414,14 +428,14 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                     {SENSOS.map((senso) => (
                                       <td key={senso.key} className="p-1 sm:p-2 text-center border-r border-blue-100 last:border-r-0 bg-white">
                                         <div className="flex justify-center">
-                                          <ScoreIndicator score={localScore} />
+                                          <ScoreIndicator score={localScore} isLocal />
                                         </div>
                                       </td>
                                     ))}
                                     {/* Coluna GERAL */}
                                     <td className="p-1 sm:p-2 text-center bg-white">
                                       <div className="flex justify-center">
-                                        <ScoreIndicator score={localScore} showPercent isGeneral />
+                                        <ScoreIndicator score={localScore} showPercent isGeneral isLocal />
                                       </div>
                                     </td>
                                   </tr>
