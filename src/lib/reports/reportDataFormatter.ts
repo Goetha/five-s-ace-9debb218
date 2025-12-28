@@ -12,14 +12,13 @@ import { SENSO_CONFIG } from "./reportTypes";
 
 export async function fetchAuditReportData(auditId: string): Promise<AuditReportData | null> {
   try {
-    // Fetch audit with related data
+    // Fetch audit with related data (without profiles join - no FK exists)
     const { data: audit, error: auditError } = await supabase
       .from('audits')
       .select(`
         *,
         environments!audits_location_id_fkey(id, name, parent_id),
-        companies!audits_company_id_fkey(name),
-        profiles!audits_auditor_id_fkey(full_name)
+        companies!audits_company_id_fkey(name)
       `)
       .eq('id', auditId)
       .single();
@@ -28,6 +27,13 @@ export async function fetchAuditReportData(auditId: string): Promise<AuditReport
       console.error('Error fetching audit:', auditError);
       return null;
     }
+
+    // Fetch auditor profile separately
+    const { data: auditorProfile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', audit.auditor_id)
+      .single();
 
     // Fetch audit items with criterion info for senso
     const { data: items, error: itemsError } = await supabase
@@ -66,7 +72,7 @@ export async function fetchAuditReportData(auditId: string): Promise<AuditReport
       location_name: (audit.environments as any)?.name || 'N/A',
       area_name: locationHierarchy.area_name,
       environment_name: locationHierarchy.environment_name,
-      auditor_name: (audit.profiles as any)?.full_name || 'N/A',
+      auditor_name: auditorProfile?.full_name || 'N/A',
       started_at: audit.started_at || audit.created_at,
       completed_at: audit.completed_at,
       total_questions: audit.total_questions,
@@ -100,13 +106,12 @@ export async function fetchCompanyReportData(
 
     if (companyError || !company) return null;
 
-    // Build query for audits
+    // Build query for audits (without profiles join - no FK exists)
     let query = supabase
       .from('audits')
       .select(`
         *,
-        environments!audits_location_id_fkey(name),
-        profiles!audits_auditor_id_fkey(full_name)
+        environments!audits_location_id_fkey(name)
       `)
       .eq('company_id', companyId)
       .eq('status', 'completed')
@@ -121,6 +126,15 @@ export async function fetchCompanyReportData(
 
     const { data: audits, error: auditsError } = await query;
     if (auditsError) return null;
+
+    // Fetch auditor profiles separately
+    const auditorIds = [...new Set((audits || []).map(a => a.auditor_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', auditorIds);
+    
+    const profilesMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
 
     // Fetch all items for these audits
     const auditIds = (audits || []).map(a => a.id);
@@ -155,7 +169,7 @@ export async function fetchCompanyReportData(
       location_name: (audit.environments as any)?.name || 'N/A',
       date: audit.completed_at || audit.started_at || '',
       score: audit.score,
-      auditor_name: (audit.profiles as any)?.full_name || 'N/A'
+      auditor_name: profilesMap.get(audit.auditor_id) || 'N/A'
     }));
 
     // Calculate location rankings
