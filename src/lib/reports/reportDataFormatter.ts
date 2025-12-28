@@ -4,15 +4,71 @@ import type {
   AuditItemReportData, 
   SensoScore, 
   CompanyReportData,
-  AuditSummary,
+  ExtendedAuditSummary,
   LocationRanking,
-  SensoKey
+  SensoKey,
+  EnvironmentNode,
+  NonConformityDetail
 } from "./reportTypes";
-import { SENSO_CONFIG } from "./reportTypes";
+import { SENSO_CONFIG, sanitizeTextForPDF } from "./reportTypes";
+
+// Build environment tree from flat list
+function buildEnvironmentTree(environments: Array<{ id: string; name: string; parent_id: string | null }>): EnvironmentNode[] {
+  const envMap = new Map<string, EnvironmentNode>();
+  
+  // Create nodes
+  for (const env of environments) {
+    envMap.set(env.id, {
+      id: env.id,
+      name: sanitizeTextForPDF(env.name),
+      parent_id: env.parent_id,
+      children: [],
+      level: 0
+    });
+  }
+  
+  // Build tree
+  const roots: EnvironmentNode[] = [];
+  for (const node of envMap.values()) {
+    if (node.parent_id && envMap.has(node.parent_id)) {
+      envMap.get(node.parent_id)!.children.push(node);
+    } else if (!node.parent_id) {
+      roots.push(node);
+    }
+  }
+  
+  // Set levels
+  function setLevels(node: EnvironmentNode, level: number) {
+    node.level = level;
+    for (const child of node.children) {
+      setLevels(child, level + 1);
+    }
+  }
+  roots.forEach(r => setLevels(r, 0));
+  
+  return roots;
+}
+
+// Get full location path
+function getLocationPath(
+  locationId: string, 
+  envMap: Map<string, { id: string; name: string; parent_id: string | null }>
+): string {
+  const parts: string[] = [];
+  let currentId: string | null = locationId;
+  
+  while (currentId && envMap.has(currentId)) {
+    const env = envMap.get(currentId)!;
+    parts.unshift(sanitizeTextForPDF(env.name));
+    currentId = env.parent_id;
+  }
+  
+  return parts.join(' > ');
+}
 
 export async function fetchAuditReportData(auditId: string): Promise<AuditReportData | null> {
   try {
-    // Fetch audit with related data (without profiles join - no FK exists)
+    // Fetch audit with related data
     const { data: audit, error: auditError } = await supabase
       .from('audits')
       .select(`
@@ -35,12 +91,20 @@ export async function fetchAuditReportData(auditId: string): Promise<AuditReport
       .eq('id', audit.auditor_id)
       .single();
 
-    // Fetch audit items with criterion info for senso
+    // Fetch all environments for path building
+    const { data: allEnvs } = await supabase
+      .from('environments')
+      .select('id, name, parent_id')
+      .eq('company_id', audit.company_id);
+
+    const envMap = new Map((allEnvs || []).map(e => [e.id, e]));
+
+    // Fetch audit items with criterion info
     const { data: items, error: itemsError } = await supabase
       .from('audit_items')
       .select(`
         *,
-        company_criteria!audit_items_criterion_id_fkey(senso)
+        company_criteria!audit_items_criterion_id_fkey(name, senso, tags)
       `)
       .eq('audit_id', auditId)
       .order('created_at');
@@ -52,6 +116,7 @@ export async function fetchAuditReportData(auditId: string): Promise<AuditReport
 
     // Get location hierarchy
     const locationHierarchy = await getLocationHierarchy(audit.location_id);
+    const fullPath = getLocationPath(audit.location_id, envMap);
 
     // Format items
     const formattedItems: AuditItemReportData[] = (items || []).map(item => ({
@@ -60,7 +125,9 @@ export async function fetchAuditReportData(auditId: string): Promise<AuditReport
       answer: item.answer,
       comment: item.comment,
       photo_urls: item.photo_url ? JSON.parse(item.photo_url) : [],
-      senso: (item.company_criteria as any)?.senso || []
+      senso: (item.company_criteria as any)?.senso || [],
+      criterion_name: (item.company_criteria as any)?.name || item.question,
+      tags: (item.company_criteria as any)?.tags || []
     }));
 
     // Calculate senso scores
@@ -68,11 +135,12 @@ export async function fetchAuditReportData(auditId: string): Promise<AuditReport
 
     return {
       audit_id: audit.id,
-      company_name: (audit.companies as any)?.name || 'N/A',
-      location_name: (audit.environments as any)?.name || 'N/A',
-      area_name: locationHierarchy.area_name,
-      environment_name: locationHierarchy.environment_name,
-      auditor_name: auditorProfile?.full_name || 'N/A',
+      company_name: sanitizeTextForPDF((audit.companies as any)?.name || 'N/A'),
+      location_name: sanitizeTextForPDF((audit.environments as any)?.name || 'N/A'),
+      area_name: sanitizeTextForPDF(locationHierarchy.area_name),
+      environment_name: sanitizeTextForPDF(locationHierarchy.environment_name),
+      full_location_path: fullPath || 'N/A',
+      auditor_name: sanitizeTextForPDF(auditorProfile?.full_name || 'N/A'),
       started_at: audit.started_at || audit.created_at,
       completed_at: audit.completed_at,
       total_questions: audit.total_questions,
@@ -106,12 +174,22 @@ export async function fetchCompanyReportData(
 
     if (companyError || !company) return null;
 
-    // Build query for audits (without profiles join - no FK exists)
+    // Fetch all environments for this company
+    const { data: environments } = await supabase
+      .from('environments')
+      .select('id, name, parent_id')
+      .eq('company_id', companyId)
+      .eq('status', 'active');
+
+    const envMap = new Map((environments || []).map(e => [e.id, e]));
+    const environmentTree = buildEnvironmentTree(environments || []);
+
+    // Build query for audits
     let query = supabase
       .from('audits')
       .select(`
         *,
-        environments!audits_location_id_fkey(name)
+        environments!audits_location_id_fkey(id, name, parent_id)
       `)
       .eq('company_id', companyId)
       .eq('status', 'completed')
@@ -127,7 +205,7 @@ export async function fetchCompanyReportData(
     const { data: audits, error: auditsError } = await query;
     if (auditsError) return null;
 
-    // Fetch auditor profiles separately
+    // Fetch auditor profiles
     const auditorIds = [...new Set((audits || []).map(a => a.auditor_id))];
     const { data: profiles } = await supabase
       .from('profiles')
@@ -136,49 +214,92 @@ export async function fetchCompanyReportData(
     
     const profilesMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
 
-    // Fetch all items for these audits
+    // Fetch all items for these audits with criterion details
     const auditIds = (audits || []).map(a => a.id);
-    let allItems: AuditItemReportData[] = [];
+    let allItems: Array<AuditItemReportData & { audit_id: string }> = [];
     
     if (auditIds.length > 0) {
       const { data: items } = await supabase
         .from('audit_items')
-        .select(`*, company_criteria!audit_items_criterion_id_fkey(senso)`)
+        .select(`
+          *,
+          company_criteria!audit_items_criterion_id_fkey(name, senso, tags)
+        `)
         .in('audit_id', auditIds);
 
       allItems = (items || []).map(item => ({
         id: item.id,
+        audit_id: item.audit_id,
         question: item.question,
         answer: item.answer,
         comment: item.comment,
         photo_urls: item.photo_url ? JSON.parse(item.photo_url) : [],
-        senso: (item.company_criteria as any)?.senso || []
+        senso: (item.company_criteria as any)?.senso || [],
+        criterion_name: (item.company_criteria as any)?.name || item.question,
+        tags: (item.company_criteria as any)?.tags || []
       }));
     }
+
+    // Build non-conformities list
+    const nonConformities: NonConformityDetail[] = [];
+    const auditMap = new Map((audits || []).map(a => [a.id, a]));
+    
+    for (const item of allItems) {
+      if (item.answer === false) {
+        const audit = auditMap.get(item.audit_id);
+        if (audit) {
+          nonConformities.push({
+            audit_id: audit.id,
+            audit_date: audit.completed_at || audit.started_at || '',
+            location_path: getLocationPath(audit.location_id, envMap),
+            location_name: sanitizeTextForPDF((audit.environments as any)?.name || 'N/A'),
+            auditor_name: sanitizeTextForPDF(profilesMap.get(audit.auditor_id) || 'N/A'),
+            criterion_name: item.criterion_name || item.question,
+            question: item.question,
+            comment: item.comment,
+            photo_urls: item.photo_urls,
+            senso: item.senso
+          });
+        }
+      }
+    }
+
+    // Calculate totals
+    const totalConformities = allItems.filter(i => i.answer === true).length;
+    const totalNonConformities = allItems.filter(i => i.answer === false).length;
 
     // Calculate averages
     const scores = (audits || []).filter(a => a.score !== null).map(a => a.score as number);
     const averageScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
 
-    // Calculate senso averages across all audits
+    // Calculate senso averages
     const sensoAverages = calculateSensoScores(allItems);
 
-    // Format audit summaries
-    const auditSummaries: AuditSummary[] = (audits || []).map(audit => ({
+    // Format extended audit summaries
+    const auditSummaries: ExtendedAuditSummary[] = (audits || []).map(audit => ({
       id: audit.id,
-      location_name: (audit.environments as any)?.name || 'N/A',
+      location_id: audit.location_id,
+      location_name: sanitizeTextForPDF((audit.environments as any)?.name || 'N/A'),
+      location_path: getLocationPath(audit.location_id, envMap),
       date: audit.completed_at || audit.started_at || '',
       score: audit.score,
-      auditor_name: profilesMap.get(audit.auditor_id) || 'N/A'
+      score_level: audit.score_level,
+      auditor_name: sanitizeTextForPDF(profilesMap.get(audit.auditor_id) || 'N/A'),
+      total_questions: audit.total_questions,
+      total_yes: audit.total_yes,
+      total_no: audit.total_no,
+      observations: audit.observations
     }));
 
     // Calculate location rankings
-    const locationMap = new Map<string, { scores: number[], name: string }>();
+    const locationMap = new Map<string, { scores: number[], name: string, path: string }>();
     for (const audit of (audits || [])) {
       const locId = audit.location_id;
-      const locName = (audit.environments as any)?.name || 'N/A';
+      const locName = sanitizeTextForPDF((audit.environments as any)?.name || 'N/A');
+      const locPath = getLocationPath(locId, envMap);
+      
       if (!locationMap.has(locId)) {
-        locationMap.set(locId, { scores: [], name: locName });
+        locationMap.set(locId, { scores: [], name: locName, path: locPath });
       }
       if (audit.score !== null) {
         locationMap.get(locId)!.scores.push(audit.score);
@@ -189,6 +310,7 @@ export async function fetchCompanyReportData(
       .map(([id, data]) => ({
         location_id: id,
         location_name: data.name,
+        location_path: data.path,
         average_score: data.scores.length > 0 ? data.scores.reduce((a, b) => a + b, 0) / data.scores.length : 0,
         audit_count: data.scores.length
       }))
@@ -196,14 +318,18 @@ export async function fetchCompanyReportData(
 
     return {
       company_id: company.id,
-      company_name: company.name,
+      company_name: sanitizeTextForPDF(company.name),
       period_start: startDate || '',
       period_end: endDate || '',
       total_audits: (audits || []).length,
       average_score: averageScore,
       audits: auditSummaries,
       senso_averages: sensoAverages,
-      locations_ranking: locationsRanking
+      locations_ranking: locationsRanking,
+      environment_tree: environmentTree,
+      non_conformities: nonConformities,
+      total_conformities: totalConformities,
+      total_non_conformities: totalNonConformities
     };
   } catch (error) {
     console.error('Error in fetchCompanyReportData:', error);
@@ -271,7 +397,7 @@ export function getScoreLevelLabel(level: string | null): string {
   switch (level) {
     case 'high': return 'Excelente';
     case 'medium': return 'Regular';
-    case 'low': return 'Crítico';
+    case 'low': return 'Critico';
     default: return 'N/A';
   }
 }
@@ -282,5 +408,23 @@ export function getScoreLevelColor(level: string | null): string {
     case 'medium': return '#F59E0B';
     case 'low': return '#EF4444';
     default: return '#6B7280';
+  }
+}
+
+// Fetch image as base64 for embedding in PDF
+export async function fetchImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
   }
 }
