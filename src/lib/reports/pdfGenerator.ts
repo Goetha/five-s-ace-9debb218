@@ -1,169 +1,348 @@
 import jsPDF from 'jspdf';
-import type { AuditReportData, CompanyReportData } from './reportTypes';
-import { SENSO_CONFIG, SensoKey } from './reportTypes';
-import { getScoreLevelLabel, getScoreLevelColor } from './reportDataFormatter';
+import type { AuditReportData, CompanyReportData, EnvironmentNode, NonConformityDetail } from './reportTypes';
+import { SENSO_CONFIG, SensoKey, sanitizeTextForPDF } from './reportTypes';
+import { getScoreLevelLabel, getScoreLevelColor, fetchImageAsBase64 } from './reportDataFormatter';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-export async function generateAuditPDF(data: AuditReportData): Promise<void> {
+// Constants
+const PAGE_MARGIN = 15;
+const MAX_IMAGE_WIDTH = 60;
+const MAX_IMAGE_HEIGHT = 45;
+const MAX_IMAGES_PER_PAGE = 3;
+
+interface PDFHelpers {
+  pdf: jsPDF;
+  pageWidth: number;
+  pageHeight: number;
+  yPos: number;
+  currentPage: number;
+}
+
+function createPDFHelpers(): PDFHelpers {
   const pdf = new jsPDF('p', 'mm', 'a4');
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 15;
-  let yPos = margin;
-
-  // Helper functions
-  const addText = (text: string, x: number, y: number, options?: { fontSize?: number; fontStyle?: 'normal' | 'bold'; color?: string; maxWidth?: number }) => {
-    const { fontSize = 10, fontStyle = 'normal', color = '#000000', maxWidth } = options || {};
-    pdf.setFontSize(fontSize);
-    pdf.setFont('helvetica', fontStyle);
-    pdf.setTextColor(color);
-    if (maxWidth) {
-      pdf.text(text, x, y, { maxWidth });
-    } else {
-      pdf.text(text, x, y);
-    }
+  return {
+    pdf,
+    pageWidth: pdf.internal.pageSize.getWidth(),
+    pageHeight: pdf.internal.pageSize.getHeight(),
+    yPos: PAGE_MARGIN,
+    currentPage: 1
   };
+}
 
-  const addLine = (y: number) => {
-    pdf.setDrawColor(200, 200, 200);
-    pdf.line(margin, y, pageWidth - margin, y);
-  };
-
-  const checkPageBreak = (neededSpace: number) => {
-    if (yPos + neededSpace > pageHeight - margin) {
-      pdf.addPage();
-      yPos = margin;
-      return true;
-    }
-    return false;
-  };
-
-  // Header
-  addText('RELATÓRIO DE AUDITORIA 5S', pageWidth / 2, yPos, { fontSize: 18, fontStyle: 'bold' });
-  pdf.setFontSize(18);
-  const titleWidth = pdf.getTextWidth('RELATÓRIO DE AUDITORIA 5S');
-  addText('RELATÓRIO DE AUDITORIA 5S', (pageWidth - titleWidth) / 2, yPos, { fontSize: 18, fontStyle: 'bold' });
-  yPos += 12;
-
-  addLine(yPos);
-  yPos += 8;
-
-  // Company and audit info
-  addText('INFORMAÇÕES GERAIS', margin, yPos, { fontSize: 12, fontStyle: 'bold', color: '#3B82F6' });
-  yPos += 8;
-
-  const infoLines = [
-    `Empresa: ${data.company_name}`,
-    `Local: ${data.area_name} > ${data.environment_name} > ${data.location_name}`,
-    `Auditor: ${data.auditor_name}`,
-    `Data: ${data.started_at ? format(new Date(data.started_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'N/A'}`,
-  ];
-
-  for (const line of infoLines) {
-    addText(line, margin, yPos, { fontSize: 10 });
-    yPos += 6;
+function addText(
+  helpers: PDFHelpers, 
+  text: string, 
+  x: number, 
+  y: number, 
+  options?: { 
+    fontSize?: number; 
+    fontStyle?: 'normal' | 'bold'; 
+    color?: string; 
+    maxWidth?: number;
+    align?: 'left' | 'center' | 'right';
   }
-
-  yPos += 5;
-  addLine(yPos);
-  yPos += 10;
-
-  // Score Section
-  addText('RESULTADO GERAL', margin, yPos, { fontSize: 12, fontStyle: 'bold', color: '#3B82F6' });
-  yPos += 10;
-
-  // Score box
-  const scoreBoxWidth = 60;
-  const scoreBoxHeight = 35;
-  const scoreBoxX = (pageWidth - scoreBoxWidth) / 2;
+) {
+  const { fontSize = 10, fontStyle = 'normal', color = '#000000', maxWidth, align = 'left' } = options || {};
+  const { pdf, pageWidth } = helpers;
   
-  pdf.setFillColor(getScoreLevelColor(data.score_level));
-  pdf.roundedRect(scoreBoxX, yPos, scoreBoxWidth, scoreBoxHeight, 3, 3, 'F');
+  pdf.setFontSize(fontSize);
+  pdf.setFont('helvetica', fontStyle);
+  pdf.setTextColor(color);
   
-  addText(data.score !== null ? data.score.toFixed(1) : 'N/A', pageWidth / 2 - 8, yPos + 18, { fontSize: 24, fontStyle: 'bold', color: '#FFFFFF' });
-  addText('/10', pageWidth / 2 + 12, yPos + 18, { fontSize: 12, color: '#FFFFFF' });
-  addText(getScoreLevelLabel(data.score_level), pageWidth / 2 - 12, yPos + 28, { fontSize: 10, color: '#FFFFFF' });
+  const safeText = sanitizeTextForPDF(text);
   
-  yPos += scoreBoxHeight + 10;
-
-  // Summary stats
-  const statsY = yPos;
-  const statsBoxWidth = 50;
+  let finalX = x;
+  if (align === 'center') {
+    const textWidth = pdf.getTextWidth(safeText);
+    finalX = (pageWidth - textWidth) / 2;
+  } else if (align === 'right') {
+    const textWidth = pdf.getTextWidth(safeText);
+    finalX = pageWidth - PAGE_MARGIN - textWidth;
+  }
   
-  // Yes box
-  pdf.setFillColor(16, 185, 129);
-  pdf.roundedRect(margin + 20, statsY, statsBoxWidth, 25, 2, 2, 'F');
-  addText('Conforme', margin + 35, statsY + 10, { fontSize: 9, color: '#FFFFFF' });
-  addText(String(data.total_yes), margin + 40, statsY + 20, { fontSize: 14, fontStyle: 'bold', color: '#FFFFFF' });
+  if (maxWidth) {
+    pdf.text(safeText, finalX, y, { maxWidth });
+  } else {
+    pdf.text(safeText, finalX, y);
+  }
+}
 
-  // No box
-  pdf.setFillColor(239, 68, 68);
-  pdf.roundedRect(pageWidth - margin - 70, statsY, statsBoxWidth, 25, 2, 2, 'F');
-  addText('Não Conforme', pageWidth - margin - 60, statsY + 10, { fontSize: 9, color: '#FFFFFF' });
-  addText(String(data.total_no), pageWidth - margin - 50, statsY + 20, { fontSize: 14, fontStyle: 'bold', color: '#FFFFFF' });
+function addLine(helpers: PDFHelpers, y: number) {
+  const { pdf, pageWidth } = helpers;
+  pdf.setDrawColor(200, 200, 200);
+  pdf.line(PAGE_MARGIN, y, pageWidth - PAGE_MARGIN, y);
+}
 
-  yPos += 35;
-  addLine(yPos);
-  yPos += 10;
+function addPageFooter(helpers: PDFHelpers) {
+  const { pdf, pageWidth, pageHeight, currentPage } = helpers;
+  const footerY = pageHeight - 8;
+  
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor('#9CA3AF');
+  
+  pdf.text(`Gerado em ${format(new Date(), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR })}`, PAGE_MARGIN, footerY);
+  pdf.text(`Pagina ${currentPage}`, pageWidth / 2 - 10, footerY);
+  pdf.text('Sistema 5S Manager', pageWidth - PAGE_MARGIN - 35, footerY);
+}
 
-  // Senso Scores
-  addText('PERFORMANCE POR SENSO', margin, yPos, { fontSize: 12, fontStyle: 'bold', color: '#3B82F6' });
-  yPos += 8;
+function checkPageBreak(helpers: PDFHelpers, neededSpace: number): boolean {
+  if (helpers.yPos + neededSpace > helpers.pageHeight - PAGE_MARGIN - 10) {
+    addPageFooter(helpers);
+    helpers.pdf.addPage();
+    helpers.currentPage++;
+    helpers.yPos = PAGE_MARGIN;
+    return true;
+  }
+  return false;
+}
 
-  for (const senso of data.senso_scores) {
-    checkPageBreak(12);
-    const sensoConfig = SENSO_CONFIG[senso.senso as SensoKey];
-    const barWidth = 100;
-    const barHeight = 6;
-    const barX = margin + 50;
+function addSectionHeader(helpers: PDFHelpers, title: string, color: string = '#3B82F6') {
+  checkPageBreak(helpers, 20);
+  addText(helpers, title, PAGE_MARGIN, helpers.yPos, { fontSize: 12, fontStyle: 'bold', color });
+  helpers.yPos += 8;
+}
+
+// Score box component
+function addScoreBox(helpers: PDFHelpers, score: number | null, scoreLevel: string | null) {
+  const { pdf, pageWidth } = helpers;
+  const boxWidth = 60;
+  const boxHeight = 35;
+  const boxX = (pageWidth - boxWidth) / 2;
+  
+  pdf.setFillColor(getScoreLevelColor(scoreLevel));
+  pdf.roundedRect(boxX, helpers.yPos, boxWidth, boxHeight, 3, 3, 'F');
+  
+  const scoreText = score !== null ? score.toFixed(1) : 'N/A';
+  addText(helpers, scoreText, pageWidth / 2 - 8, helpers.yPos + 18, { fontSize: 24, fontStyle: 'bold', color: '#FFFFFF' });
+  addText(helpers, '/10', pageWidth / 2 + 12, helpers.yPos + 18, { fontSize: 12, color: '#FFFFFF' });
+  addText(helpers, getScoreLevelLabel(scoreLevel), 0, helpers.yPos + 28, { fontSize: 10, color: '#FFFFFF', align: 'center' });
+  
+  helpers.yPos += boxHeight + 10;
+}
+
+// Stats boxes component
+function addStatsBoxes(helpers: PDFHelpers, stats: Array<{ label: string; value: string; color?: string }>) {
+  const { pdf, pageWidth } = helpers;
+  const boxWidth = 50;
+  const boxSpacing = 10;
+  const totalWidth = stats.length * boxWidth + (stats.length - 1) * boxSpacing;
+  const startX = (pageWidth - totalWidth) / 2;
+  
+  stats.forEach((stat, i) => {
+    const x = startX + (boxWidth + boxSpacing) * i;
+    const bgColor = stat.color || '#F1F5F9';
+    pdf.setFillColor(bgColor);
+    pdf.roundedRect(x, helpers.yPos, boxWidth, 25, 2, 2, 'F');
     
-    addText(senso.senso, margin, yPos + 4, { fontSize: 9, fontStyle: 'bold' });
+    const textColor = stat.color ? '#FFFFFF' : '#374151';
+    addText(helpers, stat.label, x + 5, helpers.yPos + 8, { fontSize: 8, color: stat.color ? '#FFFFFF' : '#6B7280' });
+    addText(helpers, stat.value, x + 5, helpers.yPos + 18, { fontSize: 14, fontStyle: 'bold', color: textColor });
+  });
+  
+  helpers.yPos += 35;
+}
+
+// Senso progress bars
+function addSensoProgressBars(helpers: PDFHelpers, sensoScores: Array<{ senso: string; score: number; conforme: number; total: number }>) {
+  const { pdf, pageWidth } = helpers;
+  const barWidth = 100;
+  const barHeight = 6;
+  const barX = PAGE_MARGIN + 50;
+  
+  for (const senso of sensoScores) {
+    checkPageBreak(helpers, 12);
+    const sensoConfig = SENSO_CONFIG[senso.senso as SensoKey];
+    
+    addText(helpers, senso.senso, PAGE_MARGIN, helpers.yPos + 4, { fontSize: 9, fontStyle: 'bold' });
+    addText(helpers, sensoConfig?.name || '', PAGE_MARGIN + 12, helpers.yPos + 4, { fontSize: 7, color: '#6B7280' });
     
     // Background bar
-    pdf.setFillColor(229, 231, 235);
-    pdf.roundedRect(barX, yPos, barWidth, barHeight, 1, 1, 'F');
+    pdf.setFillColor('#E5E7EB');
+    pdf.roundedRect(barX, helpers.yPos, barWidth, barHeight, 1, 1, 'F');
     
     // Progress bar
     pdf.setFillColor(sensoConfig?.color || '#6B7280');
-    pdf.roundedRect(barX, yPos, (barWidth * senso.score) / 100, barHeight, 1, 1, 'F');
+    pdf.roundedRect(barX, helpers.yPos, (barWidth * senso.score) / 100, barHeight, 1, 1, 'F');
     
-    addText(`${senso.score.toFixed(0)}%`, barX + barWidth + 5, yPos + 5, { fontSize: 9 });
-    addText(`(${senso.conforme}/${senso.total})`, barX + barWidth + 25, yPos + 5, { fontSize: 8, color: '#6B7280' });
+    addText(helpers, `${senso.score.toFixed(0)}%`, barX + barWidth + 5, helpers.yPos + 5, { fontSize: 9, fontStyle: 'bold' });
+    addText(helpers, `(${senso.conforme}/${senso.total})`, barX + barWidth + 25, helpers.yPos + 5, { fontSize: 8, color: '#6B7280' });
     
-    yPos += 12;
+    helpers.yPos += 12;
+  }
+}
+
+// Add embedded image
+async function addEmbeddedImage(helpers: PDFHelpers, imageUrl: string, x: number, maxWidth: number = MAX_IMAGE_WIDTH): Promise<boolean> {
+  try {
+    const base64 = await fetchImageAsBase64(imageUrl);
+    if (!base64) return false;
+    
+    // Detect format from base64 header
+    let format: 'JPEG' | 'PNG' = 'JPEG';
+    if (base64.includes('data:image/png')) {
+      format = 'PNG';
+    }
+    
+    helpers.pdf.addImage(base64, format, x, helpers.yPos, maxWidth, MAX_IMAGE_HEIGHT);
+    return true;
+  } catch (error) {
+    console.error('Error embedding image:', error);
+    return false;
+  }
+}
+
+// Environment tree rendering
+function renderEnvironmentTree(helpers: PDFHelpers, nodes: EnvironmentNode[], indent: number = 0) {
+  for (const node of nodes) {
+    checkPageBreak(helpers, 8);
+    
+    const prefix = indent === 0 ? '' : '  '.repeat(indent) + '- ';
+    const icon = node.children.length > 0 ? '[+] ' : '    ';
+    addText(helpers, `${prefix}${icon}${node.name}`, PAGE_MARGIN + indent * 5, helpers.yPos, { fontSize: 9 });
+    helpers.yPos += 6;
+    
+    if (node.children.length > 0) {
+      renderEnvironmentTree(helpers, node.children, indent + 1);
+    }
+  }
+}
+
+export async function generateAuditPDF(data: AuditReportData): Promise<void> {
+  const helpers = createPDFHelpers();
+  const { pdf, pageWidth } = helpers;
+
+  // Header
+  addText(helpers, 'RELATORIO DE AUDITORIA 5S', 0, helpers.yPos, { fontSize: 18, fontStyle: 'bold', align: 'center' });
+  helpers.yPos += 12;
+
+  addLine(helpers, helpers.yPos);
+  helpers.yPos += 8;
+
+  // General info section
+  addSectionHeader(helpers, 'INFORMACOES GERAIS');
+  
+  const infoLines = [
+    ['Empresa:', data.company_name],
+    ['Caminho:', data.full_location_path],
+    ['Local:', data.location_name],
+    ['Auditor:', data.auditor_name],
+    ['Data:', data.started_at ? format(new Date(data.started_at), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR }) : 'N/A'],
+    ['Status:', data.completed_at ? 'Concluida' : 'Em andamento'],
+  ];
+
+  for (const [label, value] of infoLines) {
+    addText(helpers, label, PAGE_MARGIN, helpers.yPos, { fontSize: 9, fontStyle: 'bold', color: '#6B7280' });
+    addText(helpers, value, PAGE_MARGIN + 25, helpers.yPos, { fontSize: 10 });
+    helpers.yPos += 6;
   }
 
-  yPos += 5;
-  addLine(yPos);
-  yPos += 10;
+  helpers.yPos += 5;
+  addLine(helpers, helpers.yPos);
+  helpers.yPos += 10;
 
-  // Non-conformities section
+  // Score section
+  addSectionHeader(helpers, 'RESULTADO GERAL');
+  addScoreBox(helpers, data.score, data.score_level);
+
+  // Summary stats
+  addStatsBoxes(helpers, [
+    { label: 'Total', value: String(data.total_questions), color: '#3B82F6' },
+    { label: 'Conforme', value: String(data.total_yes), color: '#10B981' },
+    { label: 'Nao Conforme', value: String(data.total_no), color: '#EF4444' },
+  ]);
+
+  addLine(helpers, helpers.yPos);
+  helpers.yPos += 10;
+
+  // Senso performance
+  addSectionHeader(helpers, 'PERFORMANCE POR SENSO');
+  addSensoProgressBars(helpers, data.senso_scores);
+
+  helpers.yPos += 5;
+  addLine(helpers, helpers.yPos);
+  helpers.yPos += 10;
+
+  // Non-conformities with photos
   const nonConformItems = data.items.filter(item => item.answer === false);
   
   if (nonConformItems.length > 0) {
-    addText('NÃO CONFORMIDADES', margin, yPos, { fontSize: 12, fontStyle: 'bold', color: '#EF4444' });
-    yPos += 8;
+    addSectionHeader(helpers, `NAO CONFORMIDADES (${nonConformItems.length})`, '#EF4444');
 
     for (let i = 0; i < nonConformItems.length; i++) {
       const item = nonConformItems[i];
-      checkPageBreak(30);
+      checkPageBreak(helpers, 60);
 
-      // Item number and question
-      pdf.setFillColor(254, 242, 242);
-      pdf.roundedRect(margin, yPos - 2, pageWidth - 2 * margin, 20 + (item.comment ? 10 : 0), 2, 2, 'F');
+      // Item header with number
+      pdf.setFillColor('#FEF2F2');
+      const boxHeight = 25 + (item.comment ? 12 : 0);
+      pdf.roundedRect(PAGE_MARGIN, helpers.yPos - 2, pageWidth - 2 * PAGE_MARGIN, boxHeight, 2, 2, 'F');
       
-      addText(`${i + 1}. ${item.question}`, margin + 3, yPos + 5, { fontSize: 10, fontStyle: 'bold', maxWidth: pageWidth - 2 * margin - 10 });
+      // Number badge
+      pdf.setFillColor('#EF4444');
+      pdf.circle(PAGE_MARGIN + 8, helpers.yPos + 6, 5, 'F');
+      addText(helpers, String(i + 1), PAGE_MARGIN + 6, helpers.yPos + 8, { fontSize: 9, fontStyle: 'bold', color: '#FFFFFF' });
       
-      if (item.comment) {
-        addText(`Observação: ${item.comment}`, margin + 6, yPos + 15, { fontSize: 9, color: '#6B7280', maxWidth: pageWidth - 2 * margin - 15 });
-      }
+      // Question
+      addText(helpers, item.question, PAGE_MARGIN + 18, helpers.yPos + 8, { fontSize: 10, fontStyle: 'bold', maxWidth: pageWidth - 2 * PAGE_MARGIN - 25 });
       
+      // Senso tags
       if (item.senso.length > 0) {
-        addText(`Senso: ${item.senso.join(', ')}`, margin + 6, yPos + (item.comment ? 23 : 15), { fontSize: 8, color: '#3B82F6' });
+        let tagX = PAGE_MARGIN + 18;
+        helpers.yPos += 12;
+        for (const s of item.senso) {
+          const sensoConfig = SENSO_CONFIG[s as SensoKey];
+          if (sensoConfig) {
+            pdf.setFillColor(sensoConfig.color);
+            pdf.roundedRect(tagX, helpers.yPos, 12, 5, 1, 1, 'F');
+            addText(helpers, s, tagX + 2, helpers.yPos + 4, { fontSize: 6, color: '#FFFFFF' });
+            tagX += 15;
+          }
+        }
+        helpers.yPos += 8;
+      } else {
+        helpers.yPos += 15;
       }
 
-      yPos += 25 + (item.comment ? 10 : 0);
+      // Comment
+      if (item.comment) {
+        addText(helpers, `Obs: ${item.comment}`, PAGE_MARGIN + 18, helpers.yPos, { fontSize: 9, color: '#6B7280', maxWidth: pageWidth - 2 * PAGE_MARGIN - 25 });
+        helpers.yPos += 12;
+      }
+
+      helpers.yPos += 5;
+
+      // Photos
+      if (item.photo_urls.length > 0) {
+        checkPageBreak(helpers, MAX_IMAGE_HEIGHT + 15);
+        addText(helpers, 'Evidencias fotograficas:', PAGE_MARGIN + 5, helpers.yPos, { fontSize: 8, color: '#6B7280' });
+        helpers.yPos += 5;
+
+        let imageX = PAGE_MARGIN + 5;
+        let imagesInRow = 0;
+        
+        for (const photoUrl of item.photo_urls.slice(0, MAX_IMAGES_PER_PAGE)) {
+          if (imagesInRow >= 3) {
+            helpers.yPos += MAX_IMAGE_HEIGHT + 5;
+            imageX = PAGE_MARGIN + 5;
+            imagesInRow = 0;
+            checkPageBreak(helpers, MAX_IMAGE_HEIGHT + 10);
+          }
+          
+          const success = await addEmbeddedImage(helpers, photoUrl, imageX, MAX_IMAGE_WIDTH);
+          if (success) {
+            imageX += MAX_IMAGE_WIDTH + 5;
+            imagesInRow++;
+          }
+        }
+        
+        if (imagesInRow > 0) {
+          helpers.yPos += MAX_IMAGE_HEIGHT + 10;
+        }
+      }
+
+      helpers.yPos += 5;
     }
   }
 
@@ -171,165 +350,277 @@ export async function generateAuditPDF(data: AuditReportData): Promise<void> {
   const conformItems = data.items.filter(item => item.answer === true);
   
   if (conformItems.length > 0) {
-    checkPageBreak(30);
-    yPos += 5;
-    addLine(yPos);
-    yPos += 10;
+    checkPageBreak(helpers, 30);
+    addLine(helpers, helpers.yPos);
+    helpers.yPos += 10;
 
-    addText('CONFORMIDADES', margin, yPos, { fontSize: 12, fontStyle: 'bold', color: '#10B981' });
-    yPos += 8;
+    addSectionHeader(helpers, `CONFORMIDADES (${conformItems.length})`, '#10B981');
 
     for (let i = 0; i < conformItems.length; i++) {
       const item = conformItems[i];
-      checkPageBreak(15);
+      checkPageBreak(helpers, 12);
 
-      addText(`✓ ${item.question}`, margin + 3, yPos + 5, { fontSize: 9, color: '#374151', maxWidth: pageWidth - 2 * margin - 10 });
-      yPos += 10;
+      // Checkmark
+      pdf.setFillColor('#10B981');
+      pdf.circle(PAGE_MARGIN + 4, helpers.yPos + 2, 3, 'F');
+      addText(helpers, 'V', PAGE_MARGIN + 2.5, helpers.yPos + 4, { fontSize: 7, fontStyle: 'bold', color: '#FFFFFF' });
+      
+      addText(helpers, item.question, PAGE_MARGIN + 12, helpers.yPos + 4, { fontSize: 9, maxWidth: pageWidth - 2 * PAGE_MARGIN - 20 });
+      
+      // Senso tags inline
+      if (item.senso.length > 0) {
+        const sensoText = item.senso.join(', ');
+        addText(helpers, `[${sensoText}]`, pageWidth - PAGE_MARGIN - 25, helpers.yPos + 4, { fontSize: 7, color: '#3B82F6' });
+      }
+      
+      helpers.yPos += 10;
     }
   }
 
   // Observations
   if (data.observations) {
-    checkPageBreak(30);
-    yPos += 5;
-    addLine(yPos);
-    yPos += 10;
+    checkPageBreak(helpers, 30);
+    helpers.yPos += 5;
+    addLine(helpers, helpers.yPos);
+    helpers.yPos += 10;
 
-    addText('OBSERVAÇÕES GERAIS', margin, yPos, { fontSize: 12, fontStyle: 'bold', color: '#3B82F6' });
-    yPos += 8;
-    addText(data.observations, margin, yPos, { fontSize: 10, maxWidth: pageWidth - 2 * margin });
+    addSectionHeader(helpers, 'OBSERVACOES GERAIS');
+    addText(helpers, data.observations, PAGE_MARGIN, helpers.yPos, { fontSize: 10, maxWidth: pageWidth - 2 * PAGE_MARGIN });
+    helpers.yPos += 15;
   }
 
-  // Footer
-  const footerY = pageHeight - 10;
-  addText(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, margin, footerY, { fontSize: 8, color: '#9CA3AF' });
-  addText('Sistema 5S Manager', pageWidth - margin - 35, footerY, { fontSize: 8, color: '#9CA3AF' });
+  // Next audit date
+  if (data.next_audit_date) {
+    checkPageBreak(helpers, 20);
+    addText(helpers, `Proxima auditoria programada: ${format(new Date(data.next_audit_date), 'dd/MM/yyyy', { locale: ptBR })}`, PAGE_MARGIN, helpers.yPos, { fontSize: 10, fontStyle: 'bold', color: '#3B82F6' });
+  }
+
+  // Footer on last page
+  addPageFooter(helpers);
 
   // Save
-  const fileName = `Auditoria_5S_${data.location_name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+  const fileName = `Auditoria_5S_${sanitizeTextForPDF(data.location_name).replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
   pdf.save(fileName);
 }
 
 export async function generateCompanyReportPDF(data: CompanyReportData): Promise<void> {
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 15;
-  let yPos = margin;
-
-  const addText = (text: string, x: number, y: number, options?: { fontSize?: number; fontStyle?: 'normal' | 'bold'; color?: string; maxWidth?: number }) => {
-    const { fontSize = 10, fontStyle = 'normal', color = '#000000', maxWidth } = options || {};
-    pdf.setFontSize(fontSize);
-    pdf.setFont('helvetica', fontStyle);
-    pdf.setTextColor(color);
-    if (maxWidth) {
-      pdf.text(text, x, y, { maxWidth });
-    } else {
-      pdf.text(text, x, y);
-    }
-  };
-
-  const addLine = (y: number) => {
-    pdf.setDrawColor(200, 200, 200);
-    pdf.line(margin, y, pageWidth - margin, y);
-  };
-
-  const checkPageBreak = (neededSpace: number) => {
-    if (yPos + neededSpace > pageHeight - margin) {
-      pdf.addPage();
-      yPos = margin;
-      return true;
-    }
-    return false;
-  };
+  const helpers = createPDFHelpers();
+  const { pdf, pageWidth } = helpers;
 
   // Header
-  addText('RELATÓRIO CONSOLIDADO 5S', (pageWidth - 70) / 2, yPos, { fontSize: 18, fontStyle: 'bold' });
-  yPos += 8;
-  addText(data.company_name, (pageWidth - pdf.getTextWidth(data.company_name) * 0.35) / 2, yPos, { fontSize: 14, color: '#3B82F6' });
-  yPos += 12;
-
-  addLine(yPos);
-  yPos += 10;
-
-  // Summary stats
-  addText('RESUMO EXECUTIVO', margin, yPos, { fontSize: 12, fontStyle: 'bold', color: '#3B82F6' });
-  yPos += 10;
-
-  const statsData = [
-    { label: 'Total de Auditorias', value: String(data.total_audits) },
-    { label: 'Pontuação Média', value: data.average_score.toFixed(1) + '/10' },
-    { label: 'Locais Auditados', value: String(data.locations_ranking.length) },
-  ];
-
-  const boxWidth = 50;
-  const boxSpacing = 10;
-  const startX = (pageWidth - (boxWidth * 3 + boxSpacing * 2)) / 2;
-
-  statsData.forEach((stat, i) => {
-    const x = startX + (boxWidth + boxSpacing) * i;
-    pdf.setFillColor(241, 245, 249);
-    pdf.roundedRect(x, yPos, boxWidth, 25, 2, 2, 'F');
-    addText(stat.label, x + 5, yPos + 8, { fontSize: 8, color: '#6B7280' });
-    addText(stat.value, x + 5, yPos + 18, { fontSize: 14, fontStyle: 'bold' });
-  });
-
-  yPos += 35;
-  addLine(yPos);
-  yPos += 10;
-
-  // Senso averages
-  addText('MÉDIA POR SENSO', margin, yPos, { fontSize: 12, fontStyle: 'bold', color: '#3B82F6' });
-  yPos += 10;
-
-  for (const senso of data.senso_averages) {
-    checkPageBreak(12);
-    const sensoConfig = SENSO_CONFIG[senso.senso as SensoKey];
-    const barWidth = 100;
-    const barHeight = 6;
-    const barX = margin + 50;
-    
-    addText(senso.senso, margin, yPos + 4, { fontSize: 9, fontStyle: 'bold' });
-    
-    pdf.setFillColor(229, 231, 235);
-    pdf.roundedRect(barX, yPos, barWidth, barHeight, 1, 1, 'F');
-    
-    pdf.setFillColor(sensoConfig?.color || '#6B7280');
-    pdf.roundedRect(barX, yPos, (barWidth * senso.score) / 100, barHeight, 1, 1, 'F');
-    
-    addText(`${senso.score.toFixed(0)}%`, barX + barWidth + 5, yPos + 5, { fontSize: 9 });
-    
-    yPos += 12;
+  addText(helpers, 'RELATORIO CONSOLIDADO 5S', 0, helpers.yPos, { fontSize: 18, fontStyle: 'bold', align: 'center' });
+  helpers.yPos += 8;
+  addText(helpers, data.company_name, 0, helpers.yPos, { fontSize: 14, color: '#3B82F6', align: 'center' });
+  helpers.yPos += 8;
+  
+  // Period if available
+  if (data.period_start || data.period_end) {
+    const periodText = `Periodo: ${data.period_start ? format(new Date(data.period_start), 'dd/MM/yyyy', { locale: ptBR }) : 'Inicio'} - ${data.period_end ? format(new Date(data.period_end), 'dd/MM/yyyy', { locale: ptBR }) : 'Atual'}`;
+    addText(helpers, periodText, 0, helpers.yPos, { fontSize: 10, color: '#6B7280', align: 'center' });
+    helpers.yPos += 8;
   }
 
-  yPos += 5;
-  addLine(yPos);
-  yPos += 10;
+  addLine(helpers, helpers.yPos);
+  helpers.yPos += 10;
 
-  // Locations ranking
+  // Executive summary
+  addSectionHeader(helpers, 'RESUMO EXECUTIVO');
+  
+  addStatsBoxes(helpers, [
+    { label: 'Auditorias', value: String(data.total_audits), color: '#3B82F6' },
+    { label: 'Media Geral', value: data.average_score.toFixed(1) + '/10', color: data.average_score >= 7 ? '#10B981' : data.average_score >= 5 ? '#F59E0B' : '#EF4444' },
+    { label: 'Locais', value: String(data.locations_ranking.length) },
+  ]);
+
+  // Totals conformities
+  addStatsBoxes(helpers, [
+    { label: 'Conformidades', value: String(data.total_conformities), color: '#10B981' },
+    { label: 'Nao Conformidades', value: String(data.total_non_conformities), color: '#EF4444' },
+  ]);
+
+  addLine(helpers, helpers.yPos);
+  helpers.yPos += 10;
+
+  // Environment structure
+  if (data.environment_tree.length > 0) {
+    addSectionHeader(helpers, 'ESTRUTURA DE AMBIENTES');
+    renderEnvironmentTree(helpers, data.environment_tree);
+    helpers.yPos += 5;
+    addLine(helpers, helpers.yPos);
+    helpers.yPos += 10;
+  }
+
+  // Senso averages
+  addSectionHeader(helpers, 'DESEMPENHO POR SENSO');
+  addSensoProgressBars(helpers, data.senso_averages);
+  
+  helpers.yPos += 5;
+  addLine(helpers, helpers.yPos);
+  helpers.yPos += 10;
+
+  // Location rankings
   if (data.locations_ranking.length > 0) {
-    addText('RANKING DE LOCAIS', margin, yPos, { fontSize: 12, fontStyle: 'bold', color: '#3B82F6' });
-    yPos += 10;
+    addSectionHeader(helpers, 'RANKING DE LOCAIS');
 
-    for (let i = 0; i < Math.min(data.locations_ranking.length, 10); i++) {
-      checkPageBreak(12);
+    // Table header
+    pdf.setFillColor('#F3F4F6');
+    pdf.rect(PAGE_MARGIN, helpers.yPos, pageWidth - 2 * PAGE_MARGIN, 8, 'F');
+    addText(helpers, '#', PAGE_MARGIN + 3, helpers.yPos + 5, { fontSize: 8, fontStyle: 'bold' });
+    addText(helpers, 'Local', PAGE_MARGIN + 12, helpers.yPos + 5, { fontSize: 8, fontStyle: 'bold' });
+    addText(helpers, 'Auditorias', pageWidth - PAGE_MARGIN - 50, helpers.yPos + 5, { fontSize: 8, fontStyle: 'bold' });
+    addText(helpers, 'Media', pageWidth - PAGE_MARGIN - 20, helpers.yPos + 5, { fontSize: 8, fontStyle: 'bold' });
+    helpers.yPos += 10;
+
+    for (let i = 0; i < Math.min(data.locations_ranking.length, 15); i++) {
+      checkPageBreak(helpers, 10);
       const loc = data.locations_ranking[i];
-      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
       
-      addText(medal, margin, yPos + 4, { fontSize: 10 });
-      addText(loc.location_name, margin + 15, yPos + 4, { fontSize: 10 });
-      addText(`${loc.average_score.toFixed(1)}/10`, pageWidth - margin - 30, yPos + 4, { fontSize: 10, fontStyle: 'bold' });
-      addText(`(${loc.audit_count} auditorias)`, pageWidth - margin - 60, yPos + 4, { fontSize: 8, color: '#6B7280' });
+      // Alternating row color
+      if (i % 2 === 0) {
+        pdf.setFillColor('#F9FAFB');
+        pdf.rect(PAGE_MARGIN, helpers.yPos - 2, pageWidth - 2 * PAGE_MARGIN, 8, 'F');
+      }
       
-      yPos += 10;
+      // Position badge
+      let posColor = '#6B7280';
+      if (i === 0) posColor = '#FFD700';
+      else if (i === 1) posColor = '#C0C0C0';
+      else if (i === 2) posColor = '#CD7F32';
+      
+      pdf.setFillColor(posColor);
+      pdf.circle(PAGE_MARGIN + 5, helpers.yPos + 1, 3, 'F');
+      addText(helpers, String(i + 1), PAGE_MARGIN + 3.5, helpers.yPos + 3, { fontSize: 6, fontStyle: 'bold', color: '#FFFFFF' });
+      
+      // Location name (truncate if too long)
+      const locName = loc.location_name.length > 35 ? loc.location_name.substring(0, 32) + '...' : loc.location_name;
+      addText(helpers, locName, PAGE_MARGIN + 12, helpers.yPos + 4, { fontSize: 9 });
+      
+      addText(helpers, String(loc.audit_count), pageWidth - PAGE_MARGIN - 45, helpers.yPos + 4, { fontSize: 9 });
+      
+      // Score with color
+      const scoreColor = loc.average_score >= 7 ? '#10B981' : loc.average_score >= 5 ? '#F59E0B' : '#EF4444';
+      addText(helpers, `${loc.average_score.toFixed(1)}`, pageWidth - PAGE_MARGIN - 18, helpers.yPos + 4, { fontSize: 9, fontStyle: 'bold', color: scoreColor });
+      
+      helpers.yPos += 8;
+    }
+    
+    helpers.yPos += 5;
+    addLine(helpers, helpers.yPos);
+    helpers.yPos += 10;
+  }
+
+  // Audit history
+  if (data.audits.length > 0) {
+    addSectionHeader(helpers, 'HISTORICO DE AUDITORIAS');
+
+    // Table header
+    pdf.setFillColor('#F3F4F6');
+    pdf.rect(PAGE_MARGIN, helpers.yPos, pageWidth - 2 * PAGE_MARGIN, 8, 'F');
+    addText(helpers, 'Data', PAGE_MARGIN + 3, helpers.yPos + 5, { fontSize: 8, fontStyle: 'bold' });
+    addText(helpers, 'Local', PAGE_MARGIN + 28, helpers.yPos + 5, { fontSize: 8, fontStyle: 'bold' });
+    addText(helpers, 'Auditor', pageWidth - PAGE_MARGIN - 70, helpers.yPos + 5, { fontSize: 8, fontStyle: 'bold' });
+    addText(helpers, 'Nota', pageWidth - PAGE_MARGIN - 18, helpers.yPos + 5, { fontSize: 8, fontStyle: 'bold' });
+    helpers.yPos += 10;
+
+    for (let i = 0; i < Math.min(data.audits.length, 20); i++) {
+      checkPageBreak(helpers, 10);
+      const audit = data.audits[i];
+      
+      if (i % 2 === 0) {
+        pdf.setFillColor('#F9FAFB');
+        pdf.rect(PAGE_MARGIN, helpers.yPos - 2, pageWidth - 2 * PAGE_MARGIN, 8, 'F');
+      }
+      
+      const dateStr = audit.date ? format(new Date(audit.date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A';
+      addText(helpers, dateStr, PAGE_MARGIN + 3, helpers.yPos + 4, { fontSize: 8 });
+      
+      const locName = audit.location_name.length > 30 ? audit.location_name.substring(0, 27) + '...' : audit.location_name;
+      addText(helpers, locName, PAGE_MARGIN + 28, helpers.yPos + 4, { fontSize: 8 });
+      
+      const auditorName = audit.auditor_name.length > 15 ? audit.auditor_name.substring(0, 12) + '...' : audit.auditor_name;
+      addText(helpers, auditorName, pageWidth - PAGE_MARGIN - 70, helpers.yPos + 4, { fontSize: 8 });
+      
+      const scoreColor = (audit.score || 0) >= 7 ? '#10B981' : (audit.score || 0) >= 5 ? '#F59E0B' : '#EF4444';
+      addText(helpers, audit.score !== null ? audit.score.toFixed(1) : 'N/A', pageWidth - PAGE_MARGIN - 15, helpers.yPos + 4, { fontSize: 8, fontStyle: 'bold', color: scoreColor });
+      
+      helpers.yPos += 8;
+    }
+
+    if (data.audits.length > 20) {
+      helpers.yPos += 3;
+      addText(helpers, `... e mais ${data.audits.length - 20} auditorias`, PAGE_MARGIN, helpers.yPos, { fontSize: 8, color: '#6B7280' });
+      helpers.yPos += 8;
+    }
+
+    helpers.yPos += 5;
+    addLine(helpers, helpers.yPos);
+    helpers.yPos += 10;
+  }
+
+  // Non-conformities section with photos
+  if (data.non_conformities.length > 0) {
+    addSectionHeader(helpers, `PRINCIPAIS NAO CONFORMIDADES (${Math.min(data.non_conformities.length, 10)})`, '#EF4444');
+
+    for (let i = 0; i < Math.min(data.non_conformities.length, 10); i++) {
+      const nc = data.non_conformities[i];
+      checkPageBreak(helpers, 50);
+
+      // Card background
+      pdf.setFillColor('#FEF2F2');
+      const cardHeight = 30 + (nc.comment ? 10 : 0) + (nc.photo_urls.length > 0 ? MAX_IMAGE_HEIGHT + 10 : 0);
+      pdf.roundedRect(PAGE_MARGIN, helpers.yPos - 2, pageWidth - 2 * PAGE_MARGIN, cardHeight, 2, 2, 'F');
+      
+      // Number badge
+      pdf.setFillColor('#EF4444');
+      pdf.circle(PAGE_MARGIN + 8, helpers.yPos + 6, 5, 'F');
+      addText(helpers, String(i + 1), PAGE_MARGIN + 6, helpers.yPos + 8, { fontSize: 9, fontStyle: 'bold', color: '#FFFFFF' });
+      
+      // Location and date
+      const dateStr = nc.audit_date ? format(new Date(nc.audit_date), 'dd/MM/yyyy', { locale: ptBR }) : '';
+      addText(helpers, `${nc.location_path} - ${dateStr}`, PAGE_MARGIN + 18, helpers.yPos + 5, { fontSize: 8, color: '#6B7280' });
+      helpers.yPos += 8;
+      
+      // Question
+      addText(helpers, nc.question, PAGE_MARGIN + 18, helpers.yPos + 5, { fontSize: 10, fontStyle: 'bold', maxWidth: pageWidth - 2 * PAGE_MARGIN - 25 });
+      helpers.yPos += 10;
+      
+      // Auditor
+      addText(helpers, `Auditor: ${nc.auditor_name}`, PAGE_MARGIN + 18, helpers.yPos + 5, { fontSize: 8, color: '#6B7280' });
+      helpers.yPos += 8;
+      
+      // Comment
+      if (nc.comment) {
+        addText(helpers, `Obs: ${nc.comment}`, PAGE_MARGIN + 18, helpers.yPos + 3, { fontSize: 9, color: '#374151', maxWidth: pageWidth - 2 * PAGE_MARGIN - 25 });
+        helpers.yPos += 12;
+      }
+
+      // Photos
+      if (nc.photo_urls.length > 0) {
+        helpers.yPos += 3;
+        let imageX = PAGE_MARGIN + 18;
+        
+        for (const photoUrl of nc.photo_urls.slice(0, 2)) {
+          const success = await addEmbeddedImage(helpers, photoUrl, imageX, MAX_IMAGE_WIDTH - 10);
+          if (success) {
+            imageX += MAX_IMAGE_WIDTH;
+          }
+        }
+        
+        helpers.yPos += MAX_IMAGE_HEIGHT + 5;
+      }
+
+      helpers.yPos += 8;
+    }
+
+    if (data.non_conformities.length > 10) {
+      addText(helpers, `... e mais ${data.non_conformities.length - 10} nao conformidades registradas`, PAGE_MARGIN, helpers.yPos, { fontSize: 8, color: '#6B7280' });
+      helpers.yPos += 10;
     }
   }
 
-  // Footer
-  const footerY = pageHeight - 10;
-  addText(`Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, margin, footerY, { fontSize: 8, color: '#9CA3AF' });
-  addText('Sistema 5S Manager', pageWidth - margin - 35, footerY, { fontSize: 8, color: '#9CA3AF' });
+  // Footer on last page
+  addPageFooter(helpers);
 
-  const fileName = `Relatorio_5S_${data.company_name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+  const fileName = `Relatorio_5S_${sanitizeTextForPDF(data.company_name).replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
   pdf.save(fileName);
 }
