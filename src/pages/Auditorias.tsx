@@ -31,8 +31,10 @@ interface ScheduledAudit {
 }
 
 // Calcula scores por senso baseado nos audit_items
+// Se não há audit_items com senso, retorna o score geral em todos os sensos
 function calculateSensoScores(
-  auditItems: { answer: boolean | null; senso: string[] | null }[]
+  auditItems: { answer: boolean | null; senso: string[] | null }[],
+  generalScore: number | null
 ): SensoScores {
   const sensoData: Record<string, { conforme: number; total: number }> = {
     '1S': { conforme: 0, total: 0 },
@@ -42,6 +44,8 @@ function calculateSensoScores(
     '5S': { conforme: 0, total: 0 },
   };
 
+  let hasAnySensoData = false;
+
   for (const item of auditItems) {
     if (item.answer === null) continue;
     const sensos = item.senso || [];
@@ -49,11 +53,23 @@ function calculateSensoScores(
     for (const s of sensos) {
       if (sensoData[s]) {
         sensoData[s].total++;
+        hasAnySensoData = true;
         if (item.answer === true) {
           sensoData[s].conforme++;
         }
       }
     }
+  }
+
+  // Se não há dados de senso, usar o score geral em todos os sensos
+  if (!hasAnySensoData && generalScore !== null) {
+    return {
+      score_1s: generalScore,
+      score_2s: generalScore,
+      score_3s: generalScore,
+      score_4s: generalScore,
+      score_5s: generalScore,
+    };
   }
 
   const getScore = (key: string): number | null => {
@@ -354,7 +370,7 @@ const Auditorias = () => {
 
           // Calcular scores por senso
           const auditItemsForThisAudit = auditItemsByAuditId.get(audit.id) || [];
-          const sensoScores = calculateSensoScores(auditItemsForThisAudit);
+          const sensoScores = calculateSensoScores(auditItemsForThisAudit, audit.score);
 
           localGroup.audits.push({
             id: audit.id,
