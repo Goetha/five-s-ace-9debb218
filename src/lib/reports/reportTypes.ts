@@ -47,6 +47,23 @@ export interface EnvironmentNode {
   level: number;
 }
 
+// Environment with Senso scores for hierarchical table
+export interface EnvironmentSensoRow {
+  id: string;
+  name: string;
+  level: number;  // 0 = root, 1 = area, 2 = environment, 3 = local
+  parent_id: string | null;
+  senso_scores: {
+    '1S': number | null;
+    '2S': number | null;
+    '3S': number | null;
+    '4S': number | null;
+    '5S': number | null;
+  };
+  average_score: number | null;
+  has_audits: boolean;
+}
+
 // Non-conformity with full details for company report
 export interface NonConformityDetail {
   audit_id: string;
@@ -88,6 +105,7 @@ export interface CompanyReportData {
   senso_averages: SensoScore[];
   locations_ranking: LocationRanking[];
   environment_tree: EnvironmentNode[];
+  environment_senso_table: EnvironmentSensoRow[];
   non_conformities: NonConformityDetail[];
   total_conformities: number;
   total_non_conformities: number;
