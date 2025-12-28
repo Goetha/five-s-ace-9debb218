@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, ChevronDown, ChevronRight, MapPin, Layers, ChevronsRight } from "lucide-react";
+import { Building2, ChevronDown, ChevronRight, MapPin, Layers, ChevronsRight, CheckCircle2, AlertTriangle, XCircle, Minus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
@@ -44,58 +44,71 @@ const SENSOS = [
   { key: '5S', name: 'Autodisciplina', shortName: 'Disc.', bgHeader: 'bg-blue-500', textHeader: 'text-white' },
 ];
 
-// Função para obter indicador visual baseado no score - agora com emojis de rostos
+// Função para obter indicador visual baseado no score
 const getScoreIndicator = (score: number | null) => {
   if (score === null) return { 
     bg: 'bg-slate-100', 
     border: 'border-slate-200',
     textColor: 'text-slate-400',
+    iconColor: 'text-slate-300',
     label: '-',
     description: '',
-    emoji: '😶',
+    icon: 'none' as const,
     hasScore: false
   };
   if (score >= 80) return { 
     bg: 'bg-emerald-50', 
     border: 'border-emerald-200',
     textColor: 'text-emerald-700',
+    iconColor: 'text-emerald-500',
     label: `${score.toFixed(0)}%`,
     description: 'Excelente',
-    emoji: '😃',
+    icon: 'check' as const,
     hasScore: true
   };
   if (score >= 50) return { 
     bg: 'bg-amber-50', 
     border: 'border-amber-200',
     textColor: 'text-amber-700',
+    iconColor: 'text-amber-500',
     label: `${score.toFixed(0)}%`,
     description: 'Atenção',
-    emoji: '😐',
+    icon: 'warning' as const,
     hasScore: true
   };
   return { 
     bg: 'bg-red-50', 
     border: 'border-red-200',
     textColor: 'text-red-700',
+    iconColor: 'text-red-500',
     label: `${score.toFixed(0)}%`,
     description: 'Crítico',
-    emoji: '😢',
+    icon: 'critical' as const,
     hasScore: true
   };
 };
 
-// Componente do indicador de score com emoji
+// Componente do indicador de score com ícones
 const ScoreIndicator = ({ score, showPercent = false }: { score: number | null; showPercent?: boolean }) => {
   const indicator = getScoreIndicator(score);
   
+  const renderIcon = () => {
+    const iconClass = cn("h-5 w-5 sm:h-6 sm:w-6", indicator.iconColor);
+    switch (indicator.icon) {
+      case 'check':
+        return <CheckCircle2 className={iconClass} />;
+      case 'warning':
+        return <AlertTriangle className={iconClass} />;
+      case 'critical':
+        return <XCircle className={iconClass} />;
+      default:
+        return <Minus className={cn("h-4 w-4 sm:h-5 sm:w-5", indicator.iconColor)} />;
+    }
+  };
+  
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <span className={cn(
-        "text-xl sm:text-2xl",
-        indicator.textColor
-      )}>
-        {indicator.emoji}
-      </span>
+      {renderIcon()}
       {indicator.hasScore && (
         <span className={cn("text-[8px] sm:text-[10px] font-semibold leading-tight", indicator.textColor)}>
           {showPercent ? indicator.label : indicator.description}
@@ -182,19 +195,19 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
         <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs sm:text-sm">
           <span className="font-medium text-muted-foreground">Legenda:</span>
           <div className="flex items-center gap-2">
-            <span className="text-xl">😃</span>
+            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
             <span>≥ 80% (Excelente)</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xl">😐</span>
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
             <span>50-79% (Atenção)</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xl">😢</span>
+            <XCircle className="h-5 w-5 text-red-500" />
             <span>&lt; 50% (Crítico)</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xl">😶</span>
+            <Minus className="h-5 w-5 text-slate-300" />
             <span>Não avaliado</span>
           </div>
         </div>
