@@ -254,16 +254,16 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
             .eq('id', item.id);
         }
 
-        // Calculate scores
-        const totalQuestions = items.length;
-        const totalYes = items.filter(item => item.answer === true).length;
-        const totalNo = items.filter(item => item.answer === false).length;
-        const score = (totalYes / totalQuestions) * 10;
-        
-        let scoreLevel: 'low' | 'medium' | 'high';
-        if (score >= 9) scoreLevel = 'high';
-        else if (score >= 5) scoreLevel = 'medium';
-        else scoreLevel = 'low';
+      // Calculate scores - using 0-100 scale (percentage)
+      const totalQuestions = items.length;
+      const totalYes = items.filter(item => item.answer === true).length;
+      const totalNo = items.filter(item => item.answer === false).length;
+      const score = Math.round((totalYes / totalQuestions) * 100);
+      
+      let scoreLevel: 'low' | 'medium' | 'high';
+      if (score >= 80) scoreLevel = 'high';      // >= 80% = Excelente
+      else if (score >= 50) scoreLevel = 'medium'; // 50-79% = Atenção
+      else scoreLevel = 'low';                     // < 50% = Crítico
 
         // Update audit
         await supabase
