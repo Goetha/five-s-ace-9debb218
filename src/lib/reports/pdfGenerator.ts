@@ -220,46 +220,59 @@ function getScoreIndicator(score: number | null): { symbol: string; color: strin
 // Render hierarchical environment senso table
 function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSensoRow[]) {
   const { pdf, pageWidth } = helpers;
-  const colWidth = 22;
-  const nameColWidth = pageWidth - 2 * PAGE_MARGIN - (6 * colWidth); // Name column + 5 senso + 1 average
+  
+  // Calculate responsive column widths
+  const totalWidth = pageWidth - 2 * PAGE_MARGIN;
+  const sensoColWidth = 15; // Smaller columns for senso scores (circles only need less space)
+  const avgColWidth = 18; // Slightly larger for "GERAL"
+  const numSensoCols = 5;
+  const scoreColumnsWidth = (numSensoCols * sensoColWidth) + avgColWidth; // Total width for score columns
+  const nameColWidth = totalWidth - scoreColumnsWidth; // Remaining space for name column
   const tableLeft = PAGE_MARGIN;
   
   // Table header
   checkPageBreak(helpers, 15);
   const headerY = helpers.yPos;
   
-  // Header background
+  // Header background for name column
   pdf.setFillColor('#F3F4F6');
-  pdf.rect(tableLeft, headerY, pageWidth - 2 * PAGE_MARGIN, 12, 'F');
+  pdf.rect(tableLeft, headerY, nameColWidth, 12, 'F');
   
   // Header text
   addText(helpers, 'Ambiente / Local', tableLeft + 3, headerY + 8, { fontSize: 8, fontStyle: 'bold', color: '#374151' });
   
   // Senso column headers with colors
   const sensoHeaders = [
-    { key: '1S', label: '1S', subLabel: 'Utilizacao', color: SENSO_CONFIG['1S'].color },
-    { key: '2S', label: '2S', subLabel: 'Organizacao', color: SENSO_CONFIG['2S'].color },
-    { key: '3S', label: '3S', subLabel: 'Limpeza', color: SENSO_CONFIG['3S'].color },
-    { key: '4S', label: '4S', subLabel: 'Saude', color: SENSO_CONFIG['4S'].color },
-    { key: '5S', label: '5S', subLabel: 'Disciplina', color: SENSO_CONFIG['5S'].color },
+    { key: '1S', label: '1S', subLabel: 'Util.', color: SENSO_CONFIG['1S'].color },
+    { key: '2S', label: '2S', subLabel: 'Org.', color: SENSO_CONFIG['2S'].color },
+    { key: '3S', label: '3S', subLabel: 'Limp.', color: SENSO_CONFIG['3S'].color },
+    { key: '4S', label: '4S', subLabel: 'Sau.', color: SENSO_CONFIG['4S'].color },
+    { key: '5S', label: '5S', subLabel: 'Disc.', color: SENSO_CONFIG['5S'].color },
   ];
   
   sensoHeaders.forEach((senso, i) => {
-    const x = tableLeft + nameColWidth + (i * colWidth);
+    const x = tableLeft + nameColWidth + (i * sensoColWidth);
     pdf.setFillColor(senso.color);
-    pdf.rect(x, headerY, colWidth, 12, 'F');
-    addText(helpers, senso.label, x + colWidth/2 - 3, headerY + 5, { fontSize: 8, fontStyle: 'bold', color: '#FFFFFF' });
-    addText(helpers, senso.subLabel.substring(0, 10), x + 2, headerY + 10, { fontSize: 5, color: '#FFFFFF' });
+    pdf.rect(x, headerY, sensoColWidth, 12, 'F');
+    // Center the label
+    const labelWidth = pdf.getTextWidth(senso.label);
+    addText(helpers, senso.label, x + (sensoColWidth - labelWidth) / 2, headerY + 5, { fontSize: 7, fontStyle: 'bold', color: '#FFFFFF' });
+    // Sub-label abbreviated
+    const subWidth = pdf.getTextWidth(senso.subLabel);
+    addText(helpers, senso.subLabel, x + (sensoColWidth - subWidth) / 2, headerY + 10, { fontSize: 4, color: '#FFFFFF' });
   });
   
   // Average column header
-  const avgX = tableLeft + nameColWidth + (5 * colWidth);
+  const avgX = tableLeft + nameColWidth + (numSensoCols * sensoColWidth);
   pdf.setFillColor('#6B7280');
-  pdf.rect(avgX, headerY, colWidth, 12, 'F');
-  addText(helpers, 'GERAL', avgX + 3, headerY + 5, { fontSize: 7, fontStyle: 'bold', color: '#FFFFFF' });
-  addText(helpers, 'Media', avgX + 5, headerY + 10, { fontSize: 5, color: '#FFFFFF' });
+  pdf.rect(avgX, headerY, avgColWidth, 12, 'F');
+  addText(helpers, 'GERAL', avgX + 2, headerY + 5, { fontSize: 6, fontStyle: 'bold', color: '#FFFFFF' });
+  addText(helpers, 'Media', avgX + 3, headerY + 10, { fontSize: 4, color: '#FFFFFF' });
   
   helpers.yPos += 14;
+  
+  // Store column config for rows
+  const colConfig = { nameColWidth, sensoColWidth, avgColWidth, numSensoCols, tableLeft, avgX };
   
   // Render rows
   for (const row of rows) {
@@ -299,11 +312,12 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
       levelColor = '#6B7280';
     }
     
-    // Environment name with indent
-    const displayName = row.name.length > 25 ? row.name.substring(0, 22) + '...' : row.name;
+    // Environment name with indent - truncate based on available space
+    const maxNameLength = Math.floor((nameColWidth - indent - 12) / 2); // Approximate chars that fit
+    const displayName = row.name.length > maxNameLength ? row.name.substring(0, maxNameLength - 2) + '...' : row.name;
     addText(helpers, levelIcon, tableLeft + 2 + indent, rowY + 5, { fontSize: 7, color: levelColor });
     addText(helpers, displayName, tableLeft + 10 + indent, rowY + 5, { 
-      fontSize: row.level <= 1 ? 8 : 7, 
+      fontSize: row.level <= 1 ? 7 : 6, 
       fontStyle: row.level <= 1 ? 'bold' : 'normal',
       color: row.level === 0 ? '#059669' : row.level === 1 ? '#10B981' : '#374151' 
     });
@@ -311,34 +325,34 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
     // Senso score cells
     const sensoKeys = ['1S', '2S', '3S', '4S', '5S'] as const;
     sensoKeys.forEach((key, i) => {
-      const x = tableLeft + nameColWidth + (i * colWidth);
+      const x = tableLeft + nameColWidth + (i * sensoColWidth);
       const score = row.senso_scores[key];
       const indicator = getScoreIndicator(score);
       
       // Draw cell border
       pdf.setDrawColor('#E5E7EB');
-      pdf.rect(x, rowY, colWidth, 8, 'S');
+      pdf.rect(x, rowY, sensoColWidth, 8, 'S');
       
       if (score !== null) {
         // Draw colored circle indicator
         pdf.setFillColor(indicator.color);
-        pdf.circle(x + colWidth/2, rowY + 4, 2.5, 'F');
+        pdf.circle(x + sensoColWidth / 2, rowY + 4, 2, 'F');
       } else {
         // Draw dash for no data
-        addText(helpers, '-', x + colWidth/2 - 1, rowY + 5, { fontSize: 8, color: '#9CA3AF' });
+        addText(helpers, '-', x + sensoColWidth / 2 - 1, rowY + 5, { fontSize: 7, color: '#9CA3AF' });
       }
     });
     
     // Average score cell
     pdf.setDrawColor('#E5E7EB');
-    pdf.rect(avgX, rowY, colWidth, 8, 'S');
+    pdf.rect(avgX, rowY, avgColWidth, 8, 'S');
     
     if (row.average_score !== null) {
       const avgIndicator = getScoreIndicator(row.average_score);
       pdf.setFillColor(avgIndicator.color);
-      pdf.circle(avgX + colWidth/2, rowY + 4, 2.5, 'F');
+      pdf.circle(avgX + avgColWidth / 2, rowY + 4, 2, 'F');
     } else {
-      addText(helpers, '-', avgX + colWidth/2 - 1, rowY + 5, { fontSize: 8, color: '#9CA3AF' });
+      addText(helpers, '-', avgX + avgColWidth / 2 - 1, rowY + 5, { fontSize: 7, color: '#9CA3AF' });
     }
     
     helpers.yPos += 8;
