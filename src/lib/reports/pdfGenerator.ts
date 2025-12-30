@@ -367,11 +367,22 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
   for (const row of rows) {
     // Aggregate rows (level 0,1,2) show icons, detail rows show percentages
     const isAggregateRow = row.level <= 2;
-    const rowHeight = isAggregateRow ? 20 : 14;  // LARGER rows
+    const indent = Math.min(row.level * 6, 24);
+    
+    // Calculate row height based on text wrapping
+    const nameFontSize = row.level <= 1 ? 9 : 8;
+    const availableNameWidth = nameColWidth - indent - 14;
+    pdf.setFontSize(nameFontSize);
+    const textLines = pdf.splitTextToSize(row.name, availableNameWidth);
+    const numLines = textLines.length;
+    
+    // Base height + extra for each additional line
+    const baseHeight = isAggregateRow ? 22 : 14;
+    const lineHeight = nameFontSize * 0.4;
+    const rowHeight = Math.max(baseHeight, baseHeight + (numLines - 1) * lineHeight);
     
     checkPageBreak(helpers, rowHeight + 2);
     const rowY = helpers.yPos;
-    const indent = Math.min(row.level * 6, 24);  // More indent
     
     // Row background based on level
     let bgColor = '#FFFFFF';
@@ -392,13 +403,18 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
     else if (row.level === 2) { levelIcon = '@'; levelColor = '#3B82F6'; }
     else { levelIcon = '>'; levelColor = '#6B7280'; }
     
-    // Environment name - LARGER fonts
-    addText(helpers, levelIcon, tableLeft + 3 + indent, rowY + rowHeight / 2 + 1, { fontSize: 7, color: levelColor });
-    addText(helpers, row.name, tableLeft + 10 + indent, rowY + rowHeight / 2 + 2, { 
-      fontSize: row.level <= 1 ? 10 : 9,  // LARGER 
-      fontStyle: row.level <= 1 ? 'bold' : 'normal',
-      color: row.level === 0 ? '#059669' : row.level === 1 ? '#10B981' : '#374151',
-      maxWidth: nameColWidth - indent - 12
+    // Environment name - wrapped text, no cutting
+    const textStartY = numLines === 1 ? rowY + rowHeight / 2 + 2 : rowY + 6;
+    addText(helpers, levelIcon, tableLeft + 3 + indent, textStartY, { fontSize: 7, color: levelColor });
+    
+    pdf.setFontSize(nameFontSize);
+    pdf.setFont('helvetica', row.level <= 1 ? 'bold' : 'normal');
+    pdf.setTextColor(row.level === 0 ? '#059669' : row.level === 1 ? '#10B981' : '#374151');
+    
+    // Draw each line of wrapped text
+    textLines.forEach((line: string, lineIndex: number) => {
+      const lineY = textStartY + (lineIndex * lineHeight * 2.5);
+      pdf.text(line, tableLeft + 10 + indent, lineY);
     });
     
     // Senso score cells
@@ -415,7 +431,7 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
       pdf.rect(x, rowY, sensoColWidth, rowHeight, 'S');
       
       const cellCenterX = x + sensoColWidth / 2;
-      const cellCenterY = isAggregateRow ? rowY + 7 : rowY + rowHeight / 2;
+      const cellCenterY = isAggregateRow ? rowY + rowHeight / 2 - 2 : rowY + rowHeight / 2;
       
       drawScoreIndicator(pdf, cellCenterX, cellCenterY, score, isAggregateRow, helpers);
     });
@@ -428,7 +444,7 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
     pdf.rect(avgX, rowY, avgColWidth, rowHeight, 'S');
     
     const avgCenterX = avgX + avgColWidth / 2;
-    const avgCenterY = isAggregateRow ? rowY + 7 : rowY + rowHeight / 2;
+    const avgCenterY = isAggregateRow ? rowY + rowHeight / 2 - 2 : rowY + rowHeight / 2;
     
     if (row.average_score !== null) {
       if (isAggregateRow) {
