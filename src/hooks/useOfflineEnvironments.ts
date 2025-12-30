@@ -80,6 +80,14 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
 
     let cancelled = false;
 
+    // Timeout de segurança de 10 segundos
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        setIsLoading(false);
+        setError('Tempo limite excedido ao carregar dados');
+      }
+    }, 10000);
+
     const fetchData = async () => {
       setIsLoading(true);
       setError(null);
@@ -218,6 +226,7 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
 
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [userId, targetCompanyId, refreshTrigger]);
 
