@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignInPage, Testimonial } from "@/components/ui/sign-in";
@@ -10,6 +10,15 @@ const testimonials: Testimonial[] = [];
 export default function Auth() {
   const navigate = useNavigate();
   const { signIn, user, userRole, isLoading: authLoading } = useAuth();
+  const [animationData, setAnimationData] = useState<object | null>(null);
+
+  // Load Lottie animation
+  useEffect(() => {
+    fetch('/animations/Creative_Idea.json')
+      .then(res => res.json())
+      .then(data => setAnimationData(data))
+      .catch(err => console.error('Failed to load animation:', err));
+  }, []);
 
   // Redirect if already authenticated based on role
   useEffect(() => {
@@ -64,7 +73,7 @@ export default function Auth() {
     <SignInPage
       title={<span className="font-light text-foreground tracking-tighter">SaaS 5S Manager</span>}
       description="Sistema de gestão de auditorias 5S"
-      heroImageSrc="/images/hero-login.png"
+      lottieAnimationData={animationData || undefined}
       testimonials={testimonials}
       onSignIn={handleLogin}
       isLoading={authLoading}
