@@ -312,8 +312,7 @@ export default function DetalhesAuditoria() {
               <div className="text-center space-y-2 sm:space-y-3 p-4 sm:p-6 bg-secondary/50 rounded-lg border border-border">
                 <div>
                   <p className="text-xs sm:text-sm text-muted-foreground mb-1">Pontuação Final</p>
-                  <p className="text-4xl sm:text-5xl font-bold">{audit.score?.toFixed(1)}</p>
-                  <p className="text-sm text-muted-foreground">/10</p>
+                  <p className="text-4xl sm:text-5xl font-bold">{audit.score?.toFixed(0)}%</p>
                 </div>
                 <div className="flex justify-center">
                   <ScoreLevelIndicator level={scoreLevel} />

@@ -12,7 +12,7 @@ const levelConfig = {
   low: {
     emoji: "🔴",
     label: "Não atende o padrão 5S",
-    range: "0-4 pontos",
+    range: "0-49%",
     bgColor: "bg-red-100",
     textColor: "text-red-700",
     borderColor: "border-red-300"
@@ -20,7 +20,7 @@ const levelConfig = {
   medium: {
     emoji: "🟡",
     label: "Atende parcialmente ao padrão 5S",
-    range: "5-8 pontos",
+    range: "50-79%",
     bgColor: "bg-yellow-100",
     textColor: "text-yellow-700",
     borderColor: "border-yellow-300"
@@ -28,7 +28,7 @@ const levelConfig = {
   high: {
     emoji: "🟢",
     label: "Atende ao padrão 5S",
-    range: "9-10 pontos",
+    range: "80-100%",
     bgColor: "bg-green-100",
     textColor: "text-green-700",
     borderColor: "border-green-300"
@@ -67,7 +67,7 @@ export function ScoreLevelIndicator({ level, showLabel = true, size = "md" }: Sc
 }
 
 export function getScoreLevel(score: number): ScoreLevel {
-  if (score >= 9) return "high";
-  if (score >= 5) return "medium";
-  return "low";
+  if (score >= 80) return "high";      // >= 80% = Excelente
+  if (score >= 50) return "medium";    // 50-79% = Atenção
+  return "low";                         // < 50% = Crítico
 }
