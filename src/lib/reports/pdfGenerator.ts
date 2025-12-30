@@ -247,7 +247,7 @@ function getScoreIndicator(score: number | null): {
   };
 }
 
-// Draw score indicator matching system UI exactly - simple and clean
+// Draw score indicator - smaller icons, larger numbers
 function drawScoreIndicator(
   pdf: jsPDF, 
   x: number, 
@@ -259,58 +259,58 @@ function drawScoreIndicator(
   const indicator = getScoreIndicator(score);
   
   if (score === null) {
-    addText(helpers, '-', x - 1, y + 1, { fontSize: 7, color: '#9CA3AF' });
+    addText(helpers, '-', x - 2, y + 2, { fontSize: 9, color: '#9CA3AF' });
     return;
   }
   
   if (isAggregate) {
-    // Simple circle with icon - smaller size like system
-    const circleRadius = 4;
+    // Smaller circle with icon
+    const circleRadius = 3.2;
     
     // Draw circle with border
     pdf.setDrawColor(indicator.borderColor);
-    pdf.setLineWidth(0.6);
+    pdf.setLineWidth(0.5);
     pdf.setFillColor('#FFFFFF');
     pdf.circle(x, y, circleRadius, 'FD');
     pdf.setLineWidth(0.2);
     
-    // Draw simple icon inside
+    // Draw simple icon inside - smaller
     if (score >= 80) {
       // Simple checkmark ✓
       pdf.setDrawColor(indicator.color);
-      pdf.setLineWidth(0.7);
-      pdf.line(x - 1.8, y, x - 0.5, y + 1.5);
-      pdf.line(x - 0.5, y + 1.5, x + 2, y - 1.5);
+      pdf.setLineWidth(0.6);
+      pdf.line(x - 1.4, y, x - 0.4, y + 1.2);
+      pdf.line(x - 0.4, y + 1.2, x + 1.6, y - 1.2);
       pdf.setLineWidth(0.2);
     } else if (score >= 50) {
       // Simple triangle with ! inside
       pdf.setFillColor(indicator.color);
-      pdf.triangle(x, y - 2.2, x - 2.2, y + 1.5, x + 2.2, y + 1.5, 'F');
+      pdf.triangle(x, y - 1.8, x - 1.8, y + 1.2, x + 1.8, y + 1.2, 'F');
       pdf.setFillColor('#FFFFFF');
-      pdf.rect(x - 0.3, y - 1.2, 0.6, 1.5, 'F');
-      pdf.circle(x, y + 0.8, 0.35, 'F');
+      pdf.rect(x - 0.25, y - 1, 0.5, 1.2, 'F');
+      pdf.circle(x, y + 0.6, 0.3, 'F');
     } else {
       // Simple X mark
       pdf.setDrawColor(indicator.color);
-      pdf.setLineWidth(0.7);
-      pdf.line(x - 1.5, y - 1.5, x + 1.5, y + 1.5);
-      pdf.line(x + 1.5, y - 1.5, x - 1.5, y + 1.5);
+      pdf.setLineWidth(0.6);
+      pdf.line(x - 1.2, y - 1.2, x + 1.2, y + 1.2);
+      pdf.line(x + 1.2, y - 1.2, x - 1.2, y + 1.2);
       pdf.setLineWidth(0.2);
     }
     
-    // Label below circle
-    pdf.setFontSize(4);
+    // Label below circle - smaller
+    pdf.setFontSize(3.5);
     const labelWidth = pdf.getTextWidth(indicator.label);
-    addText(helpers, indicator.label, x - labelWidth / 2, y + circleRadius + 4, { 
-      fontSize: 4, color: indicator.color 
+    addText(helpers, indicator.label, x - labelWidth / 2, y + circleRadius + 3.5, { 
+      fontSize: 3.5, color: indicator.color 
     });
   } else {
-    // Just percentage for detail rows
+    // Just percentage for detail rows - LARGER
     const pctText = `${Math.round(score)}%`;
-    pdf.setFontSize(7);
+    pdf.setFontSize(9);
     const pctWidth = pdf.getTextWidth(pctText);
-    addText(helpers, pctText, x - pctWidth / 2, y + 1.5, { 
-      fontSize: 7, fontStyle: 'bold', color: indicator.color 
+    addText(helpers, pctText, x - pctWidth / 2, y + 2, { 
+      fontSize: 9, fontStyle: 'bold', color: indicator.color 
     });
   }
 }
@@ -432,53 +432,53 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
     
     if (row.average_score !== null) {
       if (isAggregateRow) {
-        // Circle with icon - same as senso columns
-        const circleRadius = 4;
+        // Smaller circle with icon
+        const circleRadius = 3.2;
         pdf.setDrawColor(avgIndicator.borderColor);
-        pdf.setLineWidth(0.6);
+        pdf.setLineWidth(0.5);
         pdf.setFillColor('#FFFFFF');
         pdf.circle(avgCenterX, avgCenterY, circleRadius, 'FD');
         pdf.setLineWidth(0.2);
         
-        // Draw icon
+        // Draw icon - smaller
         if (row.average_score >= 80) {
           pdf.setDrawColor(avgIndicator.color);
-          pdf.setLineWidth(0.7);
-          pdf.line(avgCenterX - 1.8, avgCenterY, avgCenterX - 0.5, avgCenterY + 1.5);
-          pdf.line(avgCenterX - 0.5, avgCenterY + 1.5, avgCenterX + 2, avgCenterY - 1.5);
+          pdf.setLineWidth(0.6);
+          pdf.line(avgCenterX - 1.4, avgCenterY, avgCenterX - 0.4, avgCenterY + 1.2);
+          pdf.line(avgCenterX - 0.4, avgCenterY + 1.2, avgCenterX + 1.6, avgCenterY - 1.2);
           pdf.setLineWidth(0.2);
         } else if (row.average_score >= 50) {
           pdf.setFillColor(avgIndicator.color);
-          pdf.triangle(avgCenterX, avgCenterY - 2.2, avgCenterX - 2.2, avgCenterY + 1.5, avgCenterX + 2.2, avgCenterY + 1.5, 'F');
+          pdf.triangle(avgCenterX, avgCenterY - 1.8, avgCenterX - 1.8, avgCenterY + 1.2, avgCenterX + 1.8, avgCenterY + 1.2, 'F');
           pdf.setFillColor('#FFFFFF');
-          pdf.rect(avgCenterX - 0.3, avgCenterY - 1.2, 0.6, 1.5, 'F');
-          pdf.circle(avgCenterX, avgCenterY + 0.8, 0.35, 'F');
+          pdf.rect(avgCenterX - 0.25, avgCenterY - 1, 0.5, 1.2, 'F');
+          pdf.circle(avgCenterX, avgCenterY + 0.6, 0.3, 'F');
         } else {
           pdf.setDrawColor(avgIndicator.color);
-          pdf.setLineWidth(0.7);
-          pdf.line(avgCenterX - 1.5, avgCenterY - 1.5, avgCenterX + 1.5, avgCenterY + 1.5);
-          pdf.line(avgCenterX + 1.5, avgCenterY - 1.5, avgCenterX - 1.5, avgCenterY + 1.5);
+          pdf.setLineWidth(0.6);
+          pdf.line(avgCenterX - 1.2, avgCenterY - 1.2, avgCenterX + 1.2, avgCenterY + 1.2);
+          pdf.line(avgCenterX + 1.2, avgCenterY - 1.2, avgCenterX - 1.2, avgCenterY + 1.2);
           pdf.setLineWidth(0.2);
         }
         
-        // Percentage below
-        const pctText = `${Math.round(row.average_score)}%`;
-        pdf.setFontSize(5);
-        const pctWidth = pdf.getTextWidth(pctText);
-        addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + circleRadius + 4, { 
-          fontSize: 5, fontStyle: 'bold', color: avgIndicator.color 
-        });
-      } else {
-        // Just percentage for detail rows
+        // Percentage below - LARGER
         const pctText = `${Math.round(row.average_score)}%`;
         pdf.setFontSize(7);
         const pctWidth = pdf.getTextWidth(pctText);
-        addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + 1.5, { 
+        addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + circleRadius + 4.5, { 
           fontSize: 7, fontStyle: 'bold', color: avgIndicator.color 
+        });
+      } else {
+        // Just percentage for detail rows - LARGER
+        const pctText = `${Math.round(row.average_score)}%`;
+        pdf.setFontSize(9);
+        const pctWidth = pdf.getTextWidth(pctText);
+        addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + 2, { 
+          fontSize: 9, fontStyle: 'bold', color: avgIndicator.color 
         });
       }
     } else {
-      addText(helpers, '-', avgCenterX - 1, avgCenterY + 1, { fontSize: 7, color: '#9CA3AF' });
+      addText(helpers, '-', avgCenterX - 2, avgCenterY + 2, { fontSize: 9, color: '#9CA3AF' });
     }
     
     helpers.yPos += rowHeight;
