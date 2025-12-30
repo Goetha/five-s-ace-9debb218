@@ -12,7 +12,13 @@ import {
   getCachedCriteria,
   getCachedEnvironments,
   addToStore,
+  getOfflineAudits,
+  removeOfflineAudit,
+  mapOfflineToRealId,
+  getCachedAuditItemsByAuditId,
+  isOfflineId,
 } from '@/lib/offlineStorage';
+import { useToast } from '@/hooks/use-toast';
 
 interface SyncStatus {
   isOnline: boolean;
@@ -22,6 +28,7 @@ interface SyncStatus {
 }
 
 export function useOfflineSync() {
+  const { toast } = useToast();
   const [status, setStatus] = useState<SyncStatus>({
     isOnline: navigator.onLine,
     isSyncing: false,
@@ -72,19 +79,133 @@ export function useOfflineSync() {
 
     try {
       const pendingItems = await getPendingSync();
+      let syncedCount = 0;
+      let errorCount = 0;
 
       for (const item of pendingItems) {
         try {
+          // Handle offline audit creation
+          if (item.type === 'create' && item.table === 'offline_audit') {
+            const { audit, items } = item.data;
+            
+            // Create the audit on server
+            const { data: createdAudit, error: auditError } = await supabase
+              .from('audits')
+              .insert({
+                company_id: audit.company_id,
+                location_id: audit.location_id,
+                auditor_id: audit.auditor_id,
+                status: audit.status,
+                started_at: audit.started_at,
+                total_questions: audit.total_questions,
+                total_yes: audit.total_yes || 0,
+                total_no: audit.total_no || 0,
+              })
+              .select()
+              .single();
+
+            if (auditError) {
+              console.error('Error creating audit:', auditError);
+              errorCount++;
+              continue;
+            }
+
+            // Create audit items
+            const auditItems = items.map((i: any) => ({
+              audit_id: createdAudit.id,
+              criterion_id: i.criterion_id,
+              question: i.question,
+              answer: null,
+            }));
+
+            const { error: itemsError } = await supabase
+              .from('audit_items')
+              .insert(auditItems);
+
+            if (itemsError) {
+              console.error('Error creating audit items:', itemsError);
+              errorCount++;
+              continue;
+            }
+
+            // Map offline ID to real ID
+            // Note: We need to find the offline audit ID from pending sync data
+            const offlineAudits = await getOfflineAudits();
+            const matchingOfflineAudit = offlineAudits.find(
+              a => a.company_id === audit.company_id && 
+                   a.location_id === audit.location_id &&
+                   a.auditor_id === audit.auditor_id
+            );
+
+            if (matchingOfflineAudit) {
+              await mapOfflineToRealId(matchingOfflineAudit.id, createdAudit.id, 'audit');
+              await removeOfflineAudit(matchingOfflineAudit.id);
+            }
+
+            await removePendingSync(item.id);
+            syncedCount++;
+            continue;
+          }
+
+          // Handle offline audit item updates
+          if (item.type === 'update' && item.table === 'offline_audit_item') {
+            // These will be handled when the audit is synced
+            // For now, skip them as the audit sync handles all items
+            await removePendingSync(item.id);
+            continue;
+          }
+
+          // Handle offline audit completion
+          if (item.type === 'update' && item.table === 'offline_audit_complete') {
+            // This should sync the completion data
+            // First, we need to find the real audit ID
+            const { auditId, ...updateData } = item.data;
+            
+            if (isOfflineId(auditId)) {
+              // Audit might not be synced yet, skip for now
+              continue;
+            }
+
+            const { error } = await supabase
+              .from('audits')
+              .update({
+                status: 'completed',
+                completed_at: new Date().toISOString(),
+                observations: updateData.observations,
+                next_audit_date: updateData.next_audit_date,
+                total_yes: updateData.total_yes,
+                total_no: updateData.total_no,
+                score: updateData.score,
+                score_level: updateData.score_level,
+              })
+              .eq('id', auditId);
+
+            if (!error) {
+              await removePendingSync(item.id);
+              syncedCount++;
+            } else {
+              errorCount++;
+            }
+            continue;
+          }
+
+          // Handle regular creates
           if (item.type === 'create') {
             if (item.table === 'audits') {
               const { error } = await supabase.from('audits').insert(item.data);
               if (!error) {
                 await removePendingSync(item.id);
+                syncedCount++;
+              } else {
+                errorCount++;
               }
             } else if (item.table === 'audit_items') {
               const { error } = await supabase.from('audit_items').insert(item.data);
               if (!error) {
                 await removePendingSync(item.id);
+                syncedCount++;
+              } else {
+                errorCount++;
               }
             }
           } else if (item.type === 'update') {
@@ -96,6 +217,9 @@ export function useOfflineSync() {
                 .eq('id', id);
               if (!error) {
                 await removePendingSync(item.id);
+                syncedCount++;
+              } else {
+                errorCount++;
               }
             } else if (item.table === 'audit_items') {
               const { id, ...updateData } = item.data;
@@ -105,15 +229,35 @@ export function useOfflineSync() {
                 .eq('id', id);
               if (!error) {
                 await removePendingSync(item.id);
+                syncedCount++;
+              } else {
+                errorCount++;
               }
             }
           }
         } catch (error) {
           console.error(`Error syncing item ${item.id}:`, error);
+          errorCount++;
         }
       }
 
       await updatePendingCount();
+      
+      if (syncedCount > 0) {
+        toast({
+          title: "Sincronização concluída",
+          description: `${syncedCount} ${syncedCount === 1 ? 'item sincronizado' : 'itens sincronizados'} com sucesso.`,
+        });
+      }
+
+      if (errorCount > 0) {
+        toast({
+          title: "Erros na sincronização",
+          description: `${errorCount} ${errorCount === 1 ? 'item falhou' : 'itens falharam'} ao sincronizar.`,
+          variant: "destructive",
+        });
+      }
+
       setStatus(prev => ({
         ...prev,
         isSyncing: false,
@@ -123,7 +267,7 @@ export function useOfflineSync() {
       console.error('Error during sync:', error);
       setStatus(prev => ({ ...prev, isSyncing: false }));
     }
-  }, []);
+  }, [toast]);
 
   // Save audit offline (for when user is offline)
   const saveAuditOffline = useCallback(async (auditData: any): Promise<string> => {

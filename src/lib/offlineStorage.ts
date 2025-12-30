@@ -414,3 +414,199 @@ export const getCachedAuditItemsByAuditId = async (auditId: string): Promise<any
   const allItems = await getAllFromStore<any>('auditItems');
   return allItems.filter(item => item.audit_id === auditId);
 };
+
+// =====================
+// OFFLINE AUDIT FUNCTIONS
+// =====================
+
+export interface OfflineAudit {
+  id: string; // temporary offline ID
+  company_id: string;
+  location_id: string;
+  auditor_id: string;
+  status: string;
+  started_at: string;
+  total_questions: number;
+  total_yes: number;
+  total_no: number;
+  score: number | null;
+  _isOffline: true;
+  _locationName?: string;
+  _companyName?: string;
+}
+
+export interface OfflineAuditItem {
+  id: string;
+  audit_id: string;
+  criterion_id: string;
+  question: string;
+  answer: boolean | null;
+  photo_url: string | null;
+  comment: string | null;
+  senso?: string[] | null;
+  _isOffline: true;
+}
+
+// Generate offline ID
+export const generateOfflineId = (): string => {
+  return `offline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+// Check if ID is offline
+export const isOfflineId = (id: string): boolean => {
+  return id.startsWith('offline_');
+};
+
+// Create an offline audit with its items
+export const createOfflineAudit = async (
+  auditData: Omit<OfflineAudit, 'id' | '_isOffline'>,
+  items: Array<{ criterion_id: string; question: string; senso?: string[] | null }>
+): Promise<{ audit: OfflineAudit; items: OfflineAuditItem[] }> => {
+  const auditId = generateOfflineId();
+  
+  const audit: OfflineAudit = {
+    ...auditData,
+    id: auditId,
+    _isOffline: true,
+  };
+  
+  // Save audit to cache
+  await addToStore('audits', audit);
+  
+  // Create and save audit items
+  const auditItems: OfflineAuditItem[] = items.map(item => ({
+    id: generateOfflineId(),
+    audit_id: auditId,
+    criterion_id: item.criterion_id,
+    question: item.question,
+    answer: null,
+    photo_url: null,
+    comment: null,
+    senso: item.senso,
+    _isOffline: true,
+  }));
+  
+  for (const item of auditItems) {
+    await addToStore('auditItems', item);
+  }
+  
+  // Add to pending sync
+  await addPendingSync('create', 'offline_audit', {
+    audit: auditData,
+    items,
+  });
+  
+  return { audit, items: auditItems };
+};
+
+// Get all offline audits (not yet synced)
+export const getOfflineAudits = async (): Promise<OfflineAudit[]> => {
+  const allAudits = await getAllFromStore<any>('audits');
+  return allAudits.filter(a => a._isOffline === true);
+};
+
+// Update an offline audit item
+export const updateOfflineAuditItem = async (
+  itemId: string,
+  updates: Partial<Pick<OfflineAuditItem, 'answer' | 'photo_url' | 'comment'>>
+): Promise<void> => {
+  const item = await getFromStore<OfflineAuditItem>('auditItems', itemId);
+  if (item) {
+    const updatedItem = { ...item, ...updates };
+    await addToStore('auditItems', updatedItem);
+    
+    // Add to pending sync if this is an offline item
+    if (item._isOffline) {
+      await addPendingSync('update', 'offline_audit_item', {
+        itemId,
+        auditId: item.audit_id,
+        updates,
+      });
+    }
+  }
+};
+
+// Complete an offline audit
+export const completeOfflineAudit = async (
+  auditId: string,
+  data: { observations?: string; next_audit_date?: string }
+): Promise<void> => {
+  const audit = await getFromStore<OfflineAudit>('audits', auditId);
+  if (audit) {
+    const items = await getCachedAuditItemsByAuditId(auditId);
+    const answeredItems = items.filter(i => i.answer !== null);
+    const yesCount = items.filter(i => i.answer === true).length;
+    const noCount = items.filter(i => i.answer === false).length;
+    const score = answeredItems.length > 0 
+      ? Math.round((yesCount / answeredItems.length) * 100) 
+      : 0;
+    
+    const scoreLevel = score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low';
+    
+    const updatedAudit = {
+      ...audit,
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      total_yes: yesCount,
+      total_no: noCount,
+      score,
+      score_level: scoreLevel,
+      observations: data.observations || null,
+      next_audit_date: data.next_audit_date || null,
+    };
+    
+    await addToStore('audits', updatedAudit);
+    
+    await addPendingSync('update', 'offline_audit_complete', {
+      auditId,
+      ...data,
+      total_yes: yesCount,
+      total_no: noCount,
+      score,
+      score_level: scoreLevel,
+    });
+  }
+};
+
+// Remove synced offline audit (after successful sync)
+export const removeOfflineAudit = async (offlineAuditId: string): Promise<void> => {
+  // Remove audit
+  await deleteFromStore('audits', offlineAuditId);
+  
+  // Remove all items for this audit
+  const items = await getCachedAuditItemsByAuditId(offlineAuditId);
+  for (const item of items) {
+    await deleteFromStore('auditItems', item.id);
+  }
+};
+
+// Map offline audit ID to real ID (after sync)
+export const mapOfflineToRealId = async (
+  offlineId: string,
+  realId: string,
+  type: 'audit' | 'audit_item'
+): Promise<void> => {
+  const database = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction('appMetadata', 'readwrite');
+    const store = transaction.objectStore('appMetadata');
+    const request = store.put({ 
+      key: `id_map_${offlineId}`, 
+      value: { realId, type, mappedAt: new Date().toISOString() } 
+    });
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+};
+
+// Get real ID from offline ID
+export const getRealIdFromOffline = async (offlineId: string): Promise<string | null> => {
+  const database = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction('appMetadata', 'readonly');
+    const store = transaction.objectStore('appMetadata');
+    const request = store.get(`id_map_${offlineId}`);
+    request.onsuccess = () => resolve(request.result?.value?.realId || null);
+    request.onerror = () => reject(request.error);
+  });
+};

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ScoreLevelIndicator, getScoreLevel } from "@/components/modelos/ScoreLevelIndicator";
-import { ArrowLeft, Calendar, Check, Loader2, MapPin, X } from "lucide-react";
+import { ArrowLeft, Calendar, Check, CloudOff, Loader2, MapPin, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AuditChecklist } from "@/components/auditoria/AuditChecklist";
@@ -19,6 +19,11 @@ import { EmptyAuditWarning } from "@/components/auditorias/EmptyAuditWarning";
 import { ExportAuditButton } from "@/components/reports/ExportButtons";
 import { cn } from "@/lib/utils";
 import type { Audit, AuditItem } from "@/types/audit";
+import {
+  isOfflineId,
+  getFromStore,
+  getCachedAuditItemsByAuditId,
+} from "@/lib/offlineStorage";
 
 interface AuditWithLocation extends Audit {
   location_name: string;
@@ -28,19 +33,66 @@ export default function DetalhesAuditoria() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { userRole } = useAuth();
+  const { userRole, isOffline } = useAuth();
   const [audit, setAudit] = useState<AuditWithLocation | null>(null);
   const [items, setItems] = useState<AuditItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOfflineAudit, setIsOfflineAudit] = useState(false);
   
   const backLink = userRole === 'ifa_admin' ? '/auditorias' : '/auditor/minhas-auditorias';
   const backLabel = userRole === 'ifa_admin' ? 'Auditorias' : 'Minhas Auditorias';
 
   useEffect(() => {
     if (id) {
-      fetchAuditDetails();
+      // Check if this is an offline audit
+      if (isOfflineId(id)) {
+        setIsOfflineAudit(true);
+        fetchOfflineAuditDetails();
+      } else {
+        fetchAuditDetails();
+      }
     }
   }, [id]);
+
+  const fetchOfflineAuditDetails = async () => {
+    try {
+      // Get audit from IndexedDB
+      const auditData = await getFromStore<any>('audits', id!);
+      
+      if (!auditData) {
+        toast({
+          title: "Auditoria não encontrada",
+          description: "Esta auditoria offline não foi encontrada.",
+          variant: "destructive"
+        });
+        navigate(backLink);
+        return;
+      }
+
+      const auditWithLocation: AuditWithLocation = {
+        ...auditData,
+        status: auditData.status as 'in_progress' | 'completed',
+        score_level: auditData.score_level as 'low' | 'medium' | 'high' | null,
+        location_name: auditData._locationName || 'Local offline',
+        started_at: auditData.started_at || new Date().toISOString(),
+      };
+
+      setAudit(auditWithLocation);
+
+      // Get items from IndexedDB
+      const itemsData = await getCachedAuditItemsByAuditId(id!);
+      setItems(itemsData || []);
+    } catch (error) {
+      console.error('Error fetching offline audit details:', error);
+      toast({
+        title: "Erro ao carregar detalhes",
+        description: "Tente novamente mais tarde.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchAuditDetails = async () => {
     try {
@@ -121,21 +173,35 @@ export default function DetalhesAuditoria() {
   if (audit.status === 'in_progress') {
     const content = (
       <div className="p-3 sm:p-6 max-w-4xl mx-auto space-y-3 sm:space-y-6">
-        <Button variant="ghost" onClick={() => navigate(backLink)} className="mb-2 sm:mb-4 text-xs sm:text-sm">
-          <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-          Voltar
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={() => navigate(backLink)} className="mb-2 sm:mb-4 text-xs sm:text-sm">
+            <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+            Voltar
+          </Button>
+          {isOfflineAudit && (
+            <Badge variant="outline" className="gap-1 text-amber-500 border-amber-500/30">
+              <CloudOff className="h-3 w-3" />
+              Offline
+            </Badge>
+          )}
+        </div>
 
         {items.length === 0 ? (
           <EmptyAuditWarning auditId={audit.id} locationName={audit.location_name} />
         ) : (
-          <AuditChecklist auditId={audit.id} onCompleted={() => {
-            toast({
-              title: "Auditoria concluída!",
-              description: "Os dados foram salvos com sucesso."
-            });
-            navigate(backLink);
-          }} />
+          <AuditChecklist 
+            auditId={audit.id} 
+            isOfflineAudit={isOfflineAudit}
+            onCompleted={() => {
+              toast({
+                title: isOfflineAudit ? "Auditoria salva offline" : "Auditoria concluída!",
+                description: isOfflineAudit 
+                  ? "Será sincronizada quando você voltar online."
+                  : "Os dados foram salvos com sucesso."
+              });
+              navigate(backLink);
+            }} 
+          />
         )}
       </div>
     );
@@ -191,9 +257,17 @@ export default function DetalhesAuditoria() {
           <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
           Voltar
         </Button>
-        {audit.status === 'completed' && (
-          <ExportAuditButton auditId={audit.id} size="sm" />
-        )}
+        <div className="flex items-center gap-2">
+          {isOfflineAudit && (
+            <Badge variant="outline" className="gap-1 text-amber-500 border-amber-500/30">
+              <CloudOff className="h-3 w-3" />
+              Offline
+            </Badge>
+          )}
+          {audit.status === 'completed' && !isOfflineAudit && (
+            <ExportAuditButton auditId={audit.id} size="sm" />
+          )}
+        </div>
       </div>
 
       <Card className="p-3 sm:p-6 bg-card">
