@@ -145,11 +145,20 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
     });
   };
 
+  // Validation logic: only required for non-conforming (Não) answers
+  const isNonConforming = localAnswer === false;
+  const hasPhotos = photoUrls.length > 0;
+  const hasComment = comment.trim().length > 0;
+  const requiresPhoto = isNonConforming && !hasPhotos;
+  const requiresComment = isNonConforming && !hasComment;
+  const isValid = !isNonConforming || (hasPhotos && hasComment);
+
   return (
     <Card className={cn(
       "p-3 sm:p-4 transition-colors",
       localAnswer === true && "bg-success/10 border-success/30 dark:bg-success/20",
-      localAnswer === false && "bg-destructive/10 border-destructive/30 dark:bg-destructive/20"
+      localAnswer === false && isValid && "bg-destructive/10 border-destructive/30 dark:bg-destructive/20",
+      localAnswer === false && !isValid && "bg-destructive/10 border-destructive/50 dark:bg-destructive/20 ring-2 ring-destructive/50"
     )}>
       <div className="space-y-3">
         <div className="flex flex-col gap-3">
@@ -190,25 +199,44 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
 
         {showDetails && (
           <div className="space-y-3 pt-3 border-t">
+            {/* Warning for non-conforming items */}
+            {isNonConforming && !isValid && (
+              <div className="text-xs text-destructive bg-destructive/10 p-2 rounded-md">
+                ⚠️ Foto e comentário são obrigatórios para não conformidades
+              </div>
+            )}
+
             <div>
-              <label className="text-xs sm:text-sm font-medium mb-2 block text-foreground">
-                Comentário {localAnswer === false ? "(obrigatório)" : "(opcional)"}
+              <label className={cn(
+                "text-xs sm:text-sm font-medium mb-2 block",
+                isNonConforming ? "text-foreground" : "text-muted-foreground"
+              )}>
+                Comentário {isNonConforming && <span className="text-destructive">*</span>}
+                {!isNonConforming && <span className="text-muted-foreground text-xs"> (opcional)</span>}
               </label>
               <Textarea
                 value={comment}
                 onChange={(e) => handleCommentChange(e.target.value)}
-                placeholder={localAnswer === false 
+                placeholder={isNonConforming 
                   ? "Descreva a não-conformidade encontrada..." 
                   : "Adicione observações sobre esta conformidade..."
                 }
-                className="min-h-[60px] sm:min-h-[80px] bg-background text-foreground text-xs sm:text-sm"
+                className={cn(
+                  "min-h-[60px] sm:min-h-[80px] bg-background text-foreground text-xs sm:text-sm",
+                  requiresComment && "border-destructive focus-visible:ring-destructive"
+                )}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs sm:text-sm font-medium block text-red-600">
+              <label className={cn(
+                "text-xs sm:text-sm font-medium block",
+                isNonConforming ? "text-foreground" : "text-muted-foreground"
+              )}>
                 <Camera className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1" />
-                Fotos de Evidência (obrigatórias) - {photoUrls.length} foto(s)
+                Fotos de Evidência {isNonConforming && <span className="text-destructive">*</span>}
+                {!isNonConforming && <span className="text-muted-foreground text-xs"> (opcional)</span>}
+                {' '}- {photoUrls.length} foto(s)
               </label>
               
               <input
@@ -261,7 +289,10 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
                 size="sm"
                 onClick={handlePhotoClick}
                 disabled={isUploading}
-                className="w-full border-red-300 hover:border-red-400 text-xs"
+                className={cn(
+                  "w-full text-xs",
+                  requiresPhoto ? "border-destructive hover:border-destructive text-destructive" : ""
+                )}
               >
                 {isUploading ? (
                   <>
