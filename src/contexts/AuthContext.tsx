@@ -197,51 +197,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let subscriptionCleanup: (() => void) | undefined;
+    let isMounted = true;
     
     const initAuth = async () => {
+      // Initialize IndexedDB (don't block on failure)
       try {
         await initDB();
       } catch (e) {
         console.error('Error initializing offline DB:', e);
-        // Don't block auth if IndexedDB fails
       }
 
       // If offline, try to load from cache first
       if (!navigator.onLine) {
         try {
-          const hasCached = await loadCachedAuth();
-          if (hasCached) {
-            setIsLoading(false);
-            return;
-          }
+          await loadCachedAuth();
         } catch (e) {
           console.error('Error loading cached auth:', e);
         }
-        // If offline and no cache, still need to finish loading
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
         return;
       }
 
-      // Set up auth state listener FIRST
+      // Set up auth state listener - MUST be synchronous callback to avoid deadlock
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
+        (event, session) => {
           console.debug('[AuthContext] onAuthStateChange:', event);
           setSession(session);
           setUser(session?.user ?? null);
           
-          // Fetch user data after setting session
+          // Defer data fetching with setTimeout to avoid Supabase deadlock
           if (session?.user) {
-            try {
-              await fetchUserData(session.user.id);
-            } catch (e) {
-              console.error('Error fetching user data:', e);
-            }
+            setTimeout(() => {
+              fetchUserData(session.user.id).finally(() => {
+                if (isMounted) setIsLoading(false);
+              });
+            }, 0);
           } else {
             setUserRole(null);
             setUserProfile(null);
             setCompanyInfo(null);
+            setLinkedCompanies([]);
+            if (isMounted) setIsLoading(false);
           }
-          setIsLoading(false);
         }
       );
       
@@ -250,33 +247,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // THEN check for existing session
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
         
         if (session?.user) {
+          setSession(session);
+          setUser(session.user);
           await fetchUserData(session.user.id);
-        } else if (!navigator.onLine) {
-          // No online session but offline - try cache
-          await loadCachedAuth();
+        }
+        // If no session, onAuthStateChange will handle setting isLoading to false
+        // But we need a fallback
+        if (!session) {
+          if (isMounted) setIsLoading(false);
         }
       } catch (error) {
         console.error('Error getting session:', error);
-        // If error (likely offline), try cache
-        if (!navigator.onLine) {
-          try {
-            await loadCachedAuth();
-          } catch (e) {
-            console.error('Error loading cached auth on error:', e);
-          }
-        }
+        if (isMounted) setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
 
     initAuth();
     
     return () => {
+      isMounted = false;
       if (subscriptionCleanup) {
         subscriptionCleanup();
       }
