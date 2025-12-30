@@ -265,7 +265,7 @@ function drawScoreIndicator(
   
   if (isAggregate) {
     // Smaller circle with icon
-    const circleRadius = 3;
+    const circleRadius = 3.2;
     
     // Draw circle with border
     pdf.setDrawColor(indicator.borderColor);
@@ -279,38 +279,38 @@ function drawScoreIndicator(
       // Simple checkmark ✓
       pdf.setDrawColor(indicator.color);
       pdf.setLineWidth(0.6);
-      pdf.line(x - 1.2, y, x - 0.3, y + 1);
-      pdf.line(x - 0.3, y + 1, x + 1.4, y - 1);
+      pdf.line(x - 1.4, y, x - 0.4, y + 1.2);
+      pdf.line(x - 0.4, y + 1.2, x + 1.6, y - 1.2);
       pdf.setLineWidth(0.2);
     } else if (score >= 50) {
       // Simple triangle with ! inside
       pdf.setFillColor(indicator.color);
-      pdf.triangle(x, y - 1.5, x - 1.5, y + 1, x + 1.5, y + 1, 'F');
+      pdf.triangle(x, y - 1.8, x - 1.8, y + 1.2, x + 1.8, y + 1.2, 'F');
       pdf.setFillColor('#FFFFFF');
-      pdf.rect(x - 0.2, y - 0.8, 0.4, 1, 'F');
-      pdf.circle(x, y + 0.5, 0.25, 'F');
+      pdf.rect(x - 0.25, y - 1, 0.5, 1.2, 'F');
+      pdf.circle(x, y + 0.6, 0.3, 'F');
     } else {
       // Simple X mark
       pdf.setDrawColor(indicator.color);
       pdf.setLineWidth(0.6);
-      pdf.line(x - 1, y - 1, x + 1, y + 1);
-      pdf.line(x + 1, y - 1, x - 1, y + 1);
+      pdf.line(x - 1.2, y - 1.2, x + 1.2, y + 1.2);
+      pdf.line(x + 1.2, y - 1.2, x - 1.2, y + 1.2);
       pdf.setLineWidth(0.2);
     }
     
     // Label below circle - smaller
-    pdf.setFontSize(5);
+    pdf.setFontSize(3.5);
     const labelWidth = pdf.getTextWidth(indicator.label);
-    addText(helpers, indicator.label, x - labelWidth / 2, y + circleRadius + 4.5, { 
-      fontSize: 5, color: indicator.color 
+    addText(helpers, indicator.label, x - labelWidth / 2, y + circleRadius + 3.5, { 
+      fontSize: 3.5, color: indicator.color 
     });
   } else {
-    // Just percentage for detail rows - MUCH LARGER
+    // Just percentage for detail rows - LARGER
     const pctText = `${Math.round(score)}%`;
-    pdf.setFontSize(12);
+    pdf.setFontSize(9);
     const pctWidth = pdf.getTextWidth(pctText);
-    addText(helpers, pctText, x - pctWidth / 2, y + 3, { 
-      fontSize: 12, fontStyle: 'bold', color: indicator.color 
+    addText(helpers, pctText, x - pctWidth / 2, y + 2, { 
+      fontSize: 9, fontStyle: 'bold', color: indicator.color 
     });
   }
 }
@@ -319,23 +319,23 @@ function drawScoreIndicator(
 function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSensoRow[]) {
   const { pdf, pageWidth } = helpers;
   
-  // Column widths - LARGER for better visibility
+  // Column widths - balanced for readability
   const totalWidth = pageWidth - 2 * PAGE_MARGIN;
-  const sensoColWidth = 26;  // Increased from 18
-  const avgColWidth = 28;    // Increased from 20
+  const sensoColWidth = 18;
+  const avgColWidth = 20;
   const numSensoCols = 5;
   const scoreColumnsWidth = (numSensoCols * sensoColWidth) + avgColWidth;
   const nameColWidth = totalWidth - scoreColumnsWidth;
   const tableLeft = PAGE_MARGIN;
   
-  // Table header - LARGER
-  checkPageBreak(helpers, 18);
+  // Table header
+  checkPageBreak(helpers, 14);
   const headerY = helpers.yPos;
   
   // Header background for name column
   pdf.setFillColor('#F3F4F6');
-  pdf.rect(tableLeft, headerY, nameColWidth, 16, 'F');
-  addText(helpers, 'Ambiente / Local', tableLeft + 4, headerY + 10, { fontSize: 10, fontStyle: 'bold', color: '#374151' });
+  pdf.rect(tableLeft, headerY, nameColWidth, 12, 'F');
+  addText(helpers, 'Ambiente / Local', tableLeft + 3, headerY + 8, { fontSize: 7, fontStyle: 'bold', color: '#374151' });
   
   // Senso column headers
   const sensoHeaders = [
@@ -349,40 +349,29 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
   sensoHeaders.forEach((senso, i) => {
     const x = tableLeft + nameColWidth + (i * sensoColWidth);
     pdf.setFillColor(senso.color);
-    pdf.rect(x, headerY, sensoColWidth, 16, 'F');
-    addText(helpers, senso.label, x + sensoColWidth / 2 - 3, headerY + 7, { fontSize: 10, fontStyle: 'bold', color: '#FFFFFF' });
-    addText(helpers, senso.subLabel, x + 2, headerY + 13, { fontSize: 5, color: '#FFFFFF' });
+    pdf.rect(x, headerY, sensoColWidth, 12, 'F');
+    addText(helpers, senso.label, x + sensoColWidth / 2 - 2.5, headerY + 5, { fontSize: 7, fontStyle: 'bold', color: '#FFFFFF' });
+    addText(helpers, senso.subLabel, x + 1, headerY + 10, { fontSize: 3.5, color: '#FFFFFF' });
   });
   
   // GERAL column header
   const avgX = tableLeft + nameColWidth + (numSensoCols * sensoColWidth);
   pdf.setFillColor('#6B7280');
-  pdf.rect(avgX, headerY, avgColWidth, 16, 'F');
-  addText(helpers, 'GERAL', avgX + avgColWidth / 2 - 6, headerY + 7, { fontSize: 9, fontStyle: 'bold', color: '#FFFFFF' });
-  addText(helpers, 'Media', avgX + avgColWidth / 2 - 5, headerY + 13, { fontSize: 5, color: '#FFFFFF' });
+  pdf.rect(avgX, headerY, avgColWidth, 12, 'F');
+  addText(helpers, 'GERAL', avgX + avgColWidth / 2 - 5, headerY + 5, { fontSize: 6, fontStyle: 'bold', color: '#FFFFFF' });
+  addText(helpers, 'Media', avgX + avgColWidth / 2 - 4, headerY + 10, { fontSize: 3.5, color: '#FFFFFF' });
   
-  helpers.yPos += 17;
+  helpers.yPos += 13;
   
   // Render rows
   for (const row of rows) {
     // Aggregate rows (level 0,1,2) show icons, detail rows show percentages
     const isAggregateRow = row.level <= 2;
-    const indent = Math.min(row.level * 6, 24);
-    
-    // Calculate row height based on text wrapping
-    const nameFontSize = row.level <= 1 ? 9 : 8;
-    const availableNameWidth = nameColWidth - indent - 14;
-    pdf.setFontSize(nameFontSize);
-    const textLines = pdf.splitTextToSize(row.name, availableNameWidth);
-    const numLines = textLines.length;
-    
-    // Base height + extra for each additional line
-    const baseHeight = isAggregateRow ? 22 : 14;
-    const lineHeight = nameFontSize * 0.4;
-    const rowHeight = Math.max(baseHeight, baseHeight + (numLines - 1) * lineHeight);
+    const rowHeight = isAggregateRow ? 14 : 9;
     
     checkPageBreak(helpers, rowHeight + 2);
     const rowY = helpers.yPos;
+    const indent = Math.min(row.level * 5, 20);
     
     // Row background based on level
     let bgColor = '#FFFFFF';
@@ -403,18 +392,13 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
     else if (row.level === 2) { levelIcon = '@'; levelColor = '#3B82F6'; }
     else { levelIcon = '>'; levelColor = '#6B7280'; }
     
-    // Environment name - wrapped text, no cutting
-    const textStartY = numLines === 1 ? rowY + rowHeight / 2 + 2 : rowY + 6;
-    addText(helpers, levelIcon, tableLeft + 3 + indent, textStartY, { fontSize: 7, color: levelColor });
-    
-    pdf.setFontSize(nameFontSize);
-    pdf.setFont('helvetica', row.level <= 1 ? 'bold' : 'normal');
-    pdf.setTextColor(row.level === 0 ? '#059669' : row.level === 1 ? '#10B981' : '#374151');
-    
-    // Draw each line of wrapped text
-    textLines.forEach((line: string, lineIndex: number) => {
-      const lineY = textStartY + (lineIndex * lineHeight * 2.5);
-      pdf.text(line, tableLeft + 10 + indent, lineY);
+    // Environment name
+    addText(helpers, levelIcon, tableLeft + 2 + indent, rowY + rowHeight / 2 + 1, { fontSize: 5, color: levelColor });
+    addText(helpers, row.name, tableLeft + 8 + indent, rowY + rowHeight / 2 + 1, { 
+      fontSize: row.level <= 1 ? 7 : 6, 
+      fontStyle: row.level <= 1 ? 'bold' : 'normal',
+      color: row.level === 0 ? '#059669' : row.level === 1 ? '#10B981' : '#374151',
+      maxWidth: nameColWidth - indent - 10
     });
     
     // Senso score cells
@@ -431,7 +415,7 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
       pdf.rect(x, rowY, sensoColWidth, rowHeight, 'S');
       
       const cellCenterX = x + sensoColWidth / 2;
-      const cellCenterY = isAggregateRow ? rowY + rowHeight / 2 - 2 : rowY + rowHeight / 2;
+      const cellCenterY = isAggregateRow ? rowY + 5 : rowY + rowHeight / 2;
       
       drawScoreIndicator(pdf, cellCenterX, cellCenterY, score, isAggregateRow, helpers);
     });
@@ -444,12 +428,12 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
     pdf.rect(avgX, rowY, avgColWidth, rowHeight, 'S');
     
     const avgCenterX = avgX + avgColWidth / 2;
-    const avgCenterY = isAggregateRow ? rowY + rowHeight / 2 - 2 : rowY + rowHeight / 2;
+    const avgCenterY = isAggregateRow ? rowY + 5 : rowY + rowHeight / 2;
     
     if (row.average_score !== null) {
       if (isAggregateRow) {
         // Smaller circle with icon
-        const circleRadius = 3;
+        const circleRadius = 3.2;
         pdf.setDrawColor(avgIndicator.borderColor);
         pdf.setLineWidth(0.5);
         pdf.setFillColor('#FFFFFF');
@@ -460,50 +444,49 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
         if (row.average_score >= 80) {
           pdf.setDrawColor(avgIndicator.color);
           pdf.setLineWidth(0.6);
-          pdf.line(avgCenterX - 1.2, avgCenterY, avgCenterX - 0.3, avgCenterY + 1);
-          pdf.line(avgCenterX - 0.3, avgCenterY + 1, avgCenterX + 1.4, avgCenterY - 1);
+          pdf.line(avgCenterX - 1.4, avgCenterY, avgCenterX - 0.4, avgCenterY + 1.2);
+          pdf.line(avgCenterX - 0.4, avgCenterY + 1.2, avgCenterX + 1.6, avgCenterY - 1.2);
           pdf.setLineWidth(0.2);
         } else if (row.average_score >= 50) {
           pdf.setFillColor(avgIndicator.color);
-          pdf.triangle(avgCenterX, avgCenterY - 1.5, avgCenterX - 1.5, avgCenterY + 1, avgCenterX + 1.5, avgCenterY + 1, 'F');
+          pdf.triangle(avgCenterX, avgCenterY - 1.8, avgCenterX - 1.8, avgCenterY + 1.2, avgCenterX + 1.8, avgCenterY + 1.2, 'F');
           pdf.setFillColor('#FFFFFF');
-          pdf.rect(avgCenterX - 0.2, avgCenterY - 0.8, 0.4, 1, 'F');
-          pdf.circle(avgCenterX, avgCenterY + 0.5, 0.25, 'F');
+          pdf.rect(avgCenterX - 0.25, avgCenterY - 1, 0.5, 1.2, 'F');
+          pdf.circle(avgCenterX, avgCenterY + 0.6, 0.3, 'F');
         } else {
           pdf.setDrawColor(avgIndicator.color);
           pdf.setLineWidth(0.6);
-          pdf.line(avgCenterX - 1, avgCenterY - 1, avgCenterX + 1, avgCenterY + 1);
-          pdf.line(avgCenterX + 1, avgCenterY - 1, avgCenterX - 1, avgCenterY + 1);
+          pdf.line(avgCenterX - 1.2, avgCenterY - 1.2, avgCenterX + 1.2, avgCenterY + 1.2);
+          pdf.line(avgCenterX + 1.2, avgCenterY - 1.2, avgCenterX - 1.2, avgCenterY + 1.2);
           pdf.setLineWidth(0.2);
         }
         
         // Percentage below - LARGER
         const pctText = `${Math.round(row.average_score)}%`;
-        pdf.setFontSize(10);
+        pdf.setFontSize(7);
         const pctWidth = pdf.getTextWidth(pctText);
-        addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + circleRadius + 6, { 
-          fontSize: 10, fontStyle: 'bold', color: avgIndicator.color 
+        addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + circleRadius + 4.5, { 
+          fontSize: 7, fontStyle: 'bold', color: avgIndicator.color 
         });
       } else {
-        // Just percentage for detail rows - MUCH LARGER
+        // Just percentage for detail rows - LARGER
         const pctText = `${Math.round(row.average_score)}%`;
-        pdf.setFontSize(12);
+        pdf.setFontSize(9);
         const pctWidth = pdf.getTextWidth(pctText);
-        addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + 3, { 
-          fontSize: 12, fontStyle: 'bold', color: avgIndicator.color 
+        addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + 2, { 
+          fontSize: 9, fontStyle: 'bold', color: avgIndicator.color 
         });
       }
     } else {
-      addText(helpers, '-', avgCenterX - 2, avgCenterY + 2, { fontSize: 12, color: '#9CA3AF' });
+      addText(helpers, '-', avgCenterX - 2, avgCenterY + 2, { fontSize: 9, color: '#9CA3AF' });
     }
     
     helpers.yPos += rowHeight;
   }
   
   // Compact legend
-  // Compact legend - LARGER
-  helpers.yPos += 8;
-  checkPageBreak(helpers, 14);
+  helpers.yPos += 6;
+  checkPageBreak(helpers, 12);
   
   let legendX = PAGE_MARGIN;
   const legendItems = [
@@ -514,12 +497,12 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
   
   for (const item of legendItems) {
     pdf.setFillColor(item.color);
-    pdf.circle(legendX + 3, helpers.yPos, 3, 'F');
-    addText(helpers, item.label, legendX + 8, helpers.yPos + 2, { fontSize: 8, color: '#6B7280' });
-    legendX += 55;
+    pdf.circle(legendX + 2, helpers.yPos, 2, 'F');
+    addText(helpers, item.label, legendX + 6, helpers.yPos + 1.5, { fontSize: 6, color: '#6B7280' });
+    legendX += 50;
   }
   
-  helpers.yPos += 12;
+  helpers.yPos += 10;
 }
 
 export async function generateAuditPDF(data: AuditReportData): Promise<void> {
@@ -736,7 +719,23 @@ export async function generateCompanyReportPDF(data: CompanyReportData): Promise
   addLine(helpers, helpers.yPos);
   helpers.yPos += 10;
 
-  // Tabela de desempenho é o destaque principal - removido resumo executivo
+  // Executive summary
+  addSectionHeader(helpers, 'RESUMO EXECUTIVO');
+  
+  addStatsBoxes(helpers, [
+    { label: 'Auditorias', value: String(data.total_audits), color: '#3B82F6' },
+    { label: 'Media Geral', value: data.average_score.toFixed(1) + '/10', color: data.average_score >= 7 ? '#10B981' : data.average_score >= 5 ? '#F59E0B' : '#EF4444' },
+    { label: 'Locais', value: String(data.locations_ranking.length) },
+  ]);
+
+  // Totals conformities
+  addStatsBoxes(helpers, [
+    { label: 'Conformidades', value: String(data.total_conformities), color: '#10B981' },
+    { label: 'Nao Conformidades', value: String(data.total_non_conformities), color: '#EF4444' },
+  ]);
+
+  addLine(helpers, helpers.yPos);
+  helpers.yPos += 10;
 
   // Environment Senso Table (hierarchical)
   if (data.environment_senso_table.length > 0) {
