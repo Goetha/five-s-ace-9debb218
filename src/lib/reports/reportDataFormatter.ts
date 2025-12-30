@@ -13,6 +13,18 @@ import type {
 } from "./reportTypes";
 import { SENSO_CONFIG, sanitizeTextForPDF } from "./reportTypes";
 
+// Helper to safely parse photo_url which can be a JSON array string or a plain URL string
+function safeParsePhotoUrls(photoUrl: string | null | undefined): string[] {
+  if (!photoUrl) return [];
+  try {
+    const parsed = JSON.parse(photoUrl);
+    return Array.isArray(parsed) ? parsed : [photoUrl];
+  } catch {
+    // If it's not valid JSON, treat it as a single URL
+    return [photoUrl];
+  }
+}
+
 // Build environment tree from flat list
 function buildEnvironmentTree(environments: Array<{ id: string; name: string; parent_id: string | null }>): EnvironmentNode[] {
   const envMap = new Map<string, EnvironmentNode>();
@@ -250,7 +262,7 @@ export async function fetchAuditReportData(auditId: string): Promise<AuditReport
       question: item.question,
       answer: item.answer,
       comment: item.comment,
-      photo_urls: item.photo_url ? JSON.parse(item.photo_url) : [],
+      photo_urls: safeParsePhotoUrls(item.photo_url),
       senso: (item.company_criteria as any)?.senso || [],
       criterion_name: (item.company_criteria as any)?.name || item.question,
       tags: (item.company_criteria as any)?.tags || []
@@ -359,7 +371,7 @@ export async function fetchCompanyReportData(
         question: item.question,
         answer: item.answer,
         comment: item.comment,
-        photo_urls: item.photo_url ? JSON.parse(item.photo_url) : [],
+        photo_urls: safeParsePhotoUrls(item.photo_url),
         senso: (item.company_criteria as any)?.senso || [],
         criterion_name: (item.company_criteria as any)?.name || item.question,
         tags: (item.company_criteria as any)?.tags || []
