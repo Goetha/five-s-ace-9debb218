@@ -24,111 +24,101 @@ interface Company {
 }
 
 interface UseOfflineEnvironmentsResult {
-  // Data
   companies: Company[];
   allEnvironments: Environment[];
-  // Hierarchy getters
   getRootEnvironment: (companyId: string) => Environment | undefined;
   getAreas: (companyId: string) => Environment[];
   getEnvironments: (areaId: string) => Environment[];
   getLocations: (environmentId: string) => Environment[];
-  // Status
   isLoading: boolean;
   isOffline: boolean;
   isFromCache: boolean;
   lastSyncAt: string | null;
   error: string | null;
-  // Actions
   refetch: () => Promise<void>;
 }
 
 export function useOfflineEnvironments(userId: string | undefined, targetCompanyId?: string): UseOfflineEnvironmentsResult {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [allEnvironments, setAllEnvironments] = useState<Environment[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start as true
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [isFromCache, setIsFromCache] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  // Use refs to avoid circular dependencies in useCallback
-  const hasFetchedRef = useRef(false);
-  const currentFetchKeyRef = useRef<string>('');
+  // Track what we've fetched to avoid re-fetching
+  const fetchedKeyRef = useRef<string>('');
+  const isFetchingRef = useRef(false);
 
   // Monitor online/offline status
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
-
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
-  const fetchFromCache = useCallback(async (): Promise<boolean> => {
-    if (!userId && !targetCompanyId) return false;
-
-    try {
-      let companyIds: string[] = [];
-
-      // If targeting a specific company
-      if (targetCompanyId) {
-        companyIds = [targetCompanyId];
-        const cachedCompanies = await getCachedCompanies();
-        const targetCompany = cachedCompanies.find(c => c.id === targetCompanyId);
-        if (targetCompany) {
-          setCompanies([targetCompany]);
-        }
-      } else {
-        // Get user companies from cache
-        const cachedUserCompanies = await getCachedUserCompaniesByUserId(userId);
-        if (cachedUserCompanies.length === 0) return false;
-
-        companyIds = cachedUserCompanies.map(uc => uc.company_id);
-
-        // Get companies from cache
-        const cachedCompanies = await getCachedCompanies();
-        const userCompanies = cachedCompanies.filter(c => companyIds.includes(c.id));
-        
-        if (userCompanies.length === 0) return false;
-        setCompanies(userCompanies);
-      }
-
-      // Get all environments for these companies
-      let allEnvs: Environment[] = [];
-      for (const companyId of companyIds) {
-        const envs = await getCachedEnvironmentsByCompanyId(companyId);
-        allEnvs = [...allEnvs, ...envs];
-      }
-
-      setAllEnvironments(allEnvs);
-      setIsFromCache(true);
-      return true;
-    } catch (e) {
-      console.error('Error fetching from cache:', e);
-      return false;
-    }
-  }, [userId, targetCompanyId]);
-
-  const fetchFromServer = useCallback(async (): Promise<boolean> => {
+  // Main fetch effect - runs when userId or targetCompanyId changes
+  useEffect(() => {
+    const fetchKey = `${userId || ''}-${targetCompanyId || ''}`;
+    
+    // Skip if no identifiers
     if (!userId && !targetCompanyId) {
-      console.log('[fetchFromServer] No userId or targetCompanyId');
-      return false;
+      setIsLoading(false);
+      return;
     }
 
-    try {
+    // Skip if already fetched for this key
+    if (fetchedKeyRef.current === fetchKey) {
+      return;
+    }
+
+    // Skip if already fetching
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    const doFetch = async () => {
+      isFetchingRef.current = true;
+      setIsLoading(true);
+      setError(null);
+
+      console.log('[useOfflineEnvironments] Starting fetch for:', fetchKey);
+
+      try {
+        if (navigator.onLine) {
+          // ONLINE: Fetch from server
+          await fetchFromServer();
+        } else {
+          // OFFLINE: Use cache
+          const hasCache = await fetchFromCache();
+          if (!hasCache) {
+            setError('Sem dados offline disponíveis');
+          }
+        }
+        fetchedKeyRef.current = fetchKey;
+      } catch (e) {
+        console.error('[useOfflineEnvironments] Fetch error:', e);
+        setError((e as Error).message);
+      } finally {
+        console.log('[useOfflineEnvironments] Fetch complete');
+        setIsLoading(false);
+        isFetchingRef.current = false;
+      }
+    };
+
+    // Helper: fetch from server
+    const fetchFromServer = async () => {
       let companyIds: string[] = [];
 
-      // If a specific company is targeted (IFA admin case), use that directly
       if (targetCompanyId) {
         companyIds = [targetCompanyId];
-        console.log('[fetchFromServer] Using targetCompanyId:', targetCompanyId);
         
-        // Fetch company info
         const { data: companiesData, error: companiesError } = await supabase
           .from('companies')
           .select('id, name')
@@ -137,32 +127,27 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
 
         if (companiesError) throw companiesError;
 
-        if (companiesData) {
-          console.log('[fetchFromServer] Companies fetched:', companiesData.length);
+        if (companiesData && companiesData.length > 0) {
           await cacheCompanies(companiesData);
           setCompanies(companiesData);
         }
-      } else {
-        // Fetch user companies (normal user flow)
+      } else if (userId) {
         const { data: userCompanies, error: ucError } = await supabase
           .from('user_companies')
           .select('id, user_id, company_id')
           .eq('user_id', userId);
 
         if (ucError) throw ucError;
+        
         if (!userCompanies || userCompanies.length === 0) {
-          console.log('[fetchFromServer] No user_companies found for user');
           setCompanies([]);
           setAllEnvironments([]);
-          return true;
+          return;
         }
 
-        // Cache user companies
         await cacheUserCompanies(userCompanies);
-
         companyIds = userCompanies.map(uc => uc.company_id);
 
-        // Fetch companies
         const { data: companiesData, error: companiesError } = await supabase
           .from('companies')
           .select('id, name')
@@ -172,16 +157,19 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
 
         if (companiesError) throw companiesError;
 
-        // Cache companies
         if (companiesData) {
           await cacheCompanies(companiesData);
-          setCompanies(companiesData || []);
+          setCompanies(companiesData);
         }
       }
 
-      console.log('[fetchFromServer] Fetching environments for companyIds:', companyIds);
+      if (companyIds.length === 0) {
+        setAllEnvironments([]);
+        return;
+      }
 
-      // Fetch all environments for these companies
+      console.log('[useOfflineEnvironments] Fetching environments for:', companyIds);
+
       const { data: environmentsData, error: envsError } = await supabase
         .from('environments')
         .select('id, name, parent_id, company_id, status, description')
@@ -191,84 +179,64 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
 
       if (envsError) throw envsError;
 
-      console.log('[fetchFromServer] Environments fetched:', environmentsData?.length);
+      console.log('[useOfflineEnvironments] Environments fetched:', environmentsData?.length);
 
-      // Cache environments
       if (environmentsData) {
         await cacheEnvironments(environmentsData);
+        setAllEnvironments(environmentsData);
       }
-
-      setAllEnvironments(environmentsData || []);
+      
       setIsFromCache(false);
       setLastSyncAt(new Date().toISOString());
-      return true;
-    } catch (e) {
-      console.error('[fetchFromServer] Error:', e);
-      setError((e as Error).message);
-      return false;
-    }
+    };
+
+    // Helper: fetch from cache
+    const fetchFromCache = async (): Promise<boolean> => {
+      try {
+        let companyIds: string[] = [];
+
+        if (targetCompanyId) {
+          companyIds = [targetCompanyId];
+          const cachedCompanies = await getCachedCompanies();
+          const targetCompany = cachedCompanies.find(c => c.id === targetCompanyId);
+          if (targetCompany) {
+            setCompanies([targetCompany]);
+          }
+        } else if (userId) {
+          const cachedUserCompanies = await getCachedUserCompaniesByUserId(userId);
+          if (cachedUserCompanies.length === 0) return false;
+
+          companyIds = cachedUserCompanies.map(uc => uc.company_id);
+          const cachedCompanies = await getCachedCompanies();
+          const userCompanies = cachedCompanies.filter(c => companyIds.includes(c.id));
+          
+          if (userCompanies.length === 0) return false;
+          setCompanies(userCompanies);
+        }
+
+        let allEnvs: Environment[] = [];
+        for (const companyId of companyIds) {
+          const envs = await getCachedEnvironmentsByCompanyId(companyId);
+          allEnvs = [...allEnvs, ...envs];
+        }
+
+        setAllEnvironments(allEnvs);
+        setIsFromCache(true);
+        return allEnvs.length > 0 || companyIds.length > 0;
+      } catch (e) {
+        console.error('[useOfflineEnvironments] Cache error:', e);
+        return false;
+      }
+    };
+
+    doFetch();
   }, [userId, targetCompanyId]);
 
-  const fetchData = useCallback(async (force = false) => {
-    const fetchKey = `${userId}-${targetCompanyId}`;
-    
-    // Need userId OR targetCompanyId to proceed
-    if (!userId && !targetCompanyId) {
-      console.log('[useOfflineEnvironments] No userId or targetCompanyId, skipping fetch');
-      return;
-    }
-
-    // Skip if already fetched for this key and not forced
-    if (!force && hasFetchedRef.current && currentFetchKeyRef.current === fetchKey) {
-      console.log('[useOfflineEnvironments] Already fetched for this key, skipping');
-      return;
-    }
-
-    console.log('[useOfflineEnvironments] Starting fetch', { userId, targetCompanyId, force, fetchKey });
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      if (navigator.onLine) {
-        const success = await fetchFromServer();
-        console.log('[useOfflineEnvironments] Server fetch result:', success);
-        if (!success) {
-          // Fallback to cache if server fails
-          await fetchFromCache();
-        }
-      } else {
-        // Offline - use cache
-        const hasCache = await fetchFromCache();
-        if (!hasCache) {
-          setError('Sem dados offline disponíveis');
-        }
-      }
-      hasFetchedRef.current = true;
-      currentFetchKeyRef.current = fetchKey;
-    } catch (e) {
-      console.error('[useOfflineEnvironments] Error in fetchData:', e);
-    }
-    
-    // ALWAYS set loading false, outside try-catch
-    console.log('[useOfflineEnvironments] Fetch complete, setting isLoading=false');
-    setIsLoading(false);
-  }, [userId, targetCompanyId, fetchFromServer, fetchFromCache]);
-
-  // Single useEffect to handle fetching
-  useEffect(() => {
-    const fetchKey = `${userId}-${targetCompanyId}`;
-    
-    // Reset if key changed
-    if (currentFetchKeyRef.current !== fetchKey) {
-      hasFetchedRef.current = false;
-    }
-    
-    // Fetch if we have params and haven't fetched yet
-    if ((userId || targetCompanyId) && !hasFetchedRef.current) {
-      console.log('[useOfflineEnvironments] Effect triggered, calling fetchData');
-      fetchData();
-    }
-  }, [userId, targetCompanyId, fetchData]);
+  // Refetch function
+  const refetch = useCallback(async () => {
+    fetchedKeyRef.current = ''; // Clear so next effect runs
+    isFetchingRef.current = false;
+  }, []);
 
   // Hierarchy helpers
   const getRootEnvironment = useCallback((companyId: string): Environment | undefined => {
@@ -309,6 +277,6 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     isFromCache,
     lastSyncAt,
     error,
-    refetch: () => fetchData(true),
+    refetch,
   };
 }
