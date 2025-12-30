@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   getCachedEnvironmentsByCompanyId,
@@ -41,12 +41,15 @@ interface UseOfflineEnvironmentsResult {
 export function useOfflineEnvironments(userId: string | undefined, targetCompanyId?: string): UseOfflineEnvironmentsResult {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [allEnvironments, setAllEnvironments] = useState<Environment[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [isFromCache, setIsFromCache] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [fetchKey, setFetchKey] = useState('');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Ref para controlar fetch - NÃO causa re-render
+  const lastFetchKeyRef = useRef<string>('');
 
   // Monitor online/offline status
   useEffect(() => {
@@ -64,20 +67,20 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
   useEffect(() => {
     // Skip if no identifiers
     if (!userId && !targetCompanyId) {
+      setIsLoading(false);
       return;
     }
 
-    const currentKey = `${userId || ''}-${targetCompanyId || ''}`;
+    const currentKey = `${userId || ''}-${targetCompanyId || ''}-${refreshTrigger}`;
     
-    // Skip if already fetched this combination
-    if (fetchKey === currentKey) {
+    // Skip if already fetched this combination (but allow refetch via refreshTrigger)
+    if (lastFetchKeyRef.current === currentKey) {
       return;
     }
 
     let cancelled = false;
 
     const fetchData = async () => {
-      console.log('[useOfflineEnvironments] Starting fetch', { userId, targetCompanyId });
       setIsLoading(true);
       setError(null);
 
@@ -114,8 +117,7 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
               if (!cancelled) {
                 setCompanies([]);
                 setAllEnvironments([]);
-                setIsLoading(false);
-                setFetchKey(currentKey);
+                lastFetchKeyRef.current = currentKey;
               }
               return;
             }
@@ -140,8 +142,6 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
 
           // Fetch environments
           if (companyIds.length > 0) {
-            console.log('[useOfflineEnvironments] Fetching environments for:', companyIds);
-
             const { data: environmentsData, error: envsError } = await supabase
               .from('environments')
               .select('id, name, parent_id, company_id, status, description')
@@ -150,8 +150,6 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
               .order('name');
 
             if (envsError) throw envsError;
-
-            console.log('[useOfflineEnvironments] Environments fetched:', environmentsData?.length);
 
             if (environmentsData && !cancelled) {
               await cacheEnvironments(environmentsData);
@@ -163,6 +161,7 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
             setCompanies(fetchedCompanies);
             setIsFromCache(false);
             setLastSyncAt(new Date().toISOString());
+            lastFetchKeyRef.current = currentKey;
           }
         } else {
           // OFFLINE MODE - use cache
@@ -178,7 +177,6 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
             if (cachedUserCompanies.length === 0) {
               if (!cancelled) {
                 setError('Sem dados offline disponíveis');
-                setIsLoading(false);
               }
               return;
             }
@@ -201,11 +199,8 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
           if (!cancelled) {
             setAllEnvironments(allEnvs);
             setIsFromCache(true);
+            lastFetchKeyRef.current = currentKey;
           }
-        }
-
-        if (!cancelled) {
-          setFetchKey(currentKey);
         }
       } catch (e) {
         console.error('[useOfflineEnvironments] Fetch error:', e);
@@ -214,7 +209,6 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
         }
       } finally {
         if (!cancelled) {
-          console.log('[useOfflineEnvironments] Fetch complete');
           setIsLoading(false);
         }
       }
@@ -225,11 +219,12 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     return () => {
       cancelled = true;
     };
-  }, [userId, targetCompanyId, fetchKey]);
+  }, [userId, targetCompanyId, refreshTrigger]);
 
-  // Refetch function
+  // Refetch function - usa refreshTrigger para forçar re-execução
   const refetch = useCallback(() => {
-    setFetchKey('');
+    lastFetchKeyRef.current = '';
+    setRefreshTrigger(prev => prev + 1);
   }, []);
 
   // Hierarchy helpers
