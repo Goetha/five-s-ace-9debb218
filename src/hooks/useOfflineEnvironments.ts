@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   getCachedEnvironmentsByCompanyId,
@@ -50,7 +50,10 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
   const [isFromCache, setIsFromCache] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hasFetched, setHasFetched] = useState(false);
+  
+  // Use refs to avoid circular dependencies in useCallback
+  const hasFetchedRef = useRef(false);
+  const currentFetchKeyRef = useRef<string>('');
 
   // Monitor online/offline status
   useEffect(() => {
@@ -207,19 +210,21 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
   }, [userId, targetCompanyId]);
 
   const fetchData = useCallback(async (force = false) => {
+    const fetchKey = `${userId}-${targetCompanyId}`;
+    
     // Need userId OR targetCompanyId to proceed
     if (!userId && !targetCompanyId) {
       console.log('[useOfflineEnvironments] No userId or targetCompanyId, skipping fetch');
       return;
     }
 
-    // Skip if already fetched and not forced
-    if (hasFetched && !force) {
-      console.log('[useOfflineEnvironments] Already fetched, skipping');
+    // Skip if already fetched for this key and not forced
+    if (!force && hasFetchedRef.current && currentFetchKeyRef.current === fetchKey) {
+      console.log('[useOfflineEnvironments] Already fetched for this key, skipping');
       return;
     }
 
-    console.log('[useOfflineEnvironments] Starting fetch', { userId, targetCompanyId, force });
+    console.log('[useOfflineEnvironments] Starting fetch', { userId, targetCompanyId, force, fetchKey });
     setIsLoading(true);
     setError(null);
 
@@ -238,27 +243,32 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
           setError('Sem dados offline disponíveis');
         }
       }
-      setHasFetched(true);
+      hasFetchedRef.current = true;
+      currentFetchKeyRef.current = fetchKey;
     } catch (e) {
       console.error('[useOfflineEnvironments] Error in fetchData:', e);
-    } finally {
-      console.log('[useOfflineEnvironments] Fetch complete, setting isLoading=false');
-      setIsLoading(false);
     }
-  }, [userId, targetCompanyId, fetchFromServer, fetchFromCache, hasFetched]);
+    
+    // ALWAYS set loading false, outside try-catch
+    console.log('[useOfflineEnvironments] Fetch complete, setting isLoading=false');
+    setIsLoading(false);
+  }, [userId, targetCompanyId, fetchFromServer, fetchFromCache]);
 
-  // Fetch on mount and when key dependencies change
+  // Single useEffect to handle fetching
   useEffect(() => {
-    // Reset hasFetched when targetCompanyId changes
-    setHasFetched(false);
-  }, [targetCompanyId]);
-
-  useEffect(() => {
-    if (!hasFetched && (userId || targetCompanyId)) {
+    const fetchKey = `${userId}-${targetCompanyId}`;
+    
+    // Reset if key changed
+    if (currentFetchKeyRef.current !== fetchKey) {
+      hasFetchedRef.current = false;
+    }
+    
+    // Fetch if we have params and haven't fetched yet
+    if ((userId || targetCompanyId) && !hasFetchedRef.current) {
       console.log('[useOfflineEnvironments] Effect triggered, calling fetchData');
       fetchData();
     }
-  }, [hasFetched, userId, targetCompanyId, fetchData]);
+  }, [userId, targetCompanyId, fetchData]);
 
   // Hierarchy helpers
   const getRootEnvironment = useCallback((companyId: string): Environment | undefined => {
