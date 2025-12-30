@@ -325,14 +325,13 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
     else if (row.level === 2) { levelIcon = '@'; levelColor = '#3B82F6'; }
     else { levelIcon = '>'; levelColor = '#6B7280'; }
     
-    // Environment name
-    const maxLen = Math.floor((nameColWidth - indent - 12) / 2.5);
-    const displayName = row.name.length > maxLen ? row.name.substring(0, maxLen - 1) + '...' : row.name;
+    // Environment name - show full name without truncation
     addText(helpers, levelIcon, tableLeft + 2 + indent, rowY + rowHeight / 2 + 1, { fontSize: 5, color: levelColor });
-    addText(helpers, displayName, tableLeft + 8 + indent, rowY + rowHeight / 2 + 1, { 
+    addText(helpers, row.name, tableLeft + 8 + indent, rowY + rowHeight / 2 + 1, { 
       fontSize: row.level <= 1 ? 7 : 6, 
       fontStyle: row.level <= 1 ? 'bold' : 'normal',
-      color: row.level === 0 ? '#059669' : row.level === 1 ? '#10B981' : '#374151' 
+      color: row.level === 0 ? '#059669' : row.level === 1 ? '#10B981' : '#374151',
+      maxWidth: nameColWidth - indent - 10
     });
     
     // Senso score cells
