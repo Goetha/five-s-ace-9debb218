@@ -111,7 +111,10 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
   }, [userId, targetCompanyId]);
 
   const fetchFromServer = useCallback(async (): Promise<boolean> => {
-    if (!userId && !targetCompanyId) return false;
+    if (!userId && !targetCompanyId) {
+      console.log('[fetchFromServer] No userId or targetCompanyId');
+      return false;
+    }
 
     try {
       let companyIds: string[] = [];
@@ -119,6 +122,7 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
       // If a specific company is targeted (IFA admin case), use that directly
       if (targetCompanyId) {
         companyIds = [targetCompanyId];
+        console.log('[fetchFromServer] Using targetCompanyId:', targetCompanyId);
         
         // Fetch company info
         const { data: companiesData, error: companiesError } = await supabase
@@ -130,6 +134,7 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
         if (companiesError) throw companiesError;
 
         if (companiesData) {
+          console.log('[fetchFromServer] Companies fetched:', companiesData.length);
           await cacheCompanies(companiesData);
           setCompanies(companiesData);
         }
@@ -142,6 +147,7 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
 
         if (ucError) throw ucError;
         if (!userCompanies || userCompanies.length === 0) {
+          console.log('[fetchFromServer] No user_companies found for user');
           setCompanies([]);
           setAllEnvironments([]);
           return true;
@@ -169,6 +175,8 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
         }
       }
 
+      console.log('[fetchFromServer] Fetching environments for companyIds:', companyIds);
+
       // Fetch all environments for these companies
       const { data: environmentsData, error: envsError } = await supabase
         .from('environments')
@@ -178,6 +186,8 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
         .order('name');
 
       if (envsError) throw envsError;
+
+      console.log('[fetchFromServer] Environments fetched:', environmentsData?.length);
 
       // Cache environments
       if (environmentsData) {
@@ -189,7 +199,7 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
       setLastSyncAt(new Date().toISOString());
       return true;
     } catch (e) {
-      console.error('Error fetching from server:', e);
+      console.error('[fetchFromServer] Error:', e);
       setError((e as Error).message);
       return false;
     }
@@ -198,32 +208,41 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
   const fetchData = useCallback(async () => {
     // Need userId OR targetCompanyId to proceed
     if (!userId && !targetCompanyId) {
+      console.log('[useOfflineEnvironments] No userId or targetCompanyId, skipping fetch');
       setIsLoading(false);
       return;
     }
 
+    console.log('[useOfflineEnvironments] Starting fetch', { userId, targetCompanyId });
     setIsLoading(true);
     setError(null);
 
-    if (navigator.onLine) {
-      const success = await fetchFromServer();
-      if (!success) {
-        // Fallback to cache if server fails
-        await fetchFromCache();
+    try {
+      if (navigator.onLine) {
+        const success = await fetchFromServer();
+        console.log('[useOfflineEnvironments] Server fetch result:', success);
+        if (!success) {
+          // Fallback to cache if server fails
+          await fetchFromCache();
+        }
+      } else {
+        // Offline - use cache
+        const hasCache = await fetchFromCache();
+        if (!hasCache) {
+          setError('Sem dados offline disponíveis');
+        }
       }
-    } else {
-      // Offline - use cache
-      const hasCache = await fetchFromCache();
-      if (!hasCache) {
-        setError('Sem dados offline disponíveis');
-      }
+    } catch (e) {
+      console.error('[useOfflineEnvironments] Error in fetchData:', e);
+    } finally {
+      console.log('[useOfflineEnvironments] Fetch complete, setting isLoading=false');
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   }, [userId, targetCompanyId, fetchFromServer, fetchFromCache]);
 
   // Fetch on mount and when dependencies change
   useEffect(() => {
+    console.log('[useOfflineEnvironments] Effect triggered, calling fetchData');
     fetchData();
   }, [fetchData]);
 
