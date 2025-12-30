@@ -196,42 +196,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [activeCompanyId, linkedCompanies]);
 
   useEffect(() => {
+    let subscriptionCleanup: (() => void) | undefined;
+    
     const initAuth = async () => {
       try {
         await initDB();
       } catch (e) {
         console.error('Error initializing offline DB:', e);
+        // Don't block auth if IndexedDB fails
       }
 
       // If offline, try to load from cache first
       if (!navigator.onLine) {
-        const hasCached = await loadCachedAuth();
-        if (hasCached) {
-          setIsLoading(false);
-          return;
+        try {
+          const hasCached = await loadCachedAuth();
+          if (hasCached) {
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error('Error loading cached auth:', e);
         }
+        // If offline and no cache, still need to finish loading
+        setIsLoading(false);
+        return;
       }
 
       // Set up auth state listener FIRST
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
+          console.debug('[AuthContext] onAuthStateChange:', event);
           setSession(session);
           setUser(session?.user ?? null);
           
           // Fetch user data after setting session
           if (session?.user) {
-            setTimeout(async () => {
+            try {
               await fetchUserData(session.user.id);
-              setIsLoading(false);
-            }, 0);
+            } catch (e) {
+              console.error('Error fetching user data:', e);
+            }
           } else {
             setUserRole(null);
             setUserProfile(null);
             setCompanyInfo(null);
-            setIsLoading(false);
           }
+          setIsLoading(false);
         }
       );
+      
+      subscriptionCleanup = () => subscription.unsubscribe();
 
       // THEN check for existing session
       try {
@@ -249,16 +263,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Error getting session:', error);
         // If error (likely offline), try cache
         if (!navigator.onLine) {
-          await loadCachedAuth();
+          try {
+            await loadCachedAuth();
+          } catch (e) {
+            console.error('Error loading cached auth on error:', e);
+          }
         }
       }
       
       setIsLoading(false);
-
-      return () => subscription.unsubscribe();
     };
 
     initAuth();
+    
+    return () => {
+      if (subscriptionCleanup) {
+        subscriptionCleanup();
+      }
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
