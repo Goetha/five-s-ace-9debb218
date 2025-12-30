@@ -64,6 +64,7 @@ export function NewAuditDialog({
 
   useEffect(() => {
     if (open) {
+      console.log('[NewAuditDialog] Opening modal, companyId:', preSelectedCompanyId);
       // Reset selections when opening
       setSelectedArea("");
       setSelectedEnvironment("");
@@ -71,8 +72,14 @@ export function NewAuditDialog({
       setSelectedLocationName("");
       setCriteriaCount(0);
       setCriteriaData([]);
+      
+      // Force refetch environments when modal opens
+      if (preSelectedCompanyId) {
+        console.log('[NewAuditDialog] Forcing refetch for company:', preSelectedCompanyId);
+        refetch();
+      }
     }
-  }, [open]);
+  }, [open, preSelectedCompanyId, refetch]);
 
   const handleAreaChange = (value: string) => {
     setSelectedArea(value);

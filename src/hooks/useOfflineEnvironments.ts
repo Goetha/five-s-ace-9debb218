@@ -65,8 +65,16 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
 
   // Fetch data when parameters change
   useEffect(() => {
+    console.log('[useOfflineEnvironments] Effect triggered:', {
+      userId,
+      targetCompanyId,
+      refreshTrigger,
+      lastKey: lastFetchKeyRef.current
+    });
+
     // Skip if no identifiers
     if (!userId && !targetCompanyId) {
+      console.log('[useOfflineEnvironments] No userId or targetCompanyId, skipping');
       setIsLoading(false);
       return;
     }
@@ -75,14 +83,17 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     
     // Skip if already fetched this combination (but allow refetch via refreshTrigger)
     if (lastFetchKeyRef.current === currentKey) {
+      console.log('[useOfflineEnvironments] Same key, skipping:', currentKey);
       return;
     }
 
+    console.log('[useOfflineEnvironments] Starting fetch for key:', currentKey);
     let cancelled = false;
 
     // Timeout de segurança de 10 segundos
     const timeoutId = setTimeout(() => {
       if (!cancelled) {
+        console.log('[useOfflineEnvironments] TIMEOUT - forcing loading false');
         setIsLoading(false);
         setError('Tempo limite excedido ao carregar dados');
       }
@@ -150,6 +161,8 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
 
           // Fetch environments
           if (companyIds.length > 0) {
+            console.log('[useOfflineEnvironments] Fetching environments for companies:', companyIds);
+            
             const { data: environmentsData, error: envsError } = await supabase
               .from('environments')
               .select('id, name, parent_id, company_id, status, description')
@@ -159,13 +172,18 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
 
             if (envsError) throw envsError;
 
+            console.log('[useOfflineEnvironments] Environments received:', environmentsData?.length);
+
             if (environmentsData && !cancelled) {
               await cacheEnvironments(environmentsData);
               setAllEnvironments(environmentsData);
             }
+          } else {
+            console.log('[useOfflineEnvironments] No companyIds, skipping environments fetch');
           }
 
           if (!cancelled) {
+            console.log('[useOfflineEnvironments] Setting companies:', fetchedCompanies.length);
             setCompanies(fetchedCompanies);
             setIsFromCache(false);
             setLastSyncAt(new Date().toISOString());
@@ -216,6 +234,7 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
           setError((e as Error).message);
         }
       } finally {
+        console.log('[useOfflineEnvironments] Fetch complete, cancelled:', cancelled);
         if (!cancelled) {
           setIsLoading(false);
         }
