@@ -3,27 +3,65 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { ChecklistItem } from "./ChecklistItem";
 import { EmptyAuditWarning } from "@/components/auditorias/EmptyAuditWarning";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2, Save, CloudOff } from "lucide-react";
 import type { AuditItem } from "@/types/audit";
+import {
+  isOfflineId,
+  getFromStore,
+  getCachedAuditItemsByAuditId,
+  addToStore,
+  completeOfflineAudit,
+} from "@/lib/offlineStorage";
 
 interface AuditChecklistProps {
   auditId: string;
+  isOfflineAudit?: boolean;
   onCompleted: () => void;
 }
 
-export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
+export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }: AuditChecklistProps) {
   const { toast } = useToast();
+  const { isOffline } = useAuth();
   const [items, setItems] = useState<AuditItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [locationName, setLocationName] = useState("");
 
   useEffect(() => {
-    fetchAuditItems();
-  }, [auditId]);
+    if (isOfflineAudit || isOfflineId(auditId)) {
+      fetchOfflineAuditItems();
+    } else {
+      fetchAuditItems();
+    }
+  }, [auditId, isOfflineAudit]);
+
+  const fetchOfflineAuditItems = async () => {
+    try {
+      // Get audit from IndexedDB
+      const auditData = await getFromStore<any>('audits', auditId);
+      if (auditData) {
+        setLocationName(auditData._locationName || 'Local offline');
+      }
+
+      // Get items from IndexedDB
+      const itemsData = await getCachedAuditItemsByAuditId(auditId);
+      setItems(itemsData || []);
+    } catch (error) {
+      console.error('Error fetching offline audit items:', error);
+      toast({
+        title: "Erro ao carregar auditoria",
+        description: "Tente novamente mais tarde.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchAuditItems = async () => {
     try {
@@ -68,19 +106,26 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
     }
   };
 
-  const handleAnswerChange = (itemId: string, answer: boolean, photoUrls?: string[], comment?: string) => {
-    setItems(prevItems =>
-      prevItems.map(item =>
-        item.id === itemId
-          ? { 
-              ...item, 
-              answer, 
-              photo_url: photoUrls && photoUrls.length > 0 ? JSON.stringify(photoUrls) : item.photo_url,
-              comment: comment !== undefined ? comment : item.comment
-            }
-          : item
-      )
+  const handleAnswerChange = async (itemId: string, answer: boolean, photoUrls?: string[], comment?: string) => {
+    const updatedItems = items.map(item =>
+      item.id === itemId
+        ? { 
+            ...item, 
+            answer, 
+            photo_url: photoUrls && photoUrls.length > 0 ? JSON.stringify(photoUrls) : item.photo_url,
+            comment: comment !== undefined ? comment : item.comment
+          }
+        : item
     );
+    setItems(updatedItems);
+
+    // If offline audit, save to IndexedDB immediately
+    if (isOfflineAudit || isOfflineId(auditId)) {
+      const updatedItem = updatedItems.find(i => i.id === itemId);
+      if (updatedItem) {
+        await addToStore('auditItems', updatedItem);
+      }
+    }
   };
 
   const calculateProgress = () => {
@@ -91,23 +136,34 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
   const handleSaveDraft = async () => {
     setIsSaving(true);
     try {
-      for (const item of items) {
-        if (item.answer !== null) {
-          await supabase
-            .from('audit_items')
-            .update({
-              answer: item.answer,
-              photo_url: item.photo_url,
-              comment: item.comment
-            })
-            .eq('id', item.id);
+      if (isOfflineAudit || isOfflineId(auditId) || isOffline) {
+        // Save to IndexedDB
+        for (const item of items) {
+          await addToStore('auditItems', item);
         }
+        toast({
+          title: "Rascunho salvo offline",
+          description: "Será sincronizado quando você voltar online."
+        });
+      } else {
+        // Save to server
+        for (const item of items) {
+          if (item.answer !== null) {
+            await supabase
+              .from('audit_items')
+              .update({
+                answer: item.answer,
+                photo_url: item.photo_url,
+                comment: item.comment
+              })
+              .eq('id', item.id);
+          }
+        }
+        toast({
+          title: "Rascunho salvo",
+          description: "Você pode continuar depois."
+        });
       }
-
-      toast({
-        title: "Rascunho salvo",
-        description: "Você pode continuar depois."
-      });
     } catch (error) {
       console.error('Error saving draft:', error);
       toast({
@@ -153,49 +209,67 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
 
     setIsSaving(true);
     try {
-      // Save all items
-      for (const item of items) {
+      if (isOfflineAudit || isOfflineId(auditId) || isOffline) {
+        // Complete offline audit
+        // First save all items
+        for (const item of items) {
+          await addToStore('auditItems', item);
+        }
+        
+        // Then complete the audit
+        await completeOfflineAudit(auditId, {});
+        
+        toast({
+          title: "Auditoria finalizada offline",
+          description: "Será sincronizada quando você voltar online."
+        });
+        
+        onCompleted();
+      } else {
+        // Save all items to server
+        for (const item of items) {
+          await supabase
+            .from('audit_items')
+            .update({
+              answer: item.answer,
+              photo_url: item.photo_url,
+              comment: item.comment
+            })
+            .eq('id', item.id);
+        }
+
+        // Calculate scores
+        const totalQuestions = items.length;
+        const totalYes = items.filter(item => item.answer === true).length;
+        const totalNo = items.filter(item => item.answer === false).length;
+        const score = (totalYes / totalQuestions) * 10;
+        
+        let scoreLevel: 'low' | 'medium' | 'high';
+        if (score >= 9) scoreLevel = 'high';
+        else if (score >= 5) scoreLevel = 'medium';
+        else scoreLevel = 'low';
+
+        // Update audit
         await supabase
-          .from('audit_items')
+          .from('audits')
           .update({
-            answer: item.answer,
-            photo_url: item.photo_url,
-            comment: item.comment
+            total_questions: totalQuestions,
+            total_yes: totalYes,
+            total_no: totalNo,
+            score: score,
+            score_level: scoreLevel,
+            status: 'completed',
+            completed_at: new Date().toISOString()
           })
-          .eq('id', item.id);
+          .eq('id', auditId);
+
+        toast({
+          title: "Auditoria finalizada",
+          description: "A avaliação foi concluída com sucesso!"
+        });
+
+        onCompleted();
       }
-
-      // Calculate scores
-      const totalQuestions = items.length;
-      const totalYes = items.filter(item => item.answer === true).length;
-      const totalNo = items.filter(item => item.answer === false).length;
-      const score = (totalYes / totalQuestions) * 10;
-      
-      let scoreLevel: 'low' | 'medium' | 'high';
-      if (score >= 9) scoreLevel = 'high';
-      else if (score >= 5) scoreLevel = 'medium';
-      else scoreLevel = 'low';
-
-      // Update audit
-      await supabase
-        .from('audits')
-        .update({
-          total_questions: totalQuestions,
-          total_yes: totalYes,
-          total_no: totalNo,
-          score: score,
-          score_level: scoreLevel,
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', auditId);
-
-      toast({
-        title: "Auditoria finalizada",
-        description: "A avaliação foi concluída com sucesso!"
-      });
-
-      onCompleted();
     } catch (error) {
       console.error('Error completing audit:', error);
       toast({
@@ -229,7 +303,15 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
     <div className="space-y-3 sm:space-y-6">
       <Card className="p-3 sm:p-6">
         <div className="space-y-3 sm:space-y-4">
-          <h2 className="text-lg sm:text-2xl font-bold">{locationName}</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg sm:text-2xl font-bold">{locationName}</h2>
+            {(isOfflineAudit || isOffline) && (
+              <Badge variant="outline" className="gap-1 text-amber-500 border-amber-500/30">
+                <CloudOff className="h-3 w-3" />
+                Offline
+              </Badge>
+            )}
+          </div>
 
           <div className="space-y-2">
             <div className="flex justify-between text-xs sm:text-sm">
@@ -275,7 +357,7 @@ export function AuditChecklist({ auditId, onCompleted }: AuditChecklistProps) {
             {isSaving ? (
               <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin mr-2" />
             ) : null}
-            Finalizar Auditoria
+            {isOfflineAudit || isOffline ? 'Finalizar Offline' : 'Finalizar Auditoria'}
           </Button>
         </div>
       </Card>

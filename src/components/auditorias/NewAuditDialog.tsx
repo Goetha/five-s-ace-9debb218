@@ -12,13 +12,14 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2, AlertCircle, WifiOff } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, WifiOff, CloudOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { OfflineAwareSelect } from "@/components/ui/offline-aware-select";
 import { useOfflineEnvironments } from "@/hooks/useOfflineEnvironments";
 import {
   getCachedEnvironmentCriteriaByEnvId,
   getCachedCriteriaByCompanyId,
+  createOfflineAudit,
 } from "@/lib/offlineStorage";
 
 interface NewAuditDialogProps {
@@ -50,7 +51,9 @@ export function NewAuditDialog({
   const [selectedArea, setSelectedArea] = useState<string>("");
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>("");
   const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [selectedLocationName, setSelectedLocationName] = useState<string>("");
   const [criteriaCount, setCriteriaCount] = useState<number>(0);
+  const [criteriaData, setCriteriaData] = useState<Array<{ id: string; name: string; senso?: string[] | null }>>([]);
   const [isLoadingCriteria, setIsLoadingCriteria] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -65,7 +68,9 @@ export function NewAuditDialog({
       setSelectedArea("");
       setSelectedEnvironment("");
       setSelectedLocation("");
+      setSelectedLocationName("");
       setCriteriaCount(0);
+      setCriteriaData([]);
       refetch();
     }
   }, [open, preSelectedCompanyId]);
@@ -74,44 +79,46 @@ export function NewAuditDialog({
     setSelectedArea(value);
     setSelectedEnvironment("");
     setSelectedLocation("");
+    setSelectedLocationName("");
     setCriteriaCount(0);
+    setCriteriaData([]);
   };
 
   const handleEnvironmentChange = (value: string) => {
     setSelectedEnvironment(value);
     setSelectedLocation("");
+    setSelectedLocationName("");
     setCriteriaCount(0);
+    setCriteriaData([]);
   };
 
   const handleLocationChange = async (value: string) => {
     setSelectedLocation(value);
+    const location = locations.find(l => l.id === value);
+    setSelectedLocationName(location?.name || '');
     setIsLoadingCriteria(true);
     
     try {
-      let criteriaLinks: { criterion_id: string }[] = [];
-      let activeCriteriaIds: string[] = [];
+      let loadedCriteria: Array<{ id: string; name: string; senso?: string[] | null }> = [];
 
       if (navigator.onLine) {
         // Online: fetch from server
-        const { data, error } = await supabase
+        const { data: criteriaLinks, error } = await supabase
           .from('environment_criteria')
           .select('criterion_id')
           .eq('environment_id', value);
 
         if (error) throw error;
-        criteriaLinks = data || [];
 
-        if (criteriaLinks.length > 0) {
-          const { count, error: countError } = await supabase
+        if (criteriaLinks && criteriaLinks.length > 0) {
+          const { data: criteria, error: criteriaError } = await supabase
             .from('company_criteria')
-            .select('*', { count: 'exact', head: true })
+            .select('id, name, senso')
             .in('id', criteriaLinks.map(link => link.criterion_id))
             .eq('status', 'active');
 
-          if (countError) throw countError;
-          setCriteriaCount(count || 0);
-        } else {
-          setCriteriaCount(0);
+          if (criteriaError) throw criteriaError;
+          loadedCriteria = criteria || [];
         }
       } else {
         // Offline: use cached data
@@ -119,20 +126,22 @@ export function NewAuditDialog({
         const cachedCriteria = await getCachedCriteriaByCompanyId(preSelectedCompanyId);
         
         const linkedCriterionIds = cachedEnvCriteria.map(ec => ec.criterion_id);
-        const activeCriteria = cachedCriteria.filter(
-          c => linkedCriterionIds.includes(c.id) && c.status === 'active'
-        );
-        
-        setCriteriaCount(activeCriteria.length);
+        loadedCriteria = cachedCriteria
+          .filter(c => linkedCriterionIds.includes(c.id) && c.status === 'active')
+          .map(c => ({ id: c.id, name: c.name, senso: c.senso }));
       }
+
+      setCriteriaData(loadedCriteria);
+      setCriteriaCount(loadedCriteria.length);
     } catch (error) {
-      console.error('Error counting criteria:', error);
+      console.error('Error loading criteria:', error);
       toast({
         title: "Erro ao carregar critérios",
         description: "Não foi possível carregar os critérios.",
         variant: "destructive"
       });
       setCriteriaCount(0);
+      setCriteriaData([]);
     } finally {
       setIsLoadingCriteria(false);
     }
@@ -141,78 +150,105 @@ export function NewAuditDialog({
   const handleStartAudit = async () => {
     if (!selectedLocation || !user) return;
 
-    // If offline, show message (for now, offline audit creation requires sync)
-    if (isOffline) {
-      toast({
-        title: "Conexão necessária",
-        description: "É necessário estar online para iniciar uma nova auditoria.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsCreating(true);
     try {
-      // Criar auditoria
-      const { data: audit, error: auditError } = await supabase
-        .from('audits')
-        .insert({
+      if (isOffline) {
+        // OFFLINE: Create audit locally
+        if (criteriaData.length === 0) {
+          throw new Error('Nenhum critério disponível para esta auditoria.');
+        }
+
+        const auditData = {
           company_id: preSelectedCompanyId,
           location_id: selectedLocation,
           auditor_id: user.id,
-          status: 'in_progress'
-        })
-        .select()
-        .single();
+          status: 'in_progress',
+          started_at: new Date().toISOString(),
+          total_questions: criteriaData.length,
+          total_yes: 0,
+          total_no: 0,
+          score: null,
+          _locationName: selectedLocationName,
+          _companyName: preSelectedCompanyName,
+        };
 
-      if (auditError) throw auditError;
+        const items = criteriaData.map(c => ({
+          criterion_id: c.id,
+          question: c.name,
+          senso: c.senso,
+        }));
 
-      // Buscar critérios vinculados ao local específico
-      const { data: criteriaLinks, error: criteriaError } = await supabase
-        .from('environment_criteria')
-        .select('criterion_id')
-        .eq('environment_id', selectedLocation);
+        const { audit } = await createOfflineAudit(auditData, items);
 
-      if (criteriaError) throw criteriaError;
+        toast({
+          title: "Auditoria criada offline",
+          description: "Será sincronizada quando você voltar online.",
+        });
 
-      if (!criteriaLinks || criteriaLinks.length === 0) {
-        throw new Error('Nenhum critério vinculado a este local.');
+        onOpenChange(false);
+        navigate(`/auditor/auditoria/${audit.id}`);
+      } else {
+        // ONLINE: Create on server
+        const { data: audit, error: auditError } = await supabase
+          .from('audits')
+          .insert({
+            company_id: preSelectedCompanyId,
+            location_id: selectedLocation,
+            auditor_id: user.id,
+            status: 'in_progress'
+          })
+          .select()
+          .single();
+
+        if (auditError) throw auditError;
+
+        // Buscar critérios vinculados ao local específico
+        const { data: criteriaLinks, error: criteriaError } = await supabase
+          .from('environment_criteria')
+          .select('criterion_id')
+          .eq('environment_id', selectedLocation);
+
+        if (criteriaError) throw criteriaError;
+
+        if (!criteriaLinks || criteriaLinks.length === 0) {
+          throw new Error('Nenhum critério vinculado a este local.');
+        }
+
+        // Buscar detalhes dos critérios
+        const { data: criteria, error: fetchError } = await supabase
+          .from('company_criteria')
+          .select('id, name')
+          .in('id', criteriaLinks.map(link => link.criterion_id))
+          .eq('status', 'active');
+
+        if (fetchError) throw fetchError;
+
+        if (!criteria || criteria.length === 0) {
+          throw new Error('Nenhum critério ativo vinculado a este local.');
+        }
+
+        // Criar itens de auditoria
+        const auditItems = criteria.map(criterion => ({
+          audit_id: audit.id,
+          criterion_id: criterion.id,
+          question: criterion.name,
+          answer: null
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('audit_items')
+          .insert(auditItems);
+
+        if (itemsError) throw itemsError;
+
+        toast({
+          title: "Auditoria criada com sucesso!",
+          description: "Redirecionando para o checklist..."
+        });
+
+        onOpenChange(false);
+        navigate(`/auditor/auditoria/${audit.id}`);
       }
-
-      // Buscar detalhes dos critérios
-      const { data: criteria, error: fetchError } = await supabase
-        .from('company_criteria')
-        .select('id, name')
-        .in('id', criteriaLinks.map(link => link.criterion_id))
-        .eq('status', 'active');
-
-      if (fetchError) throw fetchError;
-
-      if (!criteria || criteria.length === 0) {
-        throw new Error('Nenhum critério ativo vinculado a este local.');
-      }
-
-      // Criar itens de auditoria
-      const auditItems = criteria.map(criterion => ({
-        audit_id: audit.id,
-        criterion_id: criterion.id,
-        question: criterion.name,
-        answer: null
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('audit_items')
-        .insert(auditItems);
-
-      if (itemsError) throw itemsError;
-
-      toast({
-        title: "Auditoria criada com sucesso!",
-        description: "Redirecionando para o checklist..."
-      });
-
-      onOpenChange(false);
-      navigate(`/auditor/auditoria/${audit.id}`);
     } catch (error: any) {
       console.error('Error creating audit:', error);
       toast({
@@ -236,8 +272,17 @@ export function NewAuditDialog({
             <DialogTitle className="text-lg sm:text-xl">Nova Auditoria</DialogTitle>
             {(isOffline || isFromCache) && (
               <Badge variant="outline" className="gap-1 text-amber-500 border-amber-500/30">
-                <WifiOff className="h-3 w-3" />
-                {isOffline ? 'Offline' : 'Cache'}
+                {isOffline ? (
+                  <>
+                    <CloudOff className="h-3 w-3" />
+                    Offline
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-3 w-3" />
+                    Cache
+                  </>
+                )}
               </Badge>
             )}
           </div>
@@ -356,15 +401,15 @@ export function NewAuditDialog({
             </div>
           )}
 
-          {/* Offline warning */}
+          {/* Offline info */}
           {isOffline && (
             <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
               <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                <WifiOff className="h-4 w-4" />
+                <CloudOff className="h-4 w-4" />
                 <span className="text-sm font-medium">Modo offline</span>
               </div>
               <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
-                É necessário estar online para criar novas auditorias.
+                A auditoria será salva localmente e sincronizada quando você voltar online.
               </p>
             </div>
           )}
@@ -382,11 +427,11 @@ export function NewAuditDialog({
           </Button>
           <Button
             onClick={handleStartAudit}
-            disabled={!selectedLocation || isCreating || criteriaCount === 0 || isOffline}
+            disabled={!selectedLocation || isCreating || criteriaCount === 0}
             className="h-9 sm:h-10 text-sm"
           >
             {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {criteriaCount === 0 ? 'Sem critérios' : 'Iniciar Auditoria'}
+            {criteriaCount === 0 ? 'Sem critérios' : isOffline ? 'Iniciar Offline' : 'Iniciar Auditoria'}
           </Button>
         </div>
       </DialogContent>
