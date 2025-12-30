@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import Lottie from 'lottie-react';
 
 // --- HELPER COMPONENTS (ICONS) ---
 
@@ -26,6 +27,7 @@ interface SignInPageProps {
   title?: React.ReactNode;
   description?: React.ReactNode;
   heroImageSrc?: string;
+  lottieAnimationData?: object;
   testimonials?: Testimonial[];
   onSignIn?: (event: React.FormEvent<HTMLFormElement>) => void;
   onGoogleSignIn?: () => void;
@@ -59,6 +61,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   title = <span className="font-light text-foreground tracking-tighter">Welcome</span>,
   description = "Access your account and continue your journey with us",
   heroImageSrc,
+  lottieAnimationData,
   testimonials = [],
   onSignIn,
   onGoogleSignIn,
@@ -198,10 +201,20 @@ export const SignInPage: React.FC<SignInPageProps> = ({
         </div>
       </section>
 
-      {/* Right column: hero image + testimonials */}
-      {heroImageSrc && (
-        <section className="hidden md:block flex-1 relative p-4">
-          <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl bg-cover bg-center" style={{ backgroundImage: `url(${heroImageSrc})` }}></div>
+      {/* Right column: lottie animation or hero image + testimonials */}
+      {(lottieAnimationData || heroImageSrc) && (
+        <section className="hidden md:flex flex-1 relative p-4 items-center justify-center">
+          {lottieAnimationData ? (
+            <div className="animate-scale-in animate-delay-300 w-full h-full flex items-center justify-center rounded-3xl bg-gradient-to-br from-primary/5 via-background to-primary/10">
+              <Lottie 
+                animationData={lottieAnimationData} 
+                loop={true}
+                className="w-3/4 h-3/4 max-w-lg"
+              />
+            </div>
+          ) : heroImageSrc && (
+            <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl bg-cover bg-center" style={{ backgroundImage: `url(${heroImageSrc})` }}></div>
+          )}
           {testimonials.length > 0 && (
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 px-8 w-full justify-center">
               <TestimonialCard testimonial={testimonials[0]} delay="animate-delay-1000" />
