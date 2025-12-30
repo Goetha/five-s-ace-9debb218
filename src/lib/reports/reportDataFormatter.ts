@@ -560,7 +560,50 @@ export function getScoreLevelColor(level: string | null): string {
 // Fetch image as base64 for embedding in PDF
 export async function fetchImageAsBase64(url: string): Promise<string | null> {
   try {
-    const response = await fetch(url);
+    // Try using an Image element for better CORS handling
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
+          
+          ctx.drawImage(img, 0, 0);
+          const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(dataURL);
+        } catch {
+          // Canvas tainted by cross-origin data, try fetch as fallback
+          fetchImageViaFetch(url).then(resolve);
+        }
+      };
+      
+      img.onerror = () => {
+        // If image fails to load, try fetch as fallback
+        fetchImageViaFetch(url).then(resolve);
+      };
+      
+      // Add cache-busting for external URLs
+      const separator = url.includes('?') ? '&' : '?';
+      img.src = url + separator + 't=' + Date.now();
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Fallback fetch method for images
+async function fetchImageViaFetch(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { mode: 'cors' });
     if (!response.ok) return null;
     
     const blob = await response.blob();
@@ -571,6 +614,7 @@ export async function fetchImageAsBase64(url: string): Promise<string | null> {
       reader.readAsDataURL(blob);
     });
   } catch {
+    console.warn('Failed to fetch image for PDF:', url);
     return null;
   }
 }
