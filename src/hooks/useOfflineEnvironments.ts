@@ -41,11 +41,12 @@ interface UseOfflineEnvironmentsResult {
 export function useOfflineEnvironments(userId: string | undefined, targetCompanyId?: string): UseOfflineEnvironmentsResult {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [allEnvironments, setAllEnvironments] = useState<Environment[]>([]);
-  const [isLoading, setIsLoading] = useState(true); // Start as true
+  const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [isFromCache, setIsFromCache] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
   
   // Track what we've fetched to avoid re-fetching
   const fetchedKeyRef = useRef<string>('');
@@ -65,7 +66,7 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
 
   // Main fetch effect - runs when userId or targetCompanyId changes
   useEffect(() => {
-    const fetchKey = `${userId || ''}-${targetCompanyId || ''}`;
+    const fetchKey = `${userId || ''}-${targetCompanyId || ''}-${refetchTrigger}`;
     
     // Skip if no identifiers
     if (!userId && !targetCompanyId) {
@@ -73,8 +74,9 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
       return;
     }
 
-    // Skip if already fetched for this key
-    if (fetchedKeyRef.current === fetchKey) {
+    // Skip if already fetched for this key (without refetchTrigger in comparison for caching)
+    const cacheKey = `${userId || ''}-${targetCompanyId || ''}`;
+    if (fetchedKeyRef.current === cacheKey && refetchTrigger === 0) {
       return;
     }
 
@@ -101,7 +103,7 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
             setError('Sem dados offline disponíveis');
           }
         }
-        fetchedKeyRef.current = fetchKey;
+        fetchedKeyRef.current = `${userId || ''}-${targetCompanyId || ''}`;
       } catch (e) {
         console.error('[useOfflineEnvironments] Fetch error:', e);
         setError((e as Error).message);
@@ -230,12 +232,13 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     };
 
     doFetch();
-  }, [userId, targetCompanyId]);
+  }, [userId, targetCompanyId, refetchTrigger]);
 
-  // Refetch function
+  // Refetch function - triggers the effect by updating state
   const refetch = useCallback(async () => {
-    fetchedKeyRef.current = ''; // Clear so next effect runs
+    fetchedKeyRef.current = '';
     isFetchingRef.current = false;
+    setRefetchTrigger(prev => prev + 1);
   }, []);
 
   // Hierarchy helpers
