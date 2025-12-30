@@ -165,9 +165,20 @@ export default function DetalhesAuditoria() {
   const scoreLevel = audit.score ? getScoreLevel(audit.score) : 'low';
   
   // Parse photo_urls for all items
+  // Helper to safely parse photo_url (can be JSON array or plain URL)
+  const safeParsePhotoUrls = (photoUrl: string | null | undefined): string[] => {
+    if (!photoUrl) return [];
+    try {
+      const parsed = JSON.parse(photoUrl);
+      return Array.isArray(parsed) ? parsed : [photoUrl];
+    } catch {
+      return [photoUrl];
+    }
+  };
+
   const parsedItems = items.map(item => ({
     ...item,
-    photo_urls: item.photo_url ? JSON.parse(item.photo_url) : []
+    photo_urls: safeParsePhotoUrls(item.photo_url)
   }));
   
   const yesItems = parsedItems.filter(item => item.answer === true);
