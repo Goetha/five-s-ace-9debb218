@@ -176,6 +176,32 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
     }
   };
 
+  // Helper to check if item has photos
+  const itemHasPhotos = (item: AuditItem): boolean => {
+    if (!item.photo_url) return false;
+    try {
+      const photos = JSON.parse(item.photo_url);
+      return Array.isArray(photos) && photos.length > 0;
+    } catch {
+      return !!item.photo_url;
+    }
+  };
+
+  // Helper to check if item has comment
+  const itemHasComment = (item: AuditItem): boolean => {
+    return !!item.comment && item.comment.trim().length > 0;
+  };
+
+  // Get non-conforming items that are incomplete
+  const getIncompleteNonConformities = () => {
+    return items.filter(item => 
+      item.answer === false && (!itemHasPhotos(item) || !itemHasComment(item))
+    );
+  };
+
+  const incompleteNonConformities = getIncompleteNonConformities();
+  const totalNonConformities = items.filter(item => item.answer === false).length;
+
   const handleComplete = async () => {
     const unanswered = items.filter(item => item.answer === null).length;
     if (unanswered > 0) {
@@ -187,21 +213,11 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
       return;
     }
 
-    // Validar fotos obrigatórias (pelo menos uma foto por item)
-    const itemsWithoutPhoto = items.filter(item => {
-      if (!item.photo_url) return true;
-      try {
-        const photos = JSON.parse(item.photo_url);
-        return !Array.isArray(photos) || photos.length === 0;
-      } catch {
-        return !item.photo_url;
-      }
-    });
-    
-    if (itemsWithoutPhoto.length > 0) {
+    // Validate only non-conforming items need photo and comment
+    if (incompleteNonConformities.length > 0) {
       toast({
-        title: "Fotos obrigatórias",
-        description: "Todas as perguntas precisam de pelo menos uma foto de evidência.",
+        title: "Não conformidades incompletas",
+        description: `${incompleteNonConformities.length} item(ns) não conforme(s) precisam de foto e comentário.`,
         variant: "destructive"
       });
       return;
@@ -320,6 +336,19 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
             </div>
             <Progress value={progress} className="h-2" />
           </div>
+
+          {/* Non-conformities pending indicator */}
+          {totalNonConformities > 0 && (
+            <div className="flex justify-between text-xs sm:text-sm pt-2 border-t">
+              <span className="text-muted-foreground">Não conformidades</span>
+              <span className={incompleteNonConformities.length > 0 ? "text-destructive font-medium" : "text-success font-medium"}>
+                {incompleteNonConformities.length > 0 
+                  ? `${incompleteNonConformities.length} pendente(s)`
+                  : `${totalNonConformities} completa(s)`
+                }
+              </span>
+            </div>
+          )}
         </div>
       </Card>
 
