@@ -247,7 +247,7 @@ function getScoreIndicator(score: number | null): {
   };
 }
 
-// Draw score indicator matching system UI exactly
+// Draw score indicator matching system UI exactly - simple and clean
 function drawScoreIndicator(
   pdf: jsPDF, 
   x: number, 
@@ -259,61 +259,58 @@ function drawScoreIndicator(
   const indicator = getScoreIndicator(score);
   
   if (score === null) {
-    addText(helpers, '-', x - 2, y + 3, { fontSize: 8, color: '#9CA3AF' });
+    addText(helpers, '-', x - 1, y + 1, { fontSize: 7, color: '#9CA3AF' });
     return;
   }
   
   if (isAggregate) {
-    // Draw circle with icon inside (like system UI)
-    const circleRadius = 5;
+    // Simple circle with icon - smaller size like system
+    const circleRadius = 4;
     
-    // Draw circle border
+    // Draw circle with border
     pdf.setDrawColor(indicator.borderColor);
-    pdf.setLineWidth(0.8);
+    pdf.setLineWidth(0.6);
     pdf.setFillColor('#FFFFFF');
     pdf.circle(x, y, circleRadius, 'FD');
     pdf.setLineWidth(0.2);
     
-    // Draw icon inside circle
+    // Draw simple icon inside
     if (score >= 80) {
-      // Checkmark for Excelente - like ✓
+      // Simple checkmark ✓
       pdf.setDrawColor(indicator.color);
-      pdf.setLineWidth(1);
-      pdf.line(x - 2.5, y, x - 0.8, y + 2);
-      pdf.line(x - 0.8, y + 2, x + 2.5, y - 2);
+      pdf.setLineWidth(0.7);
+      pdf.line(x - 1.8, y, x - 0.5, y + 1.5);
+      pdf.line(x - 0.5, y + 1.5, x + 2, y - 1.5);
       pdf.setLineWidth(0.2);
     } else if (score >= 50) {
-      // Triangle/exclamation for Atenção - like ⚠
+      // Simple triangle with ! inside
       pdf.setFillColor(indicator.color);
-      // Triangle
-      const triSize = 3;
-      pdf.triangle(x, y - triSize, x - triSize, y + triSize * 0.6, x + triSize, y + triSize * 0.6, 'F');
-      // Exclamation inside
+      pdf.triangle(x, y - 2.2, x - 2.2, y + 1.5, x + 2.2, y + 1.5, 'F');
       pdf.setFillColor('#FFFFFF');
-      pdf.circle(x, y + 1.2, 0.5, 'F');
-      pdf.rect(x - 0.4, y - 2, 0.8, 2, 'F');
+      pdf.rect(x - 0.3, y - 1.2, 0.6, 1.5, 'F');
+      pdf.circle(x, y + 0.8, 0.35, 'F');
     } else {
-      // X mark for Crítico - like ✕
+      // Simple X mark
       pdf.setDrawColor(indicator.color);
-      pdf.setLineWidth(1);
-      pdf.line(x - 2, y - 2, x + 2, y + 2);
-      pdf.line(x + 2, y - 2, x - 2, y + 2);
+      pdf.setLineWidth(0.7);
+      pdf.line(x - 1.5, y - 1.5, x + 1.5, y + 1.5);
+      pdf.line(x + 1.5, y - 1.5, x - 1.5, y + 1.5);
       pdf.setLineWidth(0.2);
     }
     
     // Label below circle
-    pdf.setFontSize(5);
+    pdf.setFontSize(4);
     const labelWidth = pdf.getTextWidth(indicator.label);
-    addText(helpers, indicator.label, x - labelWidth / 2, y + circleRadius + 5, { 
-      fontSize: 5, color: indicator.color 
+    addText(helpers, indicator.label, x - labelWidth / 2, y + circleRadius + 4, { 
+      fontSize: 4, color: indicator.color 
     });
   } else {
     // Just percentage for detail rows
     const pctText = `${Math.round(score)}%`;
-    pdf.setFontSize(8);
+    pdf.setFontSize(7);
     const pctWidth = pdf.getTextWidth(pctText);
-    addText(helpers, pctText, x - pctWidth / 2, y + 2, { 
-      fontSize: 8, fontStyle: 'bold', color: indicator.color 
+    addText(helpers, pctText, x - pctWidth / 2, y + 1.5, { 
+      fontSize: 7, fontStyle: 'bold', color: indicator.color 
     });
   }
 }
@@ -322,23 +319,23 @@ function drawScoreIndicator(
 function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSensoRow[]) {
   const { pdf, pageWidth } = helpers;
   
-  // Column widths - wider columns for better icon visibility
+  // Column widths - balanced for readability
   const totalWidth = pageWidth - 2 * PAGE_MARGIN;
-  const sensoColWidth = 22;
-  const avgColWidth = 24;
+  const sensoColWidth = 18;
+  const avgColWidth = 20;
   const numSensoCols = 5;
   const scoreColumnsWidth = (numSensoCols * sensoColWidth) + avgColWidth;
   const nameColWidth = totalWidth - scoreColumnsWidth;
   const tableLeft = PAGE_MARGIN;
   
   // Table header
-  checkPageBreak(helpers, 18);
+  checkPageBreak(helpers, 14);
   const headerY = helpers.yPos;
   
   // Header background for name column
   pdf.setFillColor('#F3F4F6');
-  pdf.rect(tableLeft, headerY, nameColWidth, 14, 'F');
-  addText(helpers, 'Ambiente / Local', tableLeft + 3, headerY + 9, { fontSize: 8, fontStyle: 'bold', color: '#374151' });
+  pdf.rect(tableLeft, headerY, nameColWidth, 12, 'F');
+  addText(helpers, 'Ambiente / Local', tableLeft + 3, headerY + 8, { fontSize: 7, fontStyle: 'bold', color: '#374151' });
   
   // Senso column headers
   const sensoHeaders = [
@@ -346,31 +343,31 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
     { label: '2S', subLabel: 'Organizacao', color: SENSO_CONFIG['2S'].color },
     { label: '3S', subLabel: 'Limpeza', color: SENSO_CONFIG['3S'].color },
     { label: '4S', subLabel: 'Saude', color: SENSO_CONFIG['4S'].color },
-    { label: '5S', subLabel: 'Autodisciplina', color: SENSO_CONFIG['5S'].color },
+    { label: '5S', subLabel: 'Autodiscipl.', color: SENSO_CONFIG['5S'].color },
   ];
   
   sensoHeaders.forEach((senso, i) => {
     const x = tableLeft + nameColWidth + (i * sensoColWidth);
     pdf.setFillColor(senso.color);
-    pdf.rect(x, headerY, sensoColWidth, 14, 'F');
-    addText(helpers, senso.label, x + sensoColWidth / 2 - 3, headerY + 6, { fontSize: 8, fontStyle: 'bold', color: '#FFFFFF' });
-    addText(helpers, senso.subLabel.substring(0, 10), x + 2, headerY + 11, { fontSize: 4, color: '#FFFFFF' });
+    pdf.rect(x, headerY, sensoColWidth, 12, 'F');
+    addText(helpers, senso.label, x + sensoColWidth / 2 - 2.5, headerY + 5, { fontSize: 7, fontStyle: 'bold', color: '#FFFFFF' });
+    addText(helpers, senso.subLabel, x + 1, headerY + 10, { fontSize: 3.5, color: '#FFFFFF' });
   });
   
   // GERAL column header
   const avgX = tableLeft + nameColWidth + (numSensoCols * sensoColWidth);
   pdf.setFillColor('#6B7280');
-  pdf.rect(avgX, headerY, avgColWidth, 14, 'F');
-  addText(helpers, 'GERAL', avgX + avgColWidth / 2 - 6, headerY + 6, { fontSize: 7, fontStyle: 'bold', color: '#FFFFFF' });
-  addText(helpers, 'Media', avgX + avgColWidth / 2 - 4, headerY + 11, { fontSize: 4, color: '#FFFFFF' });
+  pdf.rect(avgX, headerY, avgColWidth, 12, 'F');
+  addText(helpers, 'GERAL', avgX + avgColWidth / 2 - 5, headerY + 5, { fontSize: 6, fontStyle: 'bold', color: '#FFFFFF' });
+  addText(helpers, 'Media', avgX + avgColWidth / 2 - 4, headerY + 10, { fontSize: 3.5, color: '#FFFFFF' });
   
-  helpers.yPos += 15;
+  helpers.yPos += 13;
   
   // Render rows
   for (const row of rows) {
     // Aggregate rows (level 0,1,2) show icons, detail rows show percentages
     const isAggregateRow = row.level <= 2;
-    const rowHeight = isAggregateRow ? 18 : 12;
+    const rowHeight = isAggregateRow ? 14 : 9;
     
     checkPageBreak(helpers, rowHeight + 2);
     const rowY = helpers.yPos;
@@ -418,7 +415,7 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
       pdf.rect(x, rowY, sensoColWidth, rowHeight, 'S');
       
       const cellCenterX = x + sensoColWidth / 2;
-      const cellCenterY = isAggregateRow ? rowY + 6 : rowY + rowHeight / 2;
+      const cellCenterY = isAggregateRow ? rowY + 5 : rowY + rowHeight / 2;
       
       drawScoreIndicator(pdf, cellCenterX, cellCenterY, score, isAggregateRow, helpers);
     });
@@ -431,14 +428,14 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
     pdf.rect(avgX, rowY, avgColWidth, rowHeight, 'S');
     
     const avgCenterX = avgX + avgColWidth / 2;
-    const avgCenterY = isAggregateRow ? rowY + 6 : rowY + rowHeight / 2;
+    const avgCenterY = isAggregateRow ? rowY + 5 : rowY + rowHeight / 2;
     
     if (row.average_score !== null) {
       if (isAggregateRow) {
-        // Circle with icon
-        const circleRadius = 5;
+        // Circle with icon - same as senso columns
+        const circleRadius = 4;
         pdf.setDrawColor(avgIndicator.borderColor);
-        pdf.setLineWidth(0.8);
+        pdf.setLineWidth(0.6);
         pdf.setFillColor('#FFFFFF');
         pdf.circle(avgCenterX, avgCenterY, circleRadius, 'FD');
         pdf.setLineWidth(0.2);
@@ -446,43 +443,42 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
         // Draw icon
         if (row.average_score >= 80) {
           pdf.setDrawColor(avgIndicator.color);
-          pdf.setLineWidth(1);
-          pdf.line(avgCenterX - 2.5, avgCenterY, avgCenterX - 0.8, avgCenterY + 2);
-          pdf.line(avgCenterX - 0.8, avgCenterY + 2, avgCenterX + 2.5, avgCenterY - 2);
+          pdf.setLineWidth(0.7);
+          pdf.line(avgCenterX - 1.8, avgCenterY, avgCenterX - 0.5, avgCenterY + 1.5);
+          pdf.line(avgCenterX - 0.5, avgCenterY + 1.5, avgCenterX + 2, avgCenterY - 1.5);
           pdf.setLineWidth(0.2);
         } else if (row.average_score >= 50) {
           pdf.setFillColor(avgIndicator.color);
-          const triSize = 3;
-          pdf.triangle(avgCenterX, avgCenterY - triSize, avgCenterX - triSize, avgCenterY + triSize * 0.6, avgCenterX + triSize, avgCenterY + triSize * 0.6, 'F');
+          pdf.triangle(avgCenterX, avgCenterY - 2.2, avgCenterX - 2.2, avgCenterY + 1.5, avgCenterX + 2.2, avgCenterY + 1.5, 'F');
           pdf.setFillColor('#FFFFFF');
-          pdf.circle(avgCenterX, avgCenterY + 1.2, 0.5, 'F');
-          pdf.rect(avgCenterX - 0.4, avgCenterY - 2, 0.8, 2, 'F');
+          pdf.rect(avgCenterX - 0.3, avgCenterY - 1.2, 0.6, 1.5, 'F');
+          pdf.circle(avgCenterX, avgCenterY + 0.8, 0.35, 'F');
         } else {
           pdf.setDrawColor(avgIndicator.color);
-          pdf.setLineWidth(1);
-          pdf.line(avgCenterX - 2, avgCenterY - 2, avgCenterX + 2, avgCenterY + 2);
-          pdf.line(avgCenterX + 2, avgCenterY - 2, avgCenterX - 2, avgCenterY + 2);
+          pdf.setLineWidth(0.7);
+          pdf.line(avgCenterX - 1.5, avgCenterY - 1.5, avgCenterX + 1.5, avgCenterY + 1.5);
+          pdf.line(avgCenterX + 1.5, avgCenterY - 1.5, avgCenterX - 1.5, avgCenterY + 1.5);
           pdf.setLineWidth(0.2);
         }
         
         // Percentage below
         const pctText = `${Math.round(row.average_score)}%`;
-        pdf.setFontSize(6);
+        pdf.setFontSize(5);
         const pctWidth = pdf.getTextWidth(pctText);
-        addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + circleRadius + 5, { 
-          fontSize: 6, fontStyle: 'bold', color: avgIndicator.color 
+        addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + circleRadius + 4, { 
+          fontSize: 5, fontStyle: 'bold', color: avgIndicator.color 
         });
       } else {
         // Just percentage for detail rows
         const pctText = `${Math.round(row.average_score)}%`;
-        pdf.setFontSize(8);
+        pdf.setFontSize(7);
         const pctWidth = pdf.getTextWidth(pctText);
-        addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + 2, { 
-          fontSize: 8, fontStyle: 'bold', color: avgIndicator.color 
+        addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + 1.5, { 
+          fontSize: 7, fontStyle: 'bold', color: avgIndicator.color 
         });
       }
     } else {
-      addText(helpers, '-', avgCenterX - 2, avgCenterY + 2, { fontSize: 8, color: '#9CA3AF' });
+      addText(helpers, '-', avgCenterX - 1, avgCenterY + 1, { fontSize: 7, color: '#9CA3AF' });
     }
     
     helpers.yPos += rowHeight;
