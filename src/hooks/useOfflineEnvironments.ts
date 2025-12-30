@@ -66,7 +66,7 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
   }, []);
 
   const fetchFromCache = useCallback(async (): Promise<boolean> => {
-    if (!userId) return false;
+    if (!userId && !targetCompanyId) return false;
 
     try {
       let companyIds: string[] = [];
@@ -111,7 +111,7 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
   }, [userId, targetCompanyId]);
 
   const fetchFromServer = useCallback(async (): Promise<boolean> => {
-    if (!userId) return false;
+    if (!userId && !targetCompanyId) return false;
 
     try {
       let companyIds: string[] = [];
@@ -196,7 +196,8 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
   }, [userId, targetCompanyId]);
 
   const fetchData = useCallback(async () => {
-    if (!userId) {
+    // Need userId OR targetCompanyId to proceed
+    if (!userId && !targetCompanyId) {
       setIsLoading(false);
       return;
     }
@@ -219,9 +220,9 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     }
 
     setIsLoading(false);
-  }, [userId, fetchFromServer, fetchFromCache]);
+  }, [userId, targetCompanyId, fetchFromServer, fetchFromCache]);
 
-  // Fetch on mount and when userId changes
+  // Fetch on mount and when dependencies change
   useEffect(() => {
     fetchData();
   }, [fetchData]);
