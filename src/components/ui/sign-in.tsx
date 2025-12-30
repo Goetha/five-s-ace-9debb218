@@ -75,18 +75,26 @@ export const SignInPage: React.FC<SignInPageProps> = ({
     <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw] relative">
       {/* Mobile: Hero header + card layout */}
       <div className="md:hidden h-full flex flex-col bg-background">
-        {/* Hero image header */}
-        {heroImageSrc && (
+        {/* Lottie animation or Hero image header */}
+        {lottieAnimationData ? (
+          <div className="h-48 flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-primary/5 rounded-b-3xl">
+            <Lottie 
+              animationData={lottieAnimationData} 
+              loop={true}
+              className="h-40 w-40"
+            />
+          </div>
+        ) : heroImageSrc ? (
           <div 
             className="h-48 bg-cover bg-center relative rounded-b-3xl overflow-hidden"
             style={{ backgroundImage: `url(${heroImageSrc})` }}
           >
             <div className="absolute inset-0 bg-black/20" />
           </div>
-        )}
+        ) : null}
         
         {/* White card */}
-        <div className="flex-1 -mt-8 bg-background rounded-t-3xl px-6 py-8 overflow-y-auto">
+        <div className={`flex-1 ${(lottieAnimationData || heroImageSrc) ? '-mt-4' : ''} bg-background rounded-t-3xl px-6 py-8 overflow-y-auto`}>
           <h1 className="text-2xl font-semibold text-center mb-8">Login</h1>
           
           <form className="space-y-5" onSubmit={onSignIn}>
