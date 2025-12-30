@@ -1,7 +1,7 @@
 // IndexedDB service for offline storage and sync
 
 const DB_NAME = '5s-manager-offline';
-const DB_VERSION = 2; // Incremented version for new stores
+const DB_VERSION = 3; // Incremented version for new stores (user_companies, environment_criteria)
 
 interface PendingSync {
   id: string;
@@ -99,6 +99,20 @@ export const initDB = (): Promise<IDBDatabase> => {
       // NEW: App metadata (last sync time, etc)
       if (!database.objectStoreNames.contains('appMetadata')) {
         database.createObjectStore('appMetadata', { keyPath: 'key' });
+      }
+
+      // NEW: Cache for user_companies (user-company links)
+      if (!database.objectStoreNames.contains('user_companies')) {
+        const ucStore = database.createObjectStore('user_companies', { keyPath: 'id' });
+        ucStore.createIndex('user_id', 'user_id', { unique: false });
+        ucStore.createIndex('company_id', 'company_id', { unique: false });
+      }
+
+      // NEW: Cache for environment_criteria (environment-criterion links)
+      if (!database.objectStoreNames.contains('environment_criteria')) {
+        const ecStore = database.createObjectStore('environment_criteria', { keyPath: 'id' });
+        ecStore.createIndex('environment_id', 'environment_id', { unique: false });
+        ecStore.createIndex('criterion_id', 'criterion_id', { unique: false });
       }
     };
   });
@@ -321,7 +335,7 @@ export const getLastSyncTime = async (): Promise<string | null> => {
 
 // Clear all cached data (but keep pending sync)
 export const clearAllCaches = async (): Promise<void> => {
-  const stores = ['audits', 'auditItems', 'criteria', 'environments', 'companies', 'master_criteria', 'master_models'];
+  const stores = ['audits', 'auditItems', 'criteria', 'environments', 'companies', 'master_criteria', 'master_models', 'user_companies', 'environment_criteria'];
   for (const store of stores) {
     try {
       await clearStore(store);
@@ -329,4 +343,74 @@ export const clearAllCaches = async (): Promise<void> => {
       console.error(`Error clearing store ${store}:`, e);
     }
   }
+};
+
+// =====================
+// USER COMPANIES CACHE
+// =====================
+export const cacheUserCompanies = async (userCompanies: any[]): Promise<void> => {
+  for (const uc of userCompanies) {
+    await addToStore('user_companies', uc);
+  }
+};
+
+export const getCachedUserCompanies = async (): Promise<any[]> => {
+  return getAllFromStore('user_companies');
+};
+
+export const getCachedUserCompaniesByUserId = async (userId: string): Promise<any[]> => {
+  const allUserCompanies = await getAllFromStore<any>('user_companies');
+  return allUserCompanies.filter(uc => uc.user_id === userId);
+};
+
+// =====================
+// ENVIRONMENT CRITERIA CACHE
+// =====================
+export const cacheEnvironmentCriteria = async (envCriteria: any[]): Promise<void> => {
+  for (const ec of envCriteria) {
+    await addToStore('environment_criteria', ec);
+  }
+};
+
+export const getCachedEnvironmentCriteria = async (): Promise<any[]> => {
+  return getAllFromStore('environment_criteria');
+};
+
+export const getCachedEnvironmentCriteriaByEnvId = async (environmentId: string): Promise<any[]> => {
+  const allEnvCriteria = await getAllFromStore<any>('environment_criteria');
+  return allEnvCriteria.filter(ec => ec.environment_id === environmentId);
+};
+
+// =====================
+// FILTERED CACHE GETTERS
+// =====================
+export const getCachedEnvironmentsByCompanyId = async (companyId: string): Promise<any[]> => {
+  const allEnvs = await getAllFromStore<any>('environments');
+  return allEnvs.filter(env => env.company_id === companyId);
+};
+
+export const getCachedCriteriaByCompanyId = async (companyId: string): Promise<any[]> => {
+  const allCriteria = await getAllFromStore<any>('criteria');
+  return allCriteria.filter(c => c.company_id === companyId);
+};
+
+export const getCachedAuditsByCompanyId = async (companyId: string): Promise<any[]> => {
+  const allAudits = await getAllFromStore<any>('audits');
+  return allAudits.filter(a => a.company_id === companyId);
+};
+
+// Cache audit items
+export const cacheAuditItems = async (items: any[]): Promise<void> => {
+  for (const item of items) {
+    await addToStore('auditItems', item);
+  }
+};
+
+export const getCachedAuditItems = async (): Promise<any[]> => {
+  return getAllFromStore('auditItems');
+};
+
+export const getCachedAuditItemsByAuditId = async (auditId: string): Promise<any[]> => {
+  const allItems = await getAllFromStore<any>('auditItems');
+  return allItems.filter(item => item.audit_id === auditId);
 };
