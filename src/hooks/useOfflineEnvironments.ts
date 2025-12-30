@@ -42,7 +42,7 @@ interface UseOfflineEnvironmentsResult {
   refetch: () => Promise<void>;
 }
 
-export function useOfflineEnvironments(userId: string | undefined): UseOfflineEnvironmentsResult {
+export function useOfflineEnvironments(userId: string | undefined, targetCompanyId?: string): UseOfflineEnvironmentsResult {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [allEnvironments, setAllEnvironments] = useState<Environment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,17 +69,30 @@ export function useOfflineEnvironments(userId: string | undefined): UseOfflineEn
     if (!userId) return false;
 
     try {
-      // Get user companies from cache
-      const cachedUserCompanies = await getCachedUserCompaniesByUserId(userId);
-      if (cachedUserCompanies.length === 0) return false;
+      let companyIds: string[] = [];
 
-      const companyIds = cachedUserCompanies.map(uc => uc.company_id);
+      // If targeting a specific company
+      if (targetCompanyId) {
+        companyIds = [targetCompanyId];
+        const cachedCompanies = await getCachedCompanies();
+        const targetCompany = cachedCompanies.find(c => c.id === targetCompanyId);
+        if (targetCompany) {
+          setCompanies([targetCompany]);
+        }
+      } else {
+        // Get user companies from cache
+        const cachedUserCompanies = await getCachedUserCompaniesByUserId(userId);
+        if (cachedUserCompanies.length === 0) return false;
 
-      // Get companies from cache
-      const cachedCompanies = await getCachedCompanies();
-      const userCompanies = cachedCompanies.filter(c => companyIds.includes(c.id));
-      
-      if (userCompanies.length === 0) return false;
+        companyIds = cachedUserCompanies.map(uc => uc.company_id);
+
+        // Get companies from cache
+        const cachedCompanies = await getCachedCompanies();
+        const userCompanies = cachedCompanies.filter(c => companyIds.includes(c.id));
+        
+        if (userCompanies.length === 0) return false;
+        setCompanies(userCompanies);
+      }
 
       // Get all environments for these companies
       let allEnvs: Environment[] = [];
@@ -88,7 +101,6 @@ export function useOfflineEnvironments(userId: string | undefined): UseOfflineEn
         allEnvs = [...allEnvs, ...envs];
       }
 
-      setCompanies(userCompanies);
       setAllEnvironments(allEnvs);
       setIsFromCache(true);
       return true;
@@ -96,43 +108,65 @@ export function useOfflineEnvironments(userId: string | undefined): UseOfflineEn
       console.error('Error fetching from cache:', e);
       return false;
     }
-  }, [userId]);
+  }, [userId, targetCompanyId]);
 
   const fetchFromServer = useCallback(async (): Promise<boolean> => {
     if (!userId) return false;
 
     try {
-      // Fetch user companies
-      const { data: userCompanies, error: ucError } = await supabase
-        .from('user_companies')
-        .select('id, user_id, company_id')
-        .eq('user_id', userId);
+      let companyIds: string[] = [];
 
-      if (ucError) throw ucError;
-      if (!userCompanies || userCompanies.length === 0) {
-        setCompanies([]);
-        setAllEnvironments([]);
-        return true;
-      }
+      // If a specific company is targeted (IFA admin case), use that directly
+      if (targetCompanyId) {
+        companyIds = [targetCompanyId];
+        
+        // Fetch company info
+        const { data: companiesData, error: companiesError } = await supabase
+          .from('companies')
+          .select('id, name')
+          .eq('id', targetCompanyId)
+          .eq('status', 'active');
 
-      // Cache user companies
-      await cacheUserCompanies(userCompanies);
+        if (companiesError) throw companiesError;
 
-      const companyIds = userCompanies.map(uc => uc.company_id);
+        if (companiesData) {
+          await cacheCompanies(companiesData);
+          setCompanies(companiesData);
+        }
+      } else {
+        // Fetch user companies (normal user flow)
+        const { data: userCompanies, error: ucError } = await supabase
+          .from('user_companies')
+          .select('id, user_id, company_id')
+          .eq('user_id', userId);
 
-      // Fetch companies
-      const { data: companiesData, error: companiesError } = await supabase
-        .from('companies')
-        .select('id, name')
-        .in('id', companyIds)
-        .eq('status', 'active')
-        .order('name');
+        if (ucError) throw ucError;
+        if (!userCompanies || userCompanies.length === 0) {
+          setCompanies([]);
+          setAllEnvironments([]);
+          return true;
+        }
 
-      if (companiesError) throw companiesError;
+        // Cache user companies
+        await cacheUserCompanies(userCompanies);
 
-      // Cache companies
-      if (companiesData) {
-        await cacheCompanies(companiesData);
+        companyIds = userCompanies.map(uc => uc.company_id);
+
+        // Fetch companies
+        const { data: companiesData, error: companiesError } = await supabase
+          .from('companies')
+          .select('id, name')
+          .in('id', companyIds)
+          .eq('status', 'active')
+          .order('name');
+
+        if (companiesError) throw companiesError;
+
+        // Cache companies
+        if (companiesData) {
+          await cacheCompanies(companiesData);
+          setCompanies(companiesData || []);
+        }
       }
 
       // Fetch all environments for these companies
@@ -150,7 +184,6 @@ export function useOfflineEnvironments(userId: string | undefined): UseOfflineEn
         await cacheEnvironments(environmentsData);
       }
 
-      setCompanies(companiesData || []);
       setAllEnvironments(environmentsData || []);
       setIsFromCache(false);
       setLastSyncAt(new Date().toISOString());
@@ -160,7 +193,7 @@ export function useOfflineEnvironments(userId: string | undefined): UseOfflineEn
       setError((e as Error).message);
       return false;
     }
-  }, [userId]);
+  }, [userId, targetCompanyId]);
 
   const fetchData = useCallback(async () => {
     if (!userId) {

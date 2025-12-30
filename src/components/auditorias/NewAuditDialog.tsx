@@ -46,7 +46,7 @@ export function NewAuditDialog({
     isLoading,
     isFromCache,
     refetch,
-  } = useOfflineEnvironments(user?.id);
+  } = useOfflineEnvironments(user?.id, preSelectedCompanyId);
 
   const [selectedArea, setSelectedArea] = useState<string>("");
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>("");
