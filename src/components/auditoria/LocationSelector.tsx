@@ -1,23 +1,12 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Building2, MapPin, Building, Warehouse } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-
-interface Company {
-  id: string;
-  name: string;
-}
-
-interface Environment {
-  id: string;
-  name: string;
-  parent_id: string | null;
-}
+import { Building2, MapPin, Building, Warehouse, WifiOff, RefreshCw } from "lucide-react";
+import { OfflineAwareSelect } from "@/components/ui/offline-aware-select";
+import { useOfflineEnvironments } from "@/hooks/useOfflineEnvironments";
+import { Badge } from "@/components/ui/badge";
 
 interface LocationSelectorProps {
   onLocationSelected: (locationId: string, companyId: string) => void;
@@ -25,172 +14,53 @@ interface LocationSelectorProps {
 
 export function LocationSelector({ onLocationSelected }: LocationSelectorProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const {
+    companies,
+    getAreas,
+    getEnvironments,
+    getLocations,
+    isLoading,
+    isOffline,
+    isFromCache,
+    lastSyncAt,
+    error,
+    refetch,
+  } = useOfflineEnvironments(user?.id);
+
   const [selectedCompany, setSelectedCompany] = useState<string>("");
-  const [areas, setAreas] = useState<Environment[]>([]);
-  const [environments, setEnvironments] = useState<Environment[]>([]);
-  const [locations, setLocations] = useState<Environment[]>([]);
   const [selectedArea, setSelectedArea] = useState<string>("");
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>("");
   const [selectedLocation, setSelectedLocation] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(true);
 
+  // Auto-select company if only one
   useEffect(() => {
-    fetchUserCompanies();
-  }, [user]);
-
-  useEffect(() => {
-    if (selectedCompany) {
-      fetchAreas(selectedCompany);
-    } else {
-      setAreas([]);
-      setEnvironments([]);
-      setLocations([]);
-      setSelectedArea("");
-      setSelectedEnvironment("");
-      setSelectedLocation("");
+    if (companies.length === 1 && !selectedCompany) {
+      setSelectedCompany(companies[0].id);
     }
-  }, [selectedCompany]);
+  }, [companies, selectedCompany]);
 
-  useEffect(() => {
-    if (selectedArea) {
-      fetchEnvironments(selectedArea);
-    } else {
-      setEnvironments([]);
-      setLocations([]);
-      setSelectedEnvironment("");
-      setSelectedLocation("");
-    }
-  }, [selectedArea]);
+  // Get filtered data based on selections
+  const areas = selectedCompany ? getAreas(selectedCompany) : [];
+  const environments = selectedArea ? getEnvironments(selectedArea) : [];
+  const locations = selectedEnvironment ? getLocations(selectedEnvironment) : [];
 
-  useEffect(() => {
-    if (selectedEnvironment) {
-      fetchLocations(selectedEnvironment);
-    } else {
-      setLocations([]);
-      setSelectedLocation("");
-    }
-  }, [selectedEnvironment]);
-
-  const fetchUserCompanies = async () => {
-    if (!user) return;
-
-    try {
-      // Buscar empresas vinculadas ao usuário
-      const { data: userCompanies, error: ucError } = await supabase
-        .from('user_companies')
-        .select('company_id')
-        .eq('user_id', user.id);
-
-      if (ucError) throw ucError;
-
-      const companyIds = userCompanies.map(uc => uc.company_id);
-
-      // Buscar detalhes das empresas
-      const { data: companiesData, error: companiesError } = await supabase
-        .from('companies')
-        .select('id, name')
-        .in('id', companyIds)
-        .eq('status', 'active')
-        .order('name');
-
-      if (companiesError) throw companiesError;
-
-      setCompanies(companiesData || []);
-      
-      // Se tiver apenas uma empresa, seleciona automaticamente
-      if (companiesData && companiesData.length === 1) {
-        setSelectedCompany(companiesData[0].id);
-      }
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-      toast({
-        title: "Erro ao carregar empresas",
-        description: "Tente novamente mais tarde.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  // Reset downstream selections when parent changes
+  const handleCompanyChange = (value: string) => {
+    setSelectedCompany(value);
+    setSelectedArea("");
+    setSelectedEnvironment("");
+    setSelectedLocation("");
   };
 
-  const fetchAreas = async (companyId: string) => {
-    try {
-      // Primeiro busca o ambiente raiz (parent_id = null)
-      const { data: rootEnv, error: rootError } = await supabase
-        .from('environments')
-        .select('id')
-        .eq('company_id', companyId)
-        .eq('status', 'active')
-        .is('parent_id', null)
-        .single();
-
-      if (rootError) throw rootError;
-
-      // Busca as áreas (nível 1 - filhos do root)
-      const { data, error } = await supabase
-        .from('environments')
-        .select('id, name, parent_id')
-        .eq('company_id', companyId)
-        .eq('status', 'active')
-        .eq('parent_id', rootEnv.id)
-        .order('name');
-
-      if (error) throw error;
-      setAreas(data || []);
-    } catch (error) {
-      console.error('Error fetching areas:', error);
-      toast({
-        title: "Erro ao carregar áreas",
-        description: "Tente novamente mais tarde.",
-        variant: "destructive"
-      });
-    }
+  const handleAreaChange = (value: string) => {
+    setSelectedArea(value);
+    setSelectedEnvironment("");
+    setSelectedLocation("");
   };
 
-  const fetchEnvironments = async (areaId: string) => {
-    try {
-      // Busca os ambientes (nível 2 - filhos da área)
-      const { data, error } = await supabase
-        .from('environments')
-        .select('id, name, parent_id')
-        .eq('parent_id', areaId)
-        .eq('status', 'active')
-        .order('name');
-
-      if (error) throw error;
-      setEnvironments(data || []);
-    } catch (error) {
-      console.error('Error fetching environments:', error);
-      toast({
-        title: "Erro ao carregar ambientes",
-        description: "Tente novamente mais tarde.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const fetchLocations = async (environmentId: string) => {
-    try {
-      // Busca os locais (nível 3 - filhos do ambiente)
-      const { data, error } = await supabase
-        .from('environments')
-        .select('id, name, parent_id')
-        .eq('parent_id', environmentId)
-        .eq('status', 'active')
-        .order('name');
-
-      if (error) throw error;
-      setLocations(data || []);
-    } catch (error) {
-      console.error('Error fetching locations:', error);
-      toast({
-        title: "Erro ao carregar locais",
-        description: "Tente novamente mais tarde.",
-        variant: "destructive"
-      });
-    }
+  const handleEnvironmentChange = (value: string) => {
+    setSelectedEnvironment(value);
+    setSelectedLocation("");
   };
 
   const handleStartAudit = () => {
@@ -199,10 +69,38 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
     }
   };
 
+  const formatLastSync = (isoDate: string | null) => {
+    if (!isoDate) return null;
+    const date = new Date(isoDate);
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   if (isLoading) {
     return (
       <Card className="p-6">
-        <p className="text-muted-foreground text-center">Carregando...</p>
+        <div className="flex items-center justify-center gap-2">
+          <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (error && !isFromCache) {
+    return (
+      <Card className="p-6">
+        <div className="text-center space-y-4">
+          <p className="text-destructive">{error}</p>
+          <Button variant="outline" onClick={refetch}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Tentar novamente
+          </Button>
+        </div>
       </Card>
     );
   }
@@ -211,10 +109,23 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
     <Card className="p-6">
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold mb-2">Nova Auditoria 5S</h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-2xl font-bold">Nova Auditoria 5S</h2>
+            {(isOffline || isFromCache) && (
+              <Badge variant="outline" className="gap-1 text-amber-500 border-amber-500/30">
+                <WifiOff className="h-3 w-3" />
+                {isOffline ? 'Offline' : 'Cache'}
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground">
             Selecione a localização exata que deseja avaliar
           </p>
+          {isFromCache && lastSyncAt && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Última sincronização: {formatLastSync(lastSyncAt)}
+            </p>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -224,18 +135,17 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
                 <Building className="h-4 w-4" />
                 Empresa
               </Label>
-              <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                <SelectTrigger id="company">
-                  <SelectValue placeholder="Selecione uma empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map((company) => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <OfflineAwareSelect
+                value={selectedCompany}
+                onValueChange={handleCompanyChange}
+                placeholder="Selecione uma empresa"
+                items={companies}
+                isOffline={isOffline}
+                isFromCache={isFromCache}
+                getItemValue={(c) => c.id}
+                getItemLabel={(c) => c.name}
+                className="w-full"
+              />
             </div>
           )}
 
@@ -244,28 +154,24 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
               <Warehouse className="h-4 w-4" />
               Área
             </Label>
-            <Select 
-              value={selectedArea} 
-              onValueChange={setSelectedArea}
+            <OfflineAwareSelect
+              value={selectedArea}
+              onValueChange={handleAreaChange}
+              placeholder={
+                !selectedCompany
+                  ? "Primeiro selecione uma empresa"
+                  : areas.length === 0
+                  ? "Nenhuma área disponível"
+                  : "Selecione uma área"
+              }
+              items={areas}
+              isOffline={isOffline}
+              isFromCache={isFromCache}
+              getItemValue={(a) => a.id}
+              getItemLabel={(a) => a.name}
               disabled={!selectedCompany || areas.length === 0}
-            >
-              <SelectTrigger id="area">
-                <SelectValue placeholder={
-                  !selectedCompany 
-                    ? "Primeiro selecione uma empresa" 
-                    : areas.length === 0 
-                    ? "Nenhuma área disponível"
-                    : "Selecione uma área"
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                {areas.map((area) => (
-                  <SelectItem key={area.id} value={area.id}>
-                    {area.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              className="w-full"
+            />
           </div>
 
           <div className="space-y-2">
@@ -273,28 +179,24 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
               <Building2 className="h-4 w-4" />
               Ambiente
             </Label>
-            <Select 
-              value={selectedEnvironment} 
-              onValueChange={setSelectedEnvironment}
+            <OfflineAwareSelect
+              value={selectedEnvironment}
+              onValueChange={handleEnvironmentChange}
+              placeholder={
+                !selectedArea
+                  ? "Primeiro selecione uma área"
+                  : environments.length === 0
+                  ? "Nenhum ambiente disponível"
+                  : "Selecione um ambiente"
+              }
+              items={environments}
+              isOffline={isOffline}
+              isFromCache={isFromCache}
+              getItemValue={(e) => e.id}
+              getItemLabel={(e) => e.name}
               disabled={!selectedArea || environments.length === 0}
-            >
-              <SelectTrigger id="environment">
-                <SelectValue placeholder={
-                  !selectedArea 
-                    ? "Primeiro selecione uma área" 
-                    : environments.length === 0 
-                    ? "Nenhum ambiente disponível"
-                    : "Selecione um ambiente"
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                {environments.map((env) => (
-                  <SelectItem key={env.id} value={env.id}>
-                    {env.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              className="w-full"
+            />
           </div>
 
           <div className="space-y-2">
@@ -302,39 +204,43 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
               <MapPin className="h-4 w-4" />
               Local
             </Label>
-            <Select 
-              value={selectedLocation} 
+            <OfflineAwareSelect
+              value={selectedLocation}
               onValueChange={setSelectedLocation}
+              placeholder={
+                !selectedEnvironment
+                  ? "Primeiro selecione um ambiente"
+                  : locations.length === 0
+                  ? "Nenhum local disponível"
+                  : "Selecione um local"
+              }
+              items={locations}
+              isOffline={isOffline}
+              isFromCache={isFromCache}
+              getItemValue={(l) => l.id}
+              getItemLabel={(l) => l.name}
               disabled={!selectedEnvironment || locations.length === 0}
-            >
-              <SelectTrigger id="location">
-                <SelectValue placeholder={
-                  !selectedEnvironment 
-                    ? "Primeiro selecione um ambiente" 
-                    : locations.length === 0 
-                    ? "Nenhum local disponível"
-                    : "Selecione um local"
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((loc) => (
-                  <SelectItem key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              className="w-full"
+            />
           </div>
         </div>
 
-        <Button 
-          onClick={handleStartAudit} 
-          disabled={!selectedLocation}
-          className="w-full"
-          size="lg"
-        >
-          Iniciar Auditoria
-        </Button>
+        <div className="flex gap-2">
+          {!isOffline && isFromCache && (
+            <Button variant="outline" onClick={refetch} className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Atualizar
+            </Button>
+          )}
+          <Button 
+            onClick={handleStartAudit} 
+            disabled={!selectedLocation}
+            className="flex-1"
+            size="lg"
+          >
+            Iniciar Auditoria
+          </Button>
+        </div>
       </div>
     </Card>
   );
