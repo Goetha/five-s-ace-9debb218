@@ -315,6 +315,175 @@ function drawScoreIndicator(
   }
 }
 
+// Render summary table showing only level 1 environments
+function renderEnvironmentSummaryTable(helpers: PDFHelpers, rows: EnvironmentSensoRow[]) {
+  const { pdf, pageWidth } = helpers;
+  
+  // Filter only level 1 rows (main environments)
+  const summaryRows = rows.filter(row => row.level === 1);
+  if (summaryRows.length === 0) return;
+  
+  // Column widths - balanced for readability
+  const totalWidth = pageWidth - 2 * PAGE_MARGIN;
+  const sensoColWidth = 18;
+  const avgColWidth = 20;
+  const numSensoCols = 5;
+  const scoreColumnsWidth = (numSensoCols * sensoColWidth) + avgColWidth;
+  const nameColWidth = totalWidth - scoreColumnsWidth;
+  const tableLeft = PAGE_MARGIN;
+  
+  // Table header
+  checkPageBreak(helpers, 14);
+  const headerY = helpers.yPos;
+  
+  // Header background for name column
+  pdf.setFillColor('#F3F4F6');
+  pdf.rect(tableLeft, headerY, nameColWidth, 12, 'F');
+  addText(helpers, 'Ambiente / Local', tableLeft + 3, headerY + 8, { fontSize: 7, fontStyle: 'bold', color: '#374151' });
+  
+  // Senso column headers
+  const sensoHeaders = [
+    { label: '1S', subLabel: 'Utilizacao', color: SENSO_CONFIG['1S'].color },
+    { label: '2S', subLabel: 'Organizacao', color: SENSO_CONFIG['2S'].color },
+    { label: '3S', subLabel: 'Limpeza', color: SENSO_CONFIG['3S'].color },
+    { label: '4S', subLabel: 'Saude', color: SENSO_CONFIG['4S'].color },
+    { label: '5S', subLabel: 'Autodiscipl.', color: SENSO_CONFIG['5S'].color },
+  ];
+  
+  sensoHeaders.forEach((senso, i) => {
+    const x = tableLeft + nameColWidth + (i * sensoColWidth);
+    pdf.setFillColor(senso.color);
+    pdf.rect(x, headerY, sensoColWidth, 12, 'F');
+    addText(helpers, senso.label, x + sensoColWidth / 2 - 2.5, headerY + 5, { fontSize: 7, fontStyle: 'bold', color: '#FFFFFF' });
+    addText(helpers, senso.subLabel, x + 1, headerY + 10, { fontSize: 3.5, color: '#FFFFFF' });
+  });
+  
+  // GERAL column header
+  const avgX = tableLeft + nameColWidth + (numSensoCols * sensoColWidth);
+  pdf.setFillColor('#6B7280');
+  pdf.rect(avgX, headerY, avgColWidth, 12, 'F');
+  addText(helpers, 'GERAL', avgX + avgColWidth / 2 - 5, headerY + 5, { fontSize: 6, fontStyle: 'bold', color: '#FFFFFF' });
+  addText(helpers, 'Media', avgX + avgColWidth / 2 - 4, headerY + 10, { fontSize: 3.5, color: '#FFFFFF' });
+  
+  helpers.yPos += 13;
+  
+  // Render summary rows
+  for (const row of summaryRows) {
+    const rowHeight = 14;
+    
+    checkPageBreak(helpers, rowHeight + 2);
+    const rowY = helpers.yPos;
+    
+    // Row background
+    const bgColor = '#ECFDF5';
+    pdf.setFillColor(bgColor);
+    pdf.rect(tableLeft, rowY, totalWidth, rowHeight, 'F');
+    pdf.setDrawColor('#E5E7EB');
+    pdf.rect(tableLeft, rowY, totalWidth, rowHeight, 'S');
+    
+    // Environment name
+    addText(helpers, '>', tableLeft + 3, rowY + rowHeight / 2 + 1, { fontSize: 6, color: '#10B981' });
+    addText(helpers, row.name, tableLeft + 10, rowY + rowHeight / 2 + 1, { 
+      fontSize: 7, 
+      fontStyle: 'bold',
+      color: '#10B981',
+      maxWidth: nameColWidth - 15
+    });
+    
+    // Senso score cells
+    const sensoKeys = ['1S', '2S', '3S', '4S', '5S'] as const;
+    sensoKeys.forEach((key, i) => {
+      const x = tableLeft + nameColWidth + (i * sensoColWidth);
+      const score = row.senso_scores[key];
+      const indicator = getScoreIndicator(score);
+      
+      // Cell background
+      pdf.setFillColor(indicator.bgColor);
+      pdf.rect(x, rowY, sensoColWidth, rowHeight, 'F');
+      pdf.setDrawColor('#E5E7EB');
+      pdf.rect(x, rowY, sensoColWidth, rowHeight, 'S');
+      
+      const cellCenterX = x + sensoColWidth / 2;
+      const cellCenterY = rowY + 5;
+      
+      drawScoreIndicator(pdf, cellCenterX, cellCenterY, score, true, helpers);
+    });
+    
+    // GERAL column
+    const avgIndicator = getScoreIndicator(row.average_score);
+    pdf.setFillColor(avgIndicator.bgColor);
+    pdf.rect(avgX, rowY, avgColWidth, rowHeight, 'F');
+    pdf.setDrawColor('#E5E7EB');
+    pdf.rect(avgX, rowY, avgColWidth, rowHeight, 'S');
+    
+    const avgCenterX = avgX + avgColWidth / 2;
+    const avgCenterY = rowY + 5;
+    
+    if (row.average_score !== null) {
+      // Smaller circle with icon
+      const circleRadius = 3.2;
+      pdf.setDrawColor(avgIndicator.borderColor);
+      pdf.setLineWidth(0.5);
+      pdf.setFillColor('#FFFFFF');
+      pdf.circle(avgCenterX, avgCenterY, circleRadius, 'FD');
+      pdf.setLineWidth(0.2);
+      
+      // Draw icon
+      if (row.average_score >= 80) {
+        pdf.setDrawColor(avgIndicator.color);
+        pdf.setLineWidth(0.6);
+        pdf.line(avgCenterX - 1.4, avgCenterY, avgCenterX - 0.4, avgCenterY + 1.2);
+        pdf.line(avgCenterX - 0.4, avgCenterY + 1.2, avgCenterX + 1.6, avgCenterY - 1.2);
+        pdf.setLineWidth(0.2);
+      } else if (row.average_score >= 50) {
+        pdf.setFillColor(avgIndicator.color);
+        pdf.triangle(avgCenterX, avgCenterY - 1.8, avgCenterX - 1.8, avgCenterY + 1.2, avgCenterX + 1.8, avgCenterY + 1.2, 'F');
+        pdf.setFillColor('#FFFFFF');
+        pdf.rect(avgCenterX - 0.25, avgCenterY - 1, 0.5, 1.2, 'F');
+        pdf.circle(avgCenterX, avgCenterY + 0.6, 0.3, 'F');
+      } else {
+        pdf.setDrawColor(avgIndicator.color);
+        pdf.setLineWidth(0.6);
+        pdf.line(avgCenterX - 1.2, avgCenterY - 1.2, avgCenterX + 1.2, avgCenterY + 1.2);
+        pdf.line(avgCenterX + 1.2, avgCenterY - 1.2, avgCenterX - 1.2, avgCenterY + 1.2);
+        pdf.setLineWidth(0.2);
+      }
+      
+      // Percentage below
+      const pctText = `${Math.round(row.average_score)}%`;
+      pdf.setFontSize(7);
+      const pctWidth = pdf.getTextWidth(pctText);
+      addText(helpers, pctText, avgCenterX - pctWidth / 2, avgCenterY + circleRadius + 4.5, { 
+        fontSize: 7, fontStyle: 'bold', color: avgIndicator.color 
+      });
+    } else {
+      addText(helpers, '-', avgCenterX - 2, avgCenterY + 2, { fontSize: 9, color: '#9CA3AF' });
+    }
+    
+    helpers.yPos += rowHeight;
+  }
+  
+  // Compact legend
+  helpers.yPos += 6;
+  checkPageBreak(helpers, 12);
+  
+  let legendX = PAGE_MARGIN;
+  const legendItems = [
+    { color: '#10B981', label: 'Excelente (>=80%)' },
+    { color: '#F59E0B', label: 'Atencao (50-79%)' },
+    { color: '#EF4444', label: 'Critico (<50%)' },
+  ];
+  
+  for (const item of legendItems) {
+    pdf.setFillColor(item.color);
+    pdf.circle(legendX + 2, helpers.yPos, 2, 'F');
+    addText(helpers, item.label, legendX + 6, helpers.yPos + 1.5, { fontSize: 6, color: '#6B7280' });
+    legendX += 50;
+  }
+  
+  helpers.yPos += 10;
+}
+
 // Render hierarchical environment senso table matching system UI design exactly
 function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSensoRow[]) {
   const { pdf, pageWidth } = helpers;
@@ -737,7 +906,16 @@ export async function generateCompanyReportPDF(data: CompanyReportData): Promise
   addLine(helpers, helpers.yPos);
   helpers.yPos += 10;
 
-  // Environment Senso Table (hierarchical)
+  // Environment Summary Table (level 1 only)
+  if (data.environment_senso_table.length > 0) {
+    addSectionHeader(helpers, 'RESUMO POR AMBIENTE');
+    renderEnvironmentSummaryTable(helpers, data.environment_senso_table);
+    helpers.yPos += 5;
+    addLine(helpers, helpers.yPos);
+    helpers.yPos += 10;
+  }
+
+  // Environment Senso Table (full hierarchical)
   if (data.environment_senso_table.length > 0) {
     addSectionHeader(helpers, 'DESEMPENHO POR AMBIENTE / LOCAL');
     renderEnvironmentSensoTable(helpers, data.environment_senso_table);
