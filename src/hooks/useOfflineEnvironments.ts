@@ -45,11 +45,12 @@ interface UseOfflineEnvironmentsResult {
 export function useOfflineEnvironments(userId: string | undefined, targetCompanyId?: string): UseOfflineEnvironmentsResult {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [allEnvironments, setAllEnvironments] = useState<Environment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [isFromCache, setIsFromCache] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasFetched, setHasFetched] = useState(false);
 
   // Monitor online/offline status
   useEffect(() => {
@@ -205,15 +206,20 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     }
   }, [userId, targetCompanyId]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (force = false) => {
     // Need userId OR targetCompanyId to proceed
     if (!userId && !targetCompanyId) {
       console.log('[useOfflineEnvironments] No userId or targetCompanyId, skipping fetch');
-      setIsLoading(false);
       return;
     }
 
-    console.log('[useOfflineEnvironments] Starting fetch', { userId, targetCompanyId });
+    // Skip if already fetched and not forced
+    if (hasFetched && !force) {
+      console.log('[useOfflineEnvironments] Already fetched, skipping');
+      return;
+    }
+
+    console.log('[useOfflineEnvironments] Starting fetch', { userId, targetCompanyId, force });
     setIsLoading(true);
     setError(null);
 
@@ -232,19 +238,27 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
           setError('Sem dados offline disponíveis');
         }
       }
+      setHasFetched(true);
     } catch (e) {
       console.error('[useOfflineEnvironments] Error in fetchData:', e);
     } finally {
       console.log('[useOfflineEnvironments] Fetch complete, setting isLoading=false');
       setIsLoading(false);
     }
-  }, [userId, targetCompanyId, fetchFromServer, fetchFromCache]);
+  }, [userId, targetCompanyId, fetchFromServer, fetchFromCache, hasFetched]);
 
-  // Fetch on mount and when dependencies change
+  // Fetch on mount and when key dependencies change
   useEffect(() => {
-    console.log('[useOfflineEnvironments] Effect triggered, calling fetchData');
-    fetchData();
-  }, [fetchData]);
+    // Reset hasFetched when targetCompanyId changes
+    setHasFetched(false);
+  }, [targetCompanyId]);
+
+  useEffect(() => {
+    if (!hasFetched && (userId || targetCompanyId)) {
+      console.log('[useOfflineEnvironments] Effect triggered, calling fetchData');
+      fetchData();
+    }
+  }, [hasFetched, userId, targetCompanyId, fetchData]);
 
   // Hierarchy helpers
   const getRootEnvironment = useCallback((companyId: string): Environment | undefined => {
@@ -285,6 +299,6 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     isFromCache,
     lastSyncAt,
     error,
-    refetch: fetchData,
+    refetch: () => fetchData(true),
   };
 }

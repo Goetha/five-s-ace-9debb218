@@ -63,7 +63,7 @@ export function NewAuditDialog({
   const locations = selectedEnvironment ? getLocations(selectedEnvironment) : [];
 
   useEffect(() => {
-    if (open && preSelectedCompanyId) {
+    if (open) {
       // Reset selections when opening
       setSelectedArea("");
       setSelectedEnvironment("");
@@ -71,9 +71,8 @@ export function NewAuditDialog({
       setSelectedLocationName("");
       setCriteriaCount(0);
       setCriteriaData([]);
-      refetch();
     }
-  }, [open, preSelectedCompanyId]);
+  }, [open]);
 
   const handleAreaChange = (value: string) => {
     setSelectedArea(value);
