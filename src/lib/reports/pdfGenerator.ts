@@ -247,220 +247,222 @@ function getScoreIndicator(score: number | null): {
   };
 }
 
-// Render hierarchical environment senso table matching system UI design
+// Render hierarchical environment senso table matching system UI design exactly
 function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSensoRow[]) {
   const { pdf, pageWidth } = helpers;
   
-  // Calculate responsive column widths - larger to fit icon + label + percentage
+  // Column widths matching system UI
   const totalWidth = pageWidth - 2 * PAGE_MARGIN;
-  const sensoColWidth = 22; // Larger columns to fit content like the system UI
-  const avgColWidth = 22; // Same size for GERAL
+  const sensoColWidth = 20;
+  const avgColWidth = 20;
   const numSensoCols = 5;
   const scoreColumnsWidth = (numSensoCols * sensoColWidth) + avgColWidth;
   const nameColWidth = totalWidth - scoreColumnsWidth;
   const tableLeft = PAGE_MARGIN;
-  const rowHeight = 18; // Taller rows to fit icon + label or percentage
   
   // Table header
-  checkPageBreak(helpers, 20);
+  checkPageBreak(helpers, 18);
   const headerY = helpers.yPos;
   
   // Header background for name column
   pdf.setFillColor('#F3F4F6');
   pdf.rect(tableLeft, headerY, nameColWidth, 14, 'F');
-  
-  // Header text
   addText(helpers, 'Ambiente / Local', tableLeft + 3, headerY + 9, { fontSize: 8, fontStyle: 'bold', color: '#374151' });
   
-  // Senso column headers with colors
+  // Senso column headers
   const sensoHeaders = [
-    { key: '1S', label: '1S', subLabel: 'Utilizacao', color: SENSO_CONFIG['1S'].color },
-    { key: '2S', label: '2S', subLabel: 'Organizacao', color: SENSO_CONFIG['2S'].color },
-    { key: '3S', label: '3S', subLabel: 'Limpeza', color: SENSO_CONFIG['3S'].color },
-    { key: '4S', label: '4S', subLabel: 'Saude', color: SENSO_CONFIG['4S'].color },
-    { key: '5S', label: '5S', subLabel: 'Disciplina', color: SENSO_CONFIG['5S'].color },
+    { label: '1S', subLabel: 'Utilizacao', color: SENSO_CONFIG['1S'].color },
+    { label: '2S', subLabel: 'Organizacao', color: SENSO_CONFIG['2S'].color },
+    { label: '3S', subLabel: 'Limpeza', color: SENSO_CONFIG['3S'].color },
+    { label: '4S', subLabel: 'Saude', color: SENSO_CONFIG['4S'].color },
+    { label: '5S', subLabel: 'Disciplina', color: SENSO_CONFIG['5S'].color },
   ];
   
   sensoHeaders.forEach((senso, i) => {
     const x = tableLeft + nameColWidth + (i * sensoColWidth);
     pdf.setFillColor(senso.color);
     pdf.rect(x, headerY, sensoColWidth, 14, 'F');
-    // Center the main label
     addText(helpers, senso.label, x + sensoColWidth / 2 - 3, headerY + 6, { fontSize: 8, fontStyle: 'bold', color: '#FFFFFF' });
-    // Sub-label
-    const subText = senso.subLabel.substring(0, 8);
-    const subWidth = pdf.getTextWidth(subText);
-    addText(helpers, subText, x + (sensoColWidth - subWidth) / 2 + 1, headerY + 11, { fontSize: 5, color: '#FFFFFF' });
+    addText(helpers, senso.subLabel.substring(0, 7), x + 2, headerY + 11, { fontSize: 4, color: '#FFFFFF' });
   });
   
-  // Average column header
+  // GERAL column header
   const avgX = tableLeft + nameColWidth + (numSensoCols * sensoColWidth);
   pdf.setFillColor('#6B7280');
   pdf.rect(avgX, headerY, avgColWidth, 14, 'F');
-  addText(helpers, 'GERAL', avgX + 4, headerY + 6, { fontSize: 7, fontStyle: 'bold', color: '#FFFFFF' });
-  addText(helpers, 'Media', avgX + 5, headerY + 11, { fontSize: 5, color: '#FFFFFF' });
+  addText(helpers, 'GERAL', avgX + 3, headerY + 6, { fontSize: 7, fontStyle: 'bold', color: '#FFFFFF' });
+  addText(helpers, 'Media', avgX + 4, headerY + 11, { fontSize: 4, color: '#FFFFFF' });
   
-  helpers.yPos += 16;
+  helpers.yPos += 15;
   
   // Render rows
   for (const row of rows) {
+    // Determine if this is an aggregate row (shows icons) or detail row (shows percentages)
+    const isAggregateRow = row.level <= 2; // Levels 0,1,2 show icons; level 3+ shows percentages
+    const rowHeight = isAggregateRow ? 16 : 10;
+    
     checkPageBreak(helpers, rowHeight + 2);
-    
     const rowY = helpers.yPos;
-    const indent = Math.min(row.level * 6, 24); // Max indent to prevent overflow
+    const indent = Math.min(row.level * 5, 20);
     
-    // Row background based on level
+    // Row background
     let bgColor = '#FFFFFF';
     if (row.level === 0) bgColor = '#F0FDF4';
     else if (row.level === 1) bgColor = '#ECFDF5';
-    else if (row.level === 2) bgColor = '#FFFFFF';
-    else bgColor = '#F9FAFB';
+    else if (row.level === 2) bgColor = '#F0F9FF';
+    else bgColor = '#FFFFFF';
     
     pdf.setFillColor(bgColor);
     pdf.rect(tableLeft, rowY, totalWidth, rowHeight, 'F');
-    
-    // Draw borders
     pdf.setDrawColor('#E5E7EB');
     pdf.rect(tableLeft, rowY, totalWidth, rowHeight, 'S');
     
-    // Level indicator icon
+    // Level indicator
     let levelIcon = '';
     let levelColor = '#6B7280';
-    if (row.level === 0) {
-      levelIcon = 'v';
-      levelColor = '#059669';
-    } else if (row.level === 1) {
-      levelIcon = '*';
-      levelColor = '#10B981';
-    } else if (row.level === 2) {
-      levelIcon = '@';
-      levelColor = '#3B82F6';
-    } else {
-      levelIcon = '>';
-      levelColor = '#6B7280';
-    }
+    if (row.level === 0) { levelIcon = 'v'; levelColor = '#059669'; }
+    else if (row.level === 1) { levelIcon = '*'; levelColor = '#10B981'; }
+    else if (row.level === 2) { levelIcon = '@'; levelColor = '#3B82F6'; }
+    else { levelIcon = '>'; levelColor = '#6B7280'; }
     
-    // Environment name with indent
-    const maxNameLength = Math.floor((nameColWidth - indent - 15) / 2.2);
-    const displayName = row.name.length > maxNameLength ? row.name.substring(0, maxNameLength - 2) + '...' : row.name;
-    addText(helpers, levelIcon, tableLeft + 3 + indent, rowY + rowHeight / 2 + 1, { fontSize: 6, color: levelColor });
-    addText(helpers, displayName, tableLeft + 10 + indent, rowY + rowHeight / 2 + 1, { 
+    // Environment name
+    const maxLen = Math.floor((nameColWidth - indent - 12) / 2.5);
+    const displayName = row.name.length > maxLen ? row.name.substring(0, maxLen - 1) + '...' : row.name;
+    addText(helpers, levelIcon, tableLeft + 2 + indent, rowY + rowHeight / 2 + 1, { fontSize: 5, color: levelColor });
+    addText(helpers, displayName, tableLeft + 8 + indent, rowY + rowHeight / 2 + 1, { 
       fontSize: row.level <= 1 ? 7 : 6, 
       fontStyle: row.level <= 1 ? 'bold' : 'normal',
       color: row.level === 0 ? '#059669' : row.level === 1 ? '#10B981' : '#374151' 
     });
     
-    // Senso score cells - render like system UI with icon + label OR percentage
+    // Senso score cells
     const sensoKeys = ['1S', '2S', '3S', '4S', '5S'] as const;
     sensoKeys.forEach((key, i) => {
       const x = tableLeft + nameColWidth + (i * sensoColWidth);
       const score = row.senso_scores[key];
       const indicator = getScoreIndicator(score);
       
-      // Draw cell with background color
-      pdf.setFillColor(indicator.bgColor);
+      // Cell background
+      pdf.setFillColor(isAggregateRow ? indicator.bgColor : '#FFFFFF');
       pdf.rect(x, rowY, sensoColWidth, rowHeight, 'F');
       pdf.setDrawColor('#E5E7EB');
       pdf.rect(x, rowY, sensoColWidth, rowHeight, 'S');
       
+      const cellCenterX = x + sensoColWidth / 2;
+      
       if (score !== null) {
-        const cellCenterX = x + sensoColWidth / 2;
-        
-        // Draw icon circle with border
-        pdf.setDrawColor(indicator.borderColor);
-        pdf.setFillColor('#FFFFFF');
-        pdf.circle(cellCenterX, rowY + 6, 4, 'FD');
-        
-        // Draw icon symbol
-        addText(helpers, indicator.symbol, cellCenterX - 2, rowY + 7.5, { 
-          fontSize: 6, 
-          fontStyle: 'bold', 
-          color: indicator.color 
-        });
-        
-        // Draw label below icon
-        const labelWidth = pdf.getTextWidth(indicator.label);
-        addText(helpers, indicator.label, cellCenterX - labelWidth / 2, rowY + 14, { 
-          fontSize: 4, 
-          color: indicator.color 
-        });
+        if (isAggregateRow) {
+          // AGGREGATE ROW: Draw circle with icon inside + label below
+          pdf.setDrawColor(indicator.borderColor);
+          pdf.setFillColor('#FFFFFF');
+          pdf.circle(cellCenterX, rowY + 5, 3.5, 'FD');
+          
+          // Draw symbol inside circle (X, check, or !)
+          if (score < 50) {
+            // X mark for Crítico
+            pdf.setDrawColor(indicator.color);
+            pdf.setLineWidth(0.5);
+            pdf.line(cellCenterX - 1.5, rowY + 3.5, cellCenterX + 1.5, rowY + 6.5);
+            pdf.line(cellCenterX + 1.5, rowY + 3.5, cellCenterX - 1.5, rowY + 6.5);
+            pdf.setLineWidth(0.2);
+          } else if (score >= 80) {
+            // Checkmark for Excelente
+            pdf.setDrawColor(indicator.color);
+            pdf.setLineWidth(0.5);
+            pdf.line(cellCenterX - 1.5, rowY + 5, cellCenterX - 0.3, rowY + 6.3);
+            pdf.line(cellCenterX - 0.3, rowY + 6.3, cellCenterX + 1.8, rowY + 3.5);
+            pdf.setLineWidth(0.2);
+          } else {
+            // Triangle/exclamation for Atenção
+            addText(helpers, '!', cellCenterX - 1, rowY + 6.5, { fontSize: 6, fontStyle: 'bold', color: indicator.color });
+          }
+          
+          // Label below
+          addText(helpers, indicator.label, cellCenterX - pdf.getTextWidth(indicator.label) / 2, rowY + 13, { 
+            fontSize: 4, color: indicator.color 
+          });
+        } else {
+          // DETAIL ROW: Just show percentage
+          const pctText = `${Math.round(score)}%`;
+          addText(helpers, pctText, cellCenterX - pdf.getTextWidth(pctText) / 2, rowY + rowHeight / 2 + 1.5, { 
+            fontSize: 7, fontStyle: 'bold', color: indicator.color 
+          });
+        }
       } else {
-        // Draw dash for no data
-        addText(helpers, '-', x + sensoColWidth / 2 - 1, rowY + rowHeight / 2 + 1, { 
-          fontSize: 8, 
-          color: '#9CA3AF' 
-        });
+        addText(helpers, '-', cellCenterX - 1, rowY + rowHeight / 2 + 1, { fontSize: 7, color: '#9CA3AF' });
       }
     });
     
-    // Average score cell - show percentage like system UI
+    // GERAL column
     const avgIndicator = getScoreIndicator(row.average_score);
-    pdf.setFillColor(avgIndicator.bgColor);
+    pdf.setFillColor(isAggregateRow ? avgIndicator.bgColor : '#FFFFFF');
     pdf.rect(avgX, rowY, avgColWidth, rowHeight, 'F');
     pdf.setDrawColor('#E5E7EB');
     pdf.rect(avgX, rowY, avgColWidth, rowHeight, 'S');
     
+    const avgCenterX = avgX + avgColWidth / 2;
+    
     if (row.average_score !== null) {
-      const avgCenterX = avgX + avgColWidth / 2;
-      
-      // Draw icon circle
-      pdf.setDrawColor(avgIndicator.borderColor);
-      pdf.setFillColor('#FFFFFF');
-      pdf.circle(avgCenterX, rowY + 6, 4, 'FD');
-      
-      // Draw icon symbol
-      addText(helpers, avgIndicator.symbol, avgCenterX - 2, rowY + 7.5, { 
-        fontSize: 6, 
-        fontStyle: 'bold', 
-        color: avgIndicator.color 
-      });
-      
-      // Draw percentage below
-      const pctText = `${Math.round(row.average_score)}%`;
-      const pctWidth = pdf.getTextWidth(pctText);
-      addText(helpers, pctText, avgCenterX - pctWidth / 2, rowY + 14, { 
-        fontSize: 5, 
-        fontStyle: 'bold',
-        color: avgIndicator.color 
-      });
+      if (isAggregateRow) {
+        // Circle with icon + percentage below
+        pdf.setDrawColor(avgIndicator.borderColor);
+        pdf.setFillColor('#FFFFFF');
+        pdf.circle(avgCenterX, rowY + 5, 3.5, 'FD');
+        
+        if (row.average_score < 50) {
+          pdf.setDrawColor(avgIndicator.color);
+          pdf.setLineWidth(0.5);
+          pdf.line(avgCenterX - 1.5, rowY + 3.5, avgCenterX + 1.5, rowY + 6.5);
+          pdf.line(avgCenterX + 1.5, rowY + 3.5, avgCenterX - 1.5, rowY + 6.5);
+          pdf.setLineWidth(0.2);
+        } else if (row.average_score >= 80) {
+          pdf.setDrawColor(avgIndicator.color);
+          pdf.setLineWidth(0.5);
+          pdf.line(avgCenterX - 1.5, rowY + 5, avgCenterX - 0.3, rowY + 6.3);
+          pdf.line(avgCenterX - 0.3, rowY + 6.3, avgCenterX + 1.8, rowY + 3.5);
+          pdf.setLineWidth(0.2);
+        } else {
+          addText(helpers, '!', avgCenterX - 1, rowY + 6.5, { fontSize: 6, fontStyle: 'bold', color: avgIndicator.color });
+        }
+        
+        // Percentage below
+        const pctText = `${Math.round(row.average_score)}%`;
+        addText(helpers, pctText, avgCenterX - pdf.getTextWidth(pctText) / 2, rowY + 13, { 
+          fontSize: 5, fontStyle: 'bold', color: avgIndicator.color 
+        });
+      } else {
+        // Just percentage
+        const pctText = `${Math.round(row.average_score)}%`;
+        addText(helpers, pctText, avgCenterX - pdf.getTextWidth(pctText) / 2, rowY + rowHeight / 2 + 1.5, { 
+          fontSize: 7, fontStyle: 'bold', color: avgIndicator.color 
+        });
+      }
     } else {
-      addText(helpers, '-', avgX + avgColWidth / 2 - 1, rowY + rowHeight / 2 + 1, { 
-        fontSize: 8, 
-        color: '#9CA3AF' 
-      });
+      addText(helpers, '-', avgCenterX - 1, rowY + rowHeight / 2 + 1, { fontSize: 7, color: '#9CA3AF' });
     }
     
     helpers.yPos += rowHeight;
   }
   
-  // Legend
-  helpers.yPos += 8;
-  checkPageBreak(helpers, 20);
-  
-  addText(helpers, 'Legenda:', PAGE_MARGIN, helpers.yPos, { fontSize: 7, fontStyle: 'bold', color: '#6B7280' });
-  helpers.yPos += 8;
-  
-  const legendItems = [
-    { symbol: 'V', color: '#10B981', bgColor: '#ECFDF5', label: 'Excelente (>=80%)' },
-    { symbol: '!', color: '#F59E0B', bgColor: '#FFFBEB', label: 'Atencao (50-79%)' },
-    { symbol: 'X', color: '#EF4444', bgColor: '#FEF2F2', label: 'Critico (<50%)' },
-    { symbol: '-', color: '#9CA3AF', bgColor: '#F3F4F6', label: 'Sem dados' },
-  ];
+  // Compact legend
+  helpers.yPos += 6;
+  checkPageBreak(helpers, 12);
   
   let legendX = PAGE_MARGIN;
+  const legendItems = [
+    { color: '#10B981', label: 'Excelente (>=80%)' },
+    { color: '#F59E0B', label: 'Atencao (50-79%)' },
+    { color: '#EF4444', label: 'Critico (<50%)' },
+  ];
+  
   for (const item of legendItems) {
-    // Draw circle icon
-    pdf.setFillColor(item.bgColor);
-    pdf.setDrawColor(item.color);
-    pdf.circle(legendX + 4, helpers.yPos, 3, 'FD');
-    addText(helpers, item.symbol, legendX + 2.5, helpers.yPos + 1, { fontSize: 5, fontStyle: 'bold', color: item.color });
-    
-    // Draw label
-    addText(helpers, item.label, legendX + 10, helpers.yPos + 1.5, { fontSize: 6, color: '#6B7280' });
-    legendX += 42;
+    pdf.setFillColor(item.color);
+    pdf.circle(legendX + 2, helpers.yPos, 2, 'F');
+    addText(helpers, item.label, legendX + 6, helpers.yPos + 1.5, { fontSize: 5, color: '#6B7280' });
+    legendX += 45;
   }
   
-  helpers.yPos += 10;
+  helpers.yPos += 8;
 }
 
 export async function generateAuditPDF(data: AuditReportData): Promise<void> {
