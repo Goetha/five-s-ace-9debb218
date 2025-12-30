@@ -200,12 +200,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isMounted = true;
     
     const initAuth = async () => {
-      // Initialize IndexedDB (don't block on failure)
-      try {
-        await initDB();
-      } catch (e) {
-        console.error('Error initializing offline DB:', e);
-      }
+      // Initialize IndexedDB in background (don't wait for it)
+      initDB().catch(e => console.error('Error initializing offline DB:', e));
 
       // If offline, try to load from cache first
       if (!navigator.onLine) {
@@ -228,9 +224,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Defer data fetching with setTimeout to avoid Supabase deadlock
           if (session?.user) {
             setTimeout(() => {
-              fetchUserData(session.user.id).finally(() => {
-                if (isMounted) setIsLoading(false);
-              });
+              fetchUserData(session.user.id)
+                .catch(e => console.error('Error fetching user data:', e))
+                .finally(() => {
+                  if (isMounted) setIsLoading(false);
+                });
             }, 0);
           } else {
             setUserRole(null);
@@ -244,21 +242,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       subscriptionCleanup = () => subscription.unsubscribe();
 
-      // THEN check for existing session
+      // THEN check for existing session - with timeout to prevent hanging
+      const sessionTimeout = setTimeout(() => {
+        console.warn('Session check timed out');
+        if (isMounted) setIsLoading(false);
+      }, 5000);
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        clearTimeout(sessionTimeout);
         
         if (session?.user) {
           setSession(session);
           setUser(session.user);
-          await fetchUserData(session.user.id);
-        }
-        // If no session, onAuthStateChange will handle setting isLoading to false
-        // But we need a fallback
-        if (!session) {
+          try {
+            await fetchUserData(session.user.id);
+          } catch (e) {
+            console.error('Error fetching user data:', e);
+          }
+          if (isMounted) setIsLoading(false);
+        } else {
+          // No session - allow login
           if (isMounted) setIsLoading(false);
         }
       } catch (error) {
+        clearTimeout(sessionTimeout);
         console.error('Error getting session:', error);
         if (isMounted) setIsLoading(false);
       }
