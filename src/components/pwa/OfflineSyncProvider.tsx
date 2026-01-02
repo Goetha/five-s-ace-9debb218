@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useContext } from 'react';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
-import { OfflineIndicator } from './OfflineIndicator';
+import { OfflineIndicator, CacheProgress } from './OfflineIndicator';
 import { AuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -47,7 +47,7 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
   
   const [isCaching, setIsCaching] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
-  const [cacheProgress, setCacheProgress] = useState<string>('');
+  const [cacheProgress, setCacheProgress] = useState<CacheProgress | null>(null);
   const hasCachedRef = useRef(false);
 
   // Initialize IndexedDB on mount
@@ -73,12 +73,15 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
 
     try {
       let companyIds: string[] = [];
+      const totalSteps = 6;
+      let currentStep = 0;
 
-      // IFA Admin has access to all companies - fetch differently
+      // Step 1: Fetch companies
+      setCacheProgress({ step: 'Buscando empresas...', current: ++currentStep, total: totalSteps });
+
       if (userRole === 'ifa_admin') {
         console.log('🔄 IFA Admin detected - caching all companies');
         
-        // Fetch all active companies for IFA admin
         const { data: allCompanies, error: companiesError } = await supabase
           .from('companies')
           .select('*')
@@ -90,9 +93,14 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
           await cacheCompanies(allCompanies);
           console.log(`✅ Cached ${allCompanies.length} companies (IFA Admin)`);
           companyIds = allCompanies.map(c => c.id);
+          setCacheProgress({ 
+            step: 'Empresas sincronizadas', 
+            current: currentStep, 
+            total: totalSteps,
+            details: `${allCompanies.length} empresas`
+          });
         }
       } else {
-        // Regular users - fetch via user_companies
         const { data: userCompanies, error: ucError } = await supabase
           .from('user_companies')
           .select('id, user_id, company_id')
@@ -106,7 +114,6 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
 
           companyIds = userCompanies.map(uc => uc.company_id);
 
-          // Cache companies for regular users
           const { data: companies } = await supabase
             .from('companies')
             .select('*')
@@ -115,26 +122,35 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
           if (companies) {
             await cacheCompanies(companies);
             console.log(`✅ Cached ${companies.length} companies`);
+            setCacheProgress({ 
+              step: 'Empresas sincronizadas', 
+              current: currentStep, 
+              total: totalSteps,
+              details: `${companies.length} empresas`
+            });
           }
         }
       }
 
-      // If we have company IDs, cache related data
       if (companyIds.length > 0) {
-        // Cache all environments for companies
+        // Step 2: Fetch environments
+        setCacheProgress({ step: 'Sincronizando ambientes...', current: ++currentStep, total: totalSteps });
+        
         const { data: environments, error: envError } = await supabase
           .from('environments')
           .select('*')
           .in('company_id', companyIds)
           .eq('status', 'active');
 
+        let envCount = 0;
         if (envError) {
           console.error('❌ Error fetching environments:', envError);
         } else if (environments && environments.length > 0) {
           await cacheEnvironments(environments);
+          envCount = environments.length;
           console.log(`✅ Cached ${environments.length} environments`);
 
-          // Cache environment_criteria links in batches
+          // Cache environment_criteria links
           const envIds = environments.map(e => e.id);
           const batchSize = 100;
           
@@ -151,8 +167,18 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
           }
           console.log('✅ Cached environment_criteria');
         }
+        
+        setCacheProgress({ 
+          step: 'Ambientes sincronizados', 
+          current: currentStep, 
+          total: totalSteps,
+          details: `${envCount} ambientes`
+        });
 
-        // Cache company_criteria in batches
+        // Step 3: Cache criteria
+        setCacheProgress({ step: 'Sincronizando critérios...', current: ++currentStep, total: totalSteps });
+        
+        let criteriaCount = 0;
         const criteriaBatchSize = 50;
         for (let i = 0; i < companyIds.length; i += criteriaBatchSize) {
           const batch = companyIds.slice(i, i + criteriaBatchSize);
@@ -164,11 +190,24 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
 
           if (criteria) {
             await cacheCriteria(criteria);
+            criteriaCount += criteria.length;
           }
         }
         console.log('✅ Cached company_criteria');
+        
+        setCacheProgress({ 
+          step: 'Critérios sincronizados', 
+          current: currentStep, 
+          total: totalSteps,
+          details: `${criteriaCount} critérios`
+        });
 
-        // Cache audits in batches
+        // Step 4: Cache audits
+        setCacheProgress({ step: 'Sincronizando auditorias...', current: ++currentStep, total: totalSteps });
+        
+        let auditCount = 0;
+        let auditItemCount = 0;
+        
         for (let i = 0; i < companyIds.length; i += criteriaBatchSize) {
           const batch = companyIds.slice(i, i + criteriaBatchSize);
           const { data: audits } = await supabase
@@ -178,8 +217,9 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
 
           if (audits && audits.length > 0) {
             await cacheAudits(audits);
+            auditCount += audits.length;
             
-            // Cache audit_items for these audits
+            // Cache audit_items
             const auditIds = audits.map(a => a.id);
             const auditBatchSize = 50;
             for (let j = 0; j < auditIds.length; j += auditBatchSize) {
@@ -191,19 +231,42 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
 
               if (auditItems) {
                 await cacheAuditItems(auditItems);
+                auditItemCount += auditItems.length;
               }
             }
           }
+          
+          // Update progress during audit sync
+          setCacheProgress({ 
+            step: 'Sincronizando auditorias...', 
+            current: currentStep, 
+            total: totalSteps,
+            details: `${auditCount} auditorias`
+          });
         }
         console.log('✅ Cached audits and audit_items');
+        
+        setCacheProgress({ 
+          step: 'Auditorias sincronizadas', 
+          current: currentStep, 
+          total: totalSteps,
+          details: `${auditCount} auditorias, ${auditItemCount} itens`
+        });
+
       } else {
         console.warn('⚠️ No companies found to cache');
       }
+
+      // Step 5: Finalize
+      setCacheProgress({ step: 'Finalizando...', current: ++currentStep, total: totalSteps });
 
       await setLastSyncTime();
       const syncTime = new Date().toISOString();
       setLastSync(syncTime);
       
+      // Step 6: Complete
+      setCacheProgress({ step: 'Concluído!', current: totalSteps, total: totalSteps });
+
       // Show success toast only on first cache
       if (!hasCachedRef.current) {
         toast.success('Dados sincronizados para uso offline', {
@@ -214,16 +277,18 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
       hasCachedRef.current = true;
       console.log('✅ Offline cache completed successfully');
 
+      // Clear progress after a short delay
+      setTimeout(() => setCacheProgress(null), 1500);
+
     } catch (error) {
       console.error('❌ Error caching offline data:', error);
+      setCacheProgress(null);
     } finally {
       setIsCaching(false);
-      setCacheProgress('');
     }
   }, [user, isCaching, userRole]);
 
-  // Cache data when user logs in - with delay to not block UI
-  // Only start caching when userRole is available
+  // Cache data when user logs in
   useEffect(() => {
     if (user && userRole && navigator.onLine && !isCaching && !hasCachedRef.current) {
       console.log('🔄 Starting cache timer - role:', userRole);
@@ -237,19 +302,17 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
   // Re-cache when coming back online
   useEffect(() => {
     if (status.isOnline && user && !isCaching) {
-      // First sync pending changes, then update cache
       const syncAndCache = async () => {
         if (status.pendingCount > 0) {
           await syncPendingChanges();
         }
-        // Update cache with fresh data
         await cacheAllDataForOffline();
       };
       syncAndCache();
     }
   }, [status.isOnline]);
 
-  // Notify user when going offline if cache is available
+  // Notify user when going offline
   useEffect(() => {
     if (isOffline && lastSync) {
       toast.info('Modo offline ativado', {
@@ -264,8 +327,10 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
       {children}
       <OfflineIndicator
         pendingCount={status.pendingCount}
-        isSyncing={status.isSyncing || isCaching}
+        isSyncing={status.isSyncing}
         onSync={syncPendingChanges}
+        cacheProgress={cacheProgress}
+        isCaching={isCaching}
       />
     </>
   );
