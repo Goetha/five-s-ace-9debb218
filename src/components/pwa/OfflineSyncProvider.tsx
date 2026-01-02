@@ -138,8 +138,6 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
       await setLastSyncTime();
       const syncTime = new Date().toISOString();
       setLastSync(syncTime);
-      hasCachedRef.current = true;
-      console.log('✅ Offline cache completed successfully');
       
       // Show success toast only on first cache
       if (!hasCachedRef.current) {
@@ -148,6 +146,8 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
           duration: 3000,
         });
       }
+      hasCachedRef.current = true;
+      console.log('✅ Offline cache completed successfully');
 
     } catch (error) {
       console.error('❌ Error caching offline data:', error);
