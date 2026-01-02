@@ -30,6 +30,12 @@ export function useOfflineData<T>({
   const [lastSyncAt, setLastSyncAtState] = useState<string | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const fetchedRef = useRef(false);
+  const fetchOnlineRef = useRef(fetchOnline);
+
+  // Keep fetchOnline ref updated
+  useEffect(() => {
+    fetchOnlineRef.current = fetchOnline;
+  }, [fetchOnline]);
 
   // Monitor online/offline status
   useEffect(() => {
@@ -55,28 +61,29 @@ export function useOfflineData<T>({
     setError(null);
 
     try {
-      // Always try online first - simpler and more reliable
-      const onlineData = await fetchOnline();
+      const onlineData = await fetchOnlineRef.current();
       setData(onlineData);
       setIsFromCache(false);
       setLastSyncAtState(new Date().toISOString());
     } catch (e) {
-      console.error(`Error fetching data for ${cacheKey}:`, e);
+      console.warn(`Online fetch failed for ${cacheKey}, trying cache:`, e);
       setError(e as Error);
-      // If online fetch fails, just set empty data
-      // IndexedDB caching is optional and shouldn't block the UI
       setData([]);
     } finally {
       setIsLoading(false);
     }
-  }, [cacheKey, fetchOnline, enabled]);
+  }, [cacheKey, enabled]);
 
   // Initial fetch - only once
   useEffect(() => {
-    if (!fetchedRef.current) {
+    if (!fetchedRef.current && enabled) {
       fetchedRef.current = true;
       fetchData();
     }
+  }, [fetchData, enabled]);
+
+  const refetch = useCallback(async () => {
+    await fetchData();
   }, [fetchData]);
 
   return {
@@ -86,6 +93,6 @@ export function useOfflineData<T>({
     isFromCache,
     lastSyncAt,
     error,
-    refetch: fetchData,
+    refetch,
   };
 }
