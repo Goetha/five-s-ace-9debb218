@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useContext } from 'react';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { OfflineIndicator } from './OfflineIndicator';
-import { useAuth } from '@/contexts/AuthContext';
+import { AuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
   cacheAudits,
@@ -18,8 +18,31 @@ import {
 import { toast } from 'sonner';
 
 export function OfflineSyncProvider({ children }: { children: React.ReactNode }) {
+  const authContext = useContext(AuthContext);
+  
+  // Safe fallback if context is not available (during HMR)
+  if (!authContext) {
+    return <>{children}</>;
+  }
+  
+  return <OfflineSyncProviderInner authContext={authContext}>{children}</OfflineSyncProviderInner>;
+}
+
+interface AuthContextValue {
+  user: { id: string } | null;
+  isOffline: boolean;
+}
+
+interface OfflineSyncProviderInnerProps {
+  children: React.ReactNode;
+  authContext: AuthContextValue;
+}
+
+function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProviderInnerProps) {
   const { status, syncPendingChanges } = useOfflineSync();
-  const { user, activeCompanyId, linkedCompanies, isOffline } = useAuth();
+  const user = authContext.user;
+  const isOffline = authContext.isOffline;
+  
   const [isCaching, setIsCaching] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [cacheProgress, setCacheProgress] = useState<string>('');
