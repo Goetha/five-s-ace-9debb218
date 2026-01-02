@@ -31,6 +31,7 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
 interface AuthContextValue {
   user: { id: string } | null;
   isOffline: boolean;
+  userRole: 'ifa_admin' | 'company_admin' | 'auditor' | null;
 }
 
 interface OfflineSyncProviderInnerProps {
@@ -42,6 +43,7 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
   const { status, syncPendingChanges } = useOfflineSync();
   const user = authContext.user;
   const isOffline = authContext.isOffline;
+  const userRole = authContext.userRole;
   
   const [isCaching, setIsCaching] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
@@ -64,98 +66,135 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
 
     setIsCaching(true);
     console.log('🔄 Starting comprehensive offline data cache...');
+    console.log('🔄 User role:', userRole);
 
     try {
-      // 1. Cache user_companies
-      const { data: userCompanies } = await supabase
-        .from('user_companies')
-        .select('id, user_id, company_id')
-        .eq('user_id', user.id);
+      let companyIds: string[] = [];
 
-      if (userCompanies && userCompanies.length > 0) {
-        await cacheUserCompanies(userCompanies);
-        console.log(`✅ Cached ${userCompanies.length} user_companies`);
-
-        const companyIds = userCompanies.map(uc => uc.company_id);
-
-        // 2. Cache companies
-        const { data: companies } = await supabase
+      // IFA Admin has access to all companies - fetch differently
+      if (userRole === 'ifa_admin') {
+        console.log('🔄 IFA Admin detected - caching all companies');
+        
+        // Fetch all active companies for IFA admin
+        const { data: allCompanies, error: companiesError } = await supabase
           .from('companies')
           .select('*')
-          .in('id', companyIds);
+          .eq('status', 'active');
 
-        if (companies) {
-          await cacheCompanies(companies);
-          console.log(`✅ Cached ${companies.length} companies`);
+        if (companiesError) {
+          console.error('❌ Error fetching companies:', companiesError);
+        } else if (allCompanies && allCompanies.length > 0) {
+          await cacheCompanies(allCompanies);
+          console.log(`✅ Cached ${allCompanies.length} companies (IFA Admin)`);
+          companyIds = allCompanies.map(c => c.id);
         }
+      } else {
+        // Regular users - fetch via user_companies
+        const { data: userCompanies, error: ucError } = await supabase
+          .from('user_companies')
+          .select('id, user_id, company_id')
+          .eq('user_id', user.id);
 
-        // 3. Cache all environments for user's companies
-        const { data: environments } = await supabase
+        if (ucError) {
+          console.error('❌ Error fetching user_companies:', ucError);
+        } else if (userCompanies && userCompanies.length > 0) {
+          await cacheUserCompanies(userCompanies);
+          console.log(`✅ Cached ${userCompanies.length} user_companies`);
+
+          companyIds = userCompanies.map(uc => uc.company_id);
+
+          // Cache companies for regular users
+          const { data: companies } = await supabase
+            .from('companies')
+            .select('*')
+            .in('id', companyIds);
+
+          if (companies) {
+            await cacheCompanies(companies);
+            console.log(`✅ Cached ${companies.length} companies`);
+          }
+        }
+      }
+
+      // If we have company IDs, cache related data
+      if (companyIds.length > 0) {
+        // Cache all environments for companies
+        const { data: environments, error: envError } = await supabase
           .from('environments')
           .select('*')
           .in('company_id', companyIds)
           .eq('status', 'active');
 
-        if (environments) {
+        if (envError) {
+          console.error('❌ Error fetching environments:', envError);
+        } else if (environments && environments.length > 0) {
           await cacheEnvironments(environments);
           console.log(`✅ Cached ${environments.length} environments`);
 
-          // 4. Cache environment_criteria links
+          // Cache environment_criteria links in batches
           const envIds = environments.map(e => e.id);
-          if (envIds.length > 0) {
+          const batchSize = 100;
+          
+          for (let i = 0; i < envIds.length; i += batchSize) {
+            const batch = envIds.slice(i, i + batchSize);
             const { data: envCriteria } = await supabase
               .from('environment_criteria')
               .select('*')
-              .in('environment_id', envIds);
+              .in('environment_id', batch);
 
             if (envCriteria) {
               await cacheEnvironmentCriteria(envCriteria);
-              console.log(`✅ Cached ${envCriteria.length} environment_criteria`);
             }
           }
+          console.log('✅ Cached environment_criteria');
         }
 
-        // 5. Cache company_criteria for all companies
-        const { data: criteria } = await supabase
-          .from('company_criteria')
-          .select('*')
-          .in('company_id', companyIds)
-          .eq('status', 'active');
+        // Cache company_criteria in batches
+        const criteriaBatchSize = 50;
+        for (let i = 0; i < companyIds.length; i += criteriaBatchSize) {
+          const batch = companyIds.slice(i, i + criteriaBatchSize);
+          const { data: criteria } = await supabase
+            .from('company_criteria')
+            .select('*')
+            .in('company_id', batch)
+            .eq('status', 'active');
 
-        if (criteria) {
-          await cacheCriteria(criteria);
-          console.log(`✅ Cached ${criteria.length} company_criteria`);
+          if (criteria) {
+            await cacheCriteria(criteria);
+          }
         }
+        console.log('✅ Cached company_criteria');
 
-        // 6. Cache audits for all companies
-        const { data: audits } = await supabase
-          .from('audits')
-          .select('*')
-          .in('company_id', companyIds);
+        // Cache audits in batches
+        for (let i = 0; i < companyIds.length; i += criteriaBatchSize) {
+          const batch = companyIds.slice(i, i + criteriaBatchSize);
+          const { data: audits } = await supabase
+            .from('audits')
+            .select('*')
+            .in('company_id', batch);
 
-        if (audits) {
-          await cacheAudits(audits);
-          console.log(`✅ Cached ${audits.length} audits`);
-
-          // 7. Cache audit_items for these audits
-          const auditIds = audits.map(a => a.id);
-          if (auditIds.length > 0) {
-            // Fetch in batches if many audits
-            const batchSize = 50;
-            for (let i = 0; i < auditIds.length; i += batchSize) {
-              const batch = auditIds.slice(i, i + batchSize);
+          if (audits && audits.length > 0) {
+            await cacheAudits(audits);
+            
+            // Cache audit_items for these audits
+            const auditIds = audits.map(a => a.id);
+            const auditBatchSize = 50;
+            for (let j = 0; j < auditIds.length; j += auditBatchSize) {
+              const auditBatch = auditIds.slice(j, j + auditBatchSize);
               const { data: auditItems } = await supabase
                 .from('audit_items')
                 .select('*')
-                .in('audit_id', batch);
+                .in('audit_id', auditBatch);
 
               if (auditItems) {
                 await cacheAuditItems(auditItems);
               }
             }
-            console.log('✅ Cached audit_items');
           }
         }
+        console.log('✅ Cached audits and audit_items');
+      } else {
+        console.warn('⚠️ No companies found to cache');
       }
 
       await setLastSyncTime();
