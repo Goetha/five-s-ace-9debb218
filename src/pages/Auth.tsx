@@ -12,14 +12,25 @@ export default function Auth() {
 
   // Redirect if already authenticated based on role
   useEffect(() => {
-    if (user && !authLoading && userRole) {
+    if (user && !authLoading) {
+      // Se tem user mas não tem role ainda, aguarda com timeout de segurança
+      if (!userRole) {
+        const timeout = setTimeout(() => {
+          console.warn('Role not loaded after timeout, navigating to default');
+          setIsSubmitting(false);
+          navigate('/');
+        }, 3000);
+        return () => clearTimeout(timeout);
+      }
+      
+      // Redirect baseado no role
+      setIsSubmitting(false);
       if (userRole === 'ifa_admin') {
         navigate('/');
       } else if (userRole === 'company_admin') {
         navigate('/admin-empresa');
       } else {
-        // Outros roles (auditor, area_manager, viewer)
-        navigate('/admin-empresa');
+        navigate('/auditor/minhas-auditorias');
       }
     }
   }, [user, userRole, authLoading, navigate]);
@@ -49,7 +60,10 @@ export default function Auth() {
         description: "Bem-vindo de volta.",
         className: "bg-green-50 border-green-200",
       });
-      // O redirecionamento será feito pelo useEffect baseado no role
+      // Timeout de segurança - se não redirecionar em 5s, libera o botão
+      setTimeout(() => {
+        setIsSubmitting(false);
+      }, 5000);
     }
   };
 

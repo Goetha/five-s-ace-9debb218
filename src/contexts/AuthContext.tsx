@@ -118,72 +118,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Fetch user data (role, profile, company)
-  const fetchUserData = async (userId: string) => {
-    try {
-      // Fetch roles (may have multiple). Choose precedence: ifa_admin > company_admin > auditor
-      const { data: roles, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId);
+  // Fetch user data (role, profile, company) with timeout protection
+  const fetchUserData = async (userId: string): Promise<void> => {
+    return new Promise(async (resolve) => {
+      // Timeout de segurança - se não completar em 5s, resolve mesmo assim
+      const timeout = setTimeout(() => {
+        console.warn('fetchUserData timed out after 5s');
+        resolve();
+      }, 5000);
 
-      if (roleError) {
-        console.error('Error fetching user roles:', roleError);
-      }
-
-      const rolePriority: AppRole[] = ['ifa_admin', 'company_admin', 'auditor'];
-      const userRoles = (roles ?? []).map(r => r.role as AppRole);
-      const role = rolePriority.find(r => userRoles.includes(r)) || null;
-      setUserRole(role);
-
-      // Fetch profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, phone')
-        .eq('id', userId)
-        .single();
-
-      if (profileError) {
-        console.error('Error fetching user profile:', profileError);
-      } else {
-        setUserProfile(profileData);
-      }
-
-      // Fetch company info (if company_admin or other non-IFA roles)
-      if (role !== 'ifa_admin') {
-        const { data: userCompanies, error: userCompanyError } = await supabase
-          .from('user_companies')
-          .select('company_id')
+      try {
+        // Fetch roles (may have multiple). Choose precedence: ifa_admin > company_admin > auditor
+        const { data: roles, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
           .eq('user_id', userId);
 
-        if (userCompanyError) {
-          console.error('Error fetching user companies:', userCompanyError);
-        } else if (userCompanies && userCompanies.length > 0) {
-          const companyIds = userCompanies.map(uc => uc.company_id);
-          
-          const { data: companiesData, error: companiesError } = await supabase
-            .from('companies')
-            .select('id, name')
-            .in('id', companyIds.map(id => id));
+        if (roleError) {
+          console.error('Error fetching user roles:', roleError);
+        }
 
-          if (companiesError) {
-            console.error('Error fetching companies info:', companiesError);
-          } else if (companiesData) {
-            setLinkedCompanies(companiesData);
+        const rolePriority: AppRole[] = ['ifa_admin', 'company_admin', 'auditor'];
+        const userRoles = (roles ?? []).map(r => r.role as AppRole);
+        const role = rolePriority.find(r => userRoles.includes(r)) || null;
+        setUserRole(role);
+
+        // Fetch profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, phone')
+          .eq('id', userId)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching user profile:', profileError);
+        } else {
+          setUserProfile(profileData);
+        }
+
+        // Fetch company info (if company_admin or other non-IFA roles)
+        if (role !== 'ifa_admin') {
+          const { data: userCompanies, error: userCompanyError } = await supabase
+            .from('user_companies')
+            .select('company_id')
+            .eq('user_id', userId);
+
+          if (userCompanyError) {
+            console.error('Error fetching user companies:', userCompanyError);
+          } else if (userCompanies && userCompanies.length > 0) {
+            const companyIds = userCompanies.map(uc => uc.company_id);
             
-            // Set active company (first one by default, or restore from localStorage)
-            const savedActiveCompanyId = localStorage.getItem('activeCompanyId');
-            const validSavedId = companiesData.find(c => c.id === savedActiveCompanyId);
-            const defaultCompanyId = validSavedId?.id || companiesData[0]?.id;
-            
-            setActiveCompanyId(defaultCompanyId);
-            setCompanyInfo(companiesData.find(c => c.id === defaultCompanyId) || null);
+            const { data: companiesData, error: companiesError } = await supabase
+              .from('companies')
+              .select('id, name')
+              .in('id', companyIds.map(id => id));
+
+            if (companiesError) {
+              console.error('Error fetching companies info:', companiesError);
+            } else if (companiesData) {
+              setLinkedCompanies(companiesData);
+              
+              // Set active company (first one by default, or restore from localStorage)
+              const savedActiveCompanyId = localStorage.getItem('activeCompanyId');
+              const validSavedId = companiesData.find(c => c.id === savedActiveCompanyId);
+              const defaultCompanyId = validSavedId?.id || companiesData[0]?.id;
+              
+              setActiveCompanyId(defaultCompanyId);
+              setCompanyInfo(companiesData.find(c => c.id === defaultCompanyId) || null);
+            }
           }
         }
+        
+        clearTimeout(timeout);
+        resolve();
+      } catch (error) {
+        console.error('Error in fetchUserData:', error);
+        clearTimeout(timeout);
+        resolve();
       }
-    } catch (error) {
-      console.error('Error in fetchUserData:', error);
-    }
+    });
   };
 
   // Update companyInfo when activeCompanyId changes
