@@ -62,7 +62,10 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
 
   // Comprehensive cache function
   const cacheAllDataForOffline = useCallback(async () => {
-    if (!user || !navigator.onLine || isCaching) return;
+    if (!user || !navigator.onLine || isCaching || !userRole) {
+      console.log('🔄 Cache skipped - user:', !!user, 'online:', navigator.onLine, 'caching:', isCaching, 'role:', userRole);
+      return;
+    }
 
     setIsCaching(true);
     console.log('🔄 Starting comprehensive offline data cache...');
@@ -217,17 +220,19 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
       setIsCaching(false);
       setCacheProgress('');
     }
-  }, [user, isCaching]);
+  }, [user, isCaching, userRole]);
 
   // Cache data when user logs in - with delay to not block UI
+  // Only start caching when userRole is available
   useEffect(() => {
-    if (user && navigator.onLine && !isCaching && !hasCachedRef.current) {
+    if (user && userRole && navigator.onLine && !isCaching && !hasCachedRef.current) {
+      console.log('🔄 Starting cache timer - role:', userRole);
       const timer = setTimeout(() => {
         cacheAllDataForOffline();
-      }, 3000); // Increased delay for better UX
+      }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [user, cacheAllDataForOffline]);
+  }, [user, userRole, cacheAllDataForOffline]);
 
   // Re-cache when coming back online
   useEffect(() => {
