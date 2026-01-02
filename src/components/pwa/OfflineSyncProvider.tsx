@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { OfflineIndicator } from './OfflineIndicator';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +13,7 @@ import {
   cacheAuditItems,
   setLastSyncTime,
   getLastSyncTime,
+  initDB,
 } from '@/lib/offlineStorage';
 import { toast } from 'sonner';
 
@@ -21,6 +22,13 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
   const { user, activeCompanyId, linkedCompanies, isOffline } = useAuth();
   const [isCaching, setIsCaching] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
+  const [cacheProgress, setCacheProgress] = useState<string>('');
+  const hasCachedRef = useRef(false);
+
+  // Initialize IndexedDB on mount
+  useEffect(() => {
+    initDB().catch(console.error);
+  }, []);
 
   // Load last sync time on mount
   useEffect(() => {
@@ -130,25 +138,34 @@ export function OfflineSyncProvider({ children }: { children: React.ReactNode })
       await setLastSyncTime();
       const syncTime = new Date().toISOString();
       setLastSync(syncTime);
+      hasCachedRef.current = true;
       console.log('✅ Offline cache completed successfully');
+      
+      // Show success toast only on first cache
+      if (!hasCachedRef.current) {
+        toast.success('Dados sincronizados para uso offline', {
+          description: 'Você pode usar o app mesmo sem internet.',
+          duration: 3000,
+        });
+      }
 
     } catch (error) {
       console.error('❌ Error caching offline data:', error);
     } finally {
       setIsCaching(false);
+      setCacheProgress('');
     }
   }, [user, isCaching]);
 
-  // Cache data when user logs in
+  // Cache data when user logs in - with delay to not block UI
   useEffect(() => {
-    if (user && navigator.onLine && !isCaching) {
-      // Delay to avoid blocking UI
+    if (user && navigator.onLine && !isCaching && !hasCachedRef.current) {
       const timer = setTimeout(() => {
         cacheAllDataForOffline();
-      }, 2000);
+      }, 3000); // Increased delay for better UX
       return () => clearTimeout(timer);
     }
-  }, [user]);
+  }, [user, cacheAllDataForOffline]);
 
   // Re-cache when coming back online
   useEffect(() => {
