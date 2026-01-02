@@ -50,79 +50,67 @@ export const FullScreenLogin = ({ onLogin, isLoading = false }: FullScreenLoginP
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-background">
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-orange-500 via-orange-400 to-amber-400 relative overflow-hidden">
-        {/* Decorative circles */}
-        <div className="absolute top-20 left-20 w-32 h-32 rounded-full bg-white/10 blur-xl" />
-        <div className="absolute bottom-40 right-20 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute top-1/2 left-1/4 w-24 h-24 rounded-full bg-orange-300/30 blur-lg" />
-        
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="h-full w-full" style={{
-            backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
-            `,
-            backgroundSize: '40px 40px'
-          }} />
+    <div className="min-h-screen w-full flex bg-white">
+      {/* Left Panel - Dark with light effects */}
+      <div className="hidden lg:flex lg:w-[45%] bg-gradient-to-b from-zinc-900 via-black to-zinc-900 relative overflow-hidden items-center">
+        {/* Orange light bars effect */}
+        <div className="absolute right-0 top-0 bottom-0 w-24 flex items-stretch">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="flex-1 opacity-60"
+              style={{
+                background: `linear-gradient(to top, 
+                  transparent 0%, 
+                  rgba(251, 146, 60, ${0.1 + i * 0.08}) 30%, 
+                  rgba(251, 146, 60, ${0.3 + i * 0.1}) 50%,
+                  rgba(251, 146, 60, ${0.1 + i * 0.08}) 70%,
+                  transparent 100%
+                )`,
+                filter: 'blur(2px)',
+              }}
+            />
+          ))}
         </div>
 
+        {/* Glow effect at the edge */}
+        <div 
+          className="absolute right-0 top-0 bottom-0 w-32"
+          style={{
+            background: 'linear-gradient(to left, rgba(251, 146, 60, 0.15), transparent)',
+          }}
+        />
+
         {/* Content */}
-        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
-              <Sunburst className="w-8 h-8 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-white tracking-tight">5S Manager</span>
-          </div>
-
-          <div className="space-y-6">
-            <p className="text-4xl xl:text-5xl font-light text-white leading-tight max-w-md">
-              Sistema de gestão de auditorias 5S
-            </p>
-            <p className="text-white/80 text-lg max-w-sm">
-              Gerencie critérios, modelos e empresas de forma eficiente e organizada.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex -space-x-2">
-              <div className="w-10 h-10 rounded-full bg-white/30 border-2 border-white/50 flex items-center justify-center text-white font-medium text-sm">
-                IFA
-              </div>
-            </div>
-            <p className="text-white/80 text-sm">
-              Plataforma para gestores e auditores
-            </p>
-          </div>
+        <div className="relative z-10 p-12 xl:p-16">
+          <p className="text-3xl xl:text-4xl font-light text-white leading-snug max-w-sm">
+            Sistema de gestão e auditorias 5S para empresas.
+          </p>
         </div>
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-12">
-        <div className="w-full max-w-md">
-          {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-10">
-            <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-400 rounded-xl">
-              <Sunburst className="w-7 h-7 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-foreground tracking-tight">5S Manager</span>
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-12 bg-white">
+        <div className="w-full max-w-sm">
+          {/* Icon */}
+          <div className="flex justify-center mb-8">
+            <Sunburst className="w-10 h-10 text-orange-500" strokeWidth={1.5} />
           </div>
 
-          <div className="space-y-2 mb-8">
-            <h1 className="text-3xl font-bold text-foreground">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-semibold text-zinc-900 mb-2">
               Entrar
             </h1>
-            <p className="text-muted-foreground">
-              Bem-vindo de volta — Faça login para continuar
+            <p className="text-zinc-500 text-sm">
+              Bem-vindo ao 5S Manager — Faça login para continuar
             </p>
           </div>
 
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-foreground">
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-sm font-medium text-zinc-700">
                 Seu email
               </label>
               <input
@@ -130,8 +118,8 @@ export const FullScreenLogin = ({ onLogin, isLoading = false }: FullScreenLoginP
                 name="email"
                 type="email"
                 placeholder="seu@email.com"
-                className={`text-sm w-full py-3 px-4 border rounded-xl focus:outline-none focus:ring-2 bg-background text-foreground focus:ring-orange-500 transition-all ${
-                  emailError ? "border-destructive ring-1 ring-destructive" : "border-border"
+                className={`text-sm w-full py-2.5 px-3 border rounded-lg focus:outline-none focus:ring-1 bg-white text-zinc-900 placeholder:text-zinc-400 focus:ring-orange-500 focus:border-orange-500 transition-all ${
+                  emailError ? "border-red-500" : "border-zinc-300"
                 }`}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -140,14 +128,14 @@ export const FullScreenLogin = ({ onLogin, isLoading = false }: FullScreenLoginP
                 disabled={isLoading}
               />
               {emailError && (
-                <p id="email-error" className="text-destructive text-xs mt-1">
+                <p id="email-error" className="text-red-500 text-xs">
                   {emailError}
                 </p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-foreground">
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="text-sm font-medium text-zinc-700">
                 Sua senha
               </label>
               <div className="relative">
@@ -156,8 +144,8 @@ export const FullScreenLogin = ({ onLogin, isLoading = false }: FullScreenLoginP
                   name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  className={`text-sm w-full py-3 px-4 pr-12 border rounded-xl focus:outline-none focus:ring-2 bg-background text-foreground focus:ring-orange-500 transition-all ${
-                    passwordError ? "border-destructive ring-1 ring-destructive" : "border-border"
+                  className={`text-sm w-full py-2.5 px-3 pr-10 border rounded-lg focus:outline-none focus:ring-1 bg-white text-zinc-900 placeholder:text-zinc-400 focus:ring-orange-500 focus:border-orange-500 transition-all ${
+                    passwordError ? "border-red-500" : "border-zinc-300"
                   }`}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -168,14 +156,14 @@ export const FullScreenLogin = ({ onLogin, isLoading = false }: FullScreenLoginP
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute inset-y-0 right-2.5 flex items-center text-zinc-400 hover:text-zinc-600 transition-colors"
                   disabled={isLoading}
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               {passwordError && (
-                <p id="password-error" className="text-destructive text-xs mt-1">
+                <p id="password-error" className="text-red-500 text-xs">
                   {passwordError}
                 </p>
               )}
@@ -184,16 +172,17 @@ export const FullScreenLogin = ({ onLogin, isLoading = false }: FullScreenLoginP
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-medium rounded-xl transition-all duration-200 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 px-4 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
               {isLoading ? "Entrando..." : "Entrar"}
             </button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-8">
-            Ao continuar, você concorda com nossos{" "}
-            <span className="text-orange-500 hover:underline cursor-pointer">
-              Termos de Serviço
+          {/* Footer link */}
+          <p className="text-center text-sm text-zinc-500 mt-6">
+            Problemas para acessar?{" "}
+            <span className="text-zinc-900 underline underline-offset-2 cursor-pointer hover:text-orange-500 transition-colors">
+              Contato
             </span>
           </p>
         </div>
