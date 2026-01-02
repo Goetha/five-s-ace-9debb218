@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, CheckCircle2, Clock, AlertCircle, BarChart3, RefreshCw } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, Clock, AlertCircle, BarChart3, RefreshCw, CloudOff, Database } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { NewAuditDialog } from "@/components/auditorias/NewAuditDialog";
 import { CompanyAuditCard } from "@/components/auditorias/CompanyAuditCard";
@@ -15,6 +15,14 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import type { AuditGroupedData, AuditWithSensoScores, SensoScores } from "@/components/auditorias/AuditBoardView";
+import {
+  getCachedCompanies,
+  getCachedAudits,
+  getCachedEnvironments,
+  getCachedCriteria,
+  getCachedAuditItems,
+  isOfflineId,
+} from "@/lib/offlineStorage";
 
 interface Company {
   id: string;
@@ -97,7 +105,7 @@ interface ScheduledAudit {
 }
 
 const Auditorias = () => {
-  const { userRole } = useAuth();
+  const { userRole, isOffline } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -113,18 +121,322 @@ const Auditorias = () => {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedCompanyForBoard, setSelectedCompanyForBoard] = useState<AuditGroupedData | null>(null);
   const [isBoardModalOpen, setIsBoardModalOpen] = useState(false);
+  const [isFromCache, setIsFromCache] = useState(false);
 
   useEffect(() => {
     if (userRole === 'ifa_admin') {
       fetchData();
     }
-  }, [userRole]);
+  }, [userRole, isOffline]);
+
+  // Fetch data from cache when offline
+  const fetchFromCache = useCallback(async () => {
+    console.log('[Auditorias] Fetching from cache...');
+    try {
+      const [cachedCompanies, cachedAudits, cachedEnvs, cachedCriteria, cachedAuditItems] = await Promise.all([
+        getCachedCompanies(),
+        getCachedAudits(),
+        getCachedEnvironments(),
+        getCachedCriteria(),
+        getCachedAuditItems(),
+      ]);
+
+      console.log('[Auditorias] Cache data:', {
+        companies: cachedCompanies.length,
+        audits: cachedAudits.length,
+        environments: cachedEnvs.length,
+        criteria: cachedCriteria.length,
+        auditItems: cachedAuditItems.length,
+      });
+
+      // Filter active companies
+      const activeCompanies = cachedCompanies.filter(c => c.status === 'active');
+      setCompanies(activeCompanies.map(c => ({ id: c.id, name: c.name })));
+
+      // Process audits from cache similarly to online processing
+      processAuditsData(
+        cachedAudits,
+        activeCompanies,
+        cachedEnvs,
+        cachedCriteria,
+        cachedAuditItems,
+        [] // No profiles in cache for now
+      );
+
+      setIsFromCache(true);
+      return true;
+    } catch (error) {
+      console.error('[Auditorias] Cache fetch error:', error);
+      return false;
+    }
+  }, []);
+
+  // Process audits data (shared between online and offline)
+  const processAuditsData = (
+    auditsData: any[],
+    companiesData: any[],
+    envs: any[],
+    companyCriteria: any[],
+    auditItems: any[],
+    profilesData: any[]
+  ) => {
+    // Criar mapas para lookup rápido
+    const companiesMap = new Map(companiesData.map(c => [c.id, c]));
+    const envMap = new Map(envs.map(e => [e.id, e]));
+    const profilesMap = new Map(profilesData.map((p: any) => [p.id, p]));
+    const criteriaMap = new Map(companyCriteria.map(c => [c.id, c]));
+
+    // Agrupar audit_items por audit_id com senso de cada critério
+    const auditItemsByAuditId = new Map<string, { answer: boolean | null; senso: string[] | null }[]>();
+    
+    for (const item of auditItems) {
+      const criterion = criteriaMap.get(item.criterion_id);
+      const senso = criterion?.senso || null;
+      
+      const currentItems = auditItemsByAuditId.get(item.audit_id) || [];
+      currentItems.push({ answer: item.answer, senso });
+      auditItemsByAuditId.set(item.audit_id, currentItems);
+    }
+
+    // Contar itens respondidos por auditoria
+    const auditItemCounts = new Map<string, { answered: number; total: number }>();
+    for (const item of auditItems) {
+      const current = auditItemCounts.get(item.audit_id) || { answered: 0, total: 0 };
+      current.total++;
+      if (item.answer !== null) current.answered++;
+      auditItemCounts.set(item.audit_id, current);
+    }
+
+    // Índice de filhos por parent_id
+    const childrenByParent = new Map<string, any[]>();
+    for (const e of envs) {
+      if (!e.parent_id) continue;
+      const arr = childrenByParent.get(e.parent_id) || [];
+      arr.push(e);
+      childrenByParent.set(e.parent_id, arr);
+    }
+
+    // Raiz por empresa (parent_id null)
+    const rootByCompany = new Map<string, any>();
+    for (const e of envs) {
+      if (e.parent_id === null && e.company_id) {
+        rootByCompany.set(e.company_id, e);
+      }
+    }
+
+    // Função para obter hierarquia completa de um location
+    const getLocationHierarchy = (locationId: string) => {
+      const location = envMap.get(locationId);
+      if (!location) return null;
+      
+      const ambiente = location.parent_id ? envMap.get(location.parent_id) : null;
+      const area = ambiente?.parent_id ? envMap.get(ambiente.parent_id) : null;
+      
+      return {
+        local_name: location.name,
+        environment_name: ambiente?.name || 'N/A',
+        area_name: area?.name || 'N/A'
+      };
+    };
+
+    // 1) Inicializar hierarquia por empresa
+    const grouped: { [key: string]: AuditGroupedData } = {};
+    
+    for (const company of companiesData) {
+      grouped[company.id] = {
+        company_id: company.id,
+        company_name: company.name,
+        areas: []
+      };
+
+      const root = rootByCompany.get(company.id);
+      if (!root) continue;
+      
+      const areas = (childrenByParent.get(root.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
+      
+      for (const area of areas) {
+        const areaGroup = {
+          area_id: area.id,
+          area_name: area.name,
+          environments: [] as any[]
+        };
+        
+        const environments = (childrenByParent.get(area.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
+        
+        for (const env of environments) {
+          const envGroup = {
+            environment_id: env.id,
+            environment_name: env.name,
+            locals: [] as any[]
+          };
+          
+          const locals = (childrenByParent.get(env.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
+          
+          for (const local of locals) {
+            envGroup.locals.push({
+              local_id: local.id,
+              local_name: local.name,
+              audits: []
+            });
+          }
+          
+          areaGroup.environments.push(envGroup);
+        }
+        
+        grouped[company.id].areas.push(areaGroup);
+      }
+    }
+
+    // Métricas e auditorias em andamento
+    let total = 0;
+    let completed = 0;
+    let inProgress = 0;
+    const scheduled: ScheduledAudit[] = [];
+    const inProgressList: InProgressAudit[] = [];
+
+    // 2) Preencher auditorias nas estruturas  
+    for (const audit of auditsData) {
+      total++;
+      if (audit.status === 'completed') completed++;
+      
+      const company = companiesMap.get(audit.company_id);
+      const locationEnv = envMap.get(audit.location_id);
+      const auditor = profilesMap.get(audit.auditor_id);
+      const hierarchy = getLocationHierarchy(audit.location_id);
+      const itemCounts = auditItemCounts.get(audit.id) || { answered: 0, total: 0 };
+
+      // Auditorias em andamento
+      if (audit.status === 'in_progress') {
+        inProgress++;
+        inProgressList.push({
+          id: audit.id,
+          company_id: audit.company_id,
+          company_name: company?.name || audit._companyName || 'N/A',
+          area_name: hierarchy?.area_name || 'N/A',
+          environment_name: hierarchy?.environment_name || 'N/A',
+          local_name: hierarchy?.local_name || audit._locationName || 'N/A',
+          started_at: audit.started_at || audit.created_at,
+          answered_count: itemCounts.answered,
+          total_count: itemCounts.total,
+          partial_score: audit.score
+        });
+      }
+
+      // Auditorias agendadas
+      if (audit.status === 'completed' && audit.next_audit_date && new Date(audit.next_audit_date) > new Date()) {
+        scheduled.push({
+          id: audit.id,
+          company_name: company?.name || 'N/A',
+          location_name: locationEnv?.name || 'N/A',
+          environment_name: hierarchy?.environment_name || 'N/A',
+          auditor_name: auditor?.full_name || 'N/A',
+          next_audit_date: audit.next_audit_date
+        });
+      }
+
+      // Garantir que a empresa existe no grouped
+      if (!grouped[audit.company_id]) {
+        grouped[audit.company_id] = {
+          company_id: audit.company_id,
+          company_name: company?.name || 'Sem nome',
+          areas: []
+        };
+      }
+
+      const companyGroup = grouped[audit.company_id];
+
+      // Encontrar onde a auditoria deve ser adicionada na hierarquia
+      if (!locationEnv) continue;
+
+      let currentEnv = locationEnv;
+      let parentEnv = currentEnv.parent_id ? envMap.get(currentEnv.parent_id) : null;
+      if (!parentEnv) continue;
+      
+      let grandparentEnv = parentEnv.parent_id ? envMap.get(parentEnv.parent_id) : null;
+      if (!grandparentEnv) continue;
+      
+      const greatGrandparent = grandparentEnv.parent_id ? envMap.get(grandparentEnv.parent_id) : null;
+      const isAreaLevel = greatGrandparent && !greatGrandparent.parent_id;
+
+      if (isAreaLevel) {
+        let areaGroup = companyGroup.areas.find(a => a.area_id === grandparentEnv!.id);
+        if (!areaGroup) {
+          areaGroup = {
+            area_id: grandparentEnv.id,
+            area_name: grandparentEnv.name,
+            environments: []
+          };
+          companyGroup.areas.push(areaGroup);
+        }
+
+        let envGroup = areaGroup.environments.find(e => e.environment_id === parentEnv!.id);
+        if (!envGroup) {
+          envGroup = {
+            environment_id: parentEnv!.id,
+            environment_name: parentEnv!.name,
+            locals: []
+          };
+          areaGroup.environments.push(envGroup);
+        }
+
+        let localGroup = envGroup.locals.find(l => l.local_id === currentEnv.id);
+        if (!localGroup) {
+          localGroup = {
+            local_id: currentEnv.id,
+            local_name: currentEnv.name,
+            audits: []
+          };
+          envGroup.locals.push(localGroup);
+        }
+
+        // Calcular scores por senso
+        const auditItemsForThisAudit = auditItemsByAuditId.get(audit.id) || [];
+        const sensoScores = calculateSensoScores(auditItemsForThisAudit, audit.score);
+
+        localGroup.audits.push({
+          id: audit.id,
+          status: audit.status,
+          score: audit.score,
+          score_level: audit.score_level,
+          started_at: audit.started_at,
+          auditor_name: auditor?.full_name,
+          ...sensoScores
+        });
+      }
+    }
+
+    // Ordenar auditorias em andamento por data mais recente
+    inProgressList.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
+
+    setGroupedAudits(Object.values(grouped));
+    setScheduledAudits(scheduled);
+    setInProgressAudits(inProgressList);
+    setTotalAudits(total);
+    setCompletedCount(completed);
+    setInProgressCount(inProgress);
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
     setLoadError(null);
+    setIsFromCache(false);
+
+    // Check if offline - use cache
+    if (!navigator.onLine || isOffline) {
+      console.log('[Auditorias] Offline detected, fetching from cache...');
+      const cacheSuccess = await fetchFromCache();
+      if (cacheSuccess) {
+        setIsLoading(false);
+        return;
+      }
+      // If cache failed, show error
+      setLoadError('Sem conexão e sem dados em cache');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      // Buscar empresas
+      // Online - fetch from Supabase
       const { data: companiesData, error: companiesError } = await supabase
         .from('companies')
         .select('id, name')
@@ -134,7 +446,6 @@ const Auditorias = () => {
       if (companiesError) throw companiesError;
       setCompanies(companiesData || []);
 
-      // Buscar auditorias
       const { data: auditsData, error: auditsError } = await supabase
         .from('audits')
         .select('*')
@@ -142,7 +453,6 @@ const Auditorias = () => {
 
       if (auditsError) throw auditsError;
 
-      // Buscar dados relacionados em paralelo
       const [environmentsRes, profilesRes, auditItemsRes, companyCriteriaRes] = await Promise.all([
         supabase.from('environments').select('id, name, parent_id, company_id'),
         supabase.from('profiles').select('id, full_name'),
@@ -155,246 +465,31 @@ const Auditorias = () => {
       if (auditItemsRes.error) throw auditItemsRes.error;
       if (companyCriteriaRes.error) throw companyCriteriaRes.error;
 
-      const envs = environmentsRes.data || [];
-      const auditItems = auditItemsRes.data || [];
-      const companyCriteria = companyCriteriaRes.data || [];
+      // Process data
+      processAuditsData(
+        auditsData || [],
+        companiesData || [],
+        environmentsRes.data || [],
+        companyCriteriaRes.data || [],
+        auditItemsRes.data || [],
+        profilesRes.data || []
+      );
       
-      // Criar mapas para lookup rápido
-      const companiesMap = new Map(companiesData?.map(c => [c.id, c]) || []);
-      const envMap = new Map(envs.map(e => [e.id, e]));
-      const profilesMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
-      const criteriaMap = new Map(companyCriteria.map(c => [c.id, c]));
-
-      // Agrupar audit_items por audit_id com senso de cada critério
-      const auditItemsByAuditId = new Map<string, { answer: boolean | null; senso: string[] | null }[]>();
-      
-      for (const item of auditItems) {
-        const criterion = criteriaMap.get(item.criterion_id);
-        const senso = criterion?.senso || null;
-        
-        const currentItems = auditItemsByAuditId.get(item.audit_id) || [];
-        currentItems.push({ answer: item.answer, senso });
-        auditItemsByAuditId.set(item.audit_id, currentItems);
-      }
-
-      // Contar itens respondidos por auditoria
-      const auditItemCounts = new Map<string, { answered: number; total: number }>();
-      for (const item of auditItems) {
-        const current = auditItemCounts.get(item.audit_id) || { answered: 0, total: 0 };
-        current.total++;
-        if (item.answer !== null) current.answered++;
-        auditItemCounts.set(item.audit_id, current);
-      }
-
-      // Índice de filhos por parent_id
-      const childrenByParent = new Map<string, any[]>();
-      for (const e of envs) {
-        if (!e.parent_id) continue;
-        const arr = childrenByParent.get(e.parent_id) || [];
-        arr.push(e);
-        childrenByParent.set(e.parent_id, arr);
-      }
-
-      // Raiz por empresa (parent_id null)
-      const rootByCompany = new Map<string, any>();
-      for (const e of envs) {
-        if (e.parent_id === null && e.company_id) {
-          rootByCompany.set(e.company_id, e);
-        }
-      }
-
-      // Função para obter hierarquia completa de um location
-      const getLocationHierarchy = (locationId: string) => {
-        const location = envMap.get(locationId);
-        if (!location) return null;
-        
-        const ambiente = location.parent_id ? envMap.get(location.parent_id) : null;
-        const area = ambiente?.parent_id ? envMap.get(ambiente.parent_id) : null;
-        
-        return {
-          local_name: location.name,
-          environment_name: ambiente?.name || 'N/A',
-          area_name: area?.name || 'N/A'
-        };
-      };
-
-      // 1) Inicializar hierarquia por empresa
-      const grouped: { [key: string]: AuditGroupedData } = {};
-      
-      for (const company of companiesData || []) {
-        grouped[company.id] = {
-          company_id: company.id,
-          company_name: company.name,
-          areas: []
-        };
-
-        const root = rootByCompany.get(company.id);
-        if (!root) continue;
-        
-        const areas = (childrenByParent.get(root.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
-        
-        for (const area of areas) {
-          const areaGroup = {
-            area_id: area.id,
-            area_name: area.name,
-            environments: [] as any[]
-          };
-          
-          const environments = (childrenByParent.get(area.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
-          
-          for (const env of environments) {
-            const envGroup = {
-              environment_id: env.id,
-              environment_name: env.name,
-              locals: [] as any[]
-            };
-            
-            const locals = (childrenByParent.get(env.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
-            
-            for (const local of locals) {
-              envGroup.locals.push({
-                local_id: local.id,
-                local_name: local.name,
-                audits: []
-              });
-            }
-            
-            areaGroup.environments.push(envGroup);
-          }
-          
-          grouped[company.id].areas.push(areaGroup);
-        }
-      }
-
-      // Métricas e auditorias em andamento
-      let total = 0;
-      let completed = 0;
-      let inProgress = 0;
-      const scheduled: ScheduledAudit[] = [];
-      const inProgressList: InProgressAudit[] = [];
-
-      // 2) Preencher auditorias nas estruturas  
-      for (const audit of (auditsData || [])) {
-        total++;
-        if (audit.status === 'completed') completed++;
-        
-        const company = companiesMap.get(audit.company_id);
-        const locationEnv = envMap.get(audit.location_id);
-        const auditor = profilesMap.get(audit.auditor_id);
-        const hierarchy = getLocationHierarchy(audit.location_id);
-        const itemCounts = auditItemCounts.get(audit.id) || { answered: 0, total: 0 };
-
-        // Auditorias em andamento
-        if (audit.status === 'in_progress') {
-          inProgress++;
-          inProgressList.push({
-            id: audit.id,
-            company_id: audit.company_id,
-            company_name: company?.name || 'N/A',
-            area_name: hierarchy?.area_name || 'N/A',
-            environment_name: hierarchy?.environment_name || 'N/A',
-            local_name: hierarchy?.local_name || 'N/A',
-            started_at: audit.started_at || audit.created_at,
-            answered_count: itemCounts.answered,
-            total_count: itemCounts.total,
-            partial_score: audit.score
-          });
-        }
-
-        // Auditorias agendadas
-        if (audit.status === 'completed' && audit.next_audit_date && new Date(audit.next_audit_date) > new Date()) {
-          scheduled.push({
-            id: audit.id,
-            company_name: company?.name || 'N/A',
-            location_name: locationEnv?.name || 'N/A',
-            environment_name: hierarchy?.environment_name || 'N/A',
-            auditor_name: auditor?.full_name || 'N/A',
-            next_audit_date: audit.next_audit_date
-          });
-        }
-
-        // Garantir que a empresa existe no grouped
-        if (!grouped[audit.company_id]) {
-          grouped[audit.company_id] = {
-            company_id: audit.company_id,
-            company_name: company?.name || 'Sem nome',
-            areas: []
-          };
-        }
-
-        const companyGroup = grouped[audit.company_id];
-
-        // Encontrar onde a auditoria deve ser adicionada na hierarquia
-        if (!locationEnv) continue;
-
-        let currentEnv = locationEnv;
-        let parentEnv = currentEnv.parent_id ? envMap.get(currentEnv.parent_id) : null;
-        if (!parentEnv) continue;
-        
-        let grandparentEnv = parentEnv.parent_id ? envMap.get(parentEnv.parent_id) : null;
-        if (!grandparentEnv) continue;
-        
-        const greatGrandparent = grandparentEnv.parent_id ? envMap.get(grandparentEnv.parent_id) : null;
-        const isAreaLevel = greatGrandparent && !greatGrandparent.parent_id;
-
-        if (isAreaLevel) {
-          let areaGroup = companyGroup.areas.find(a => a.area_id === grandparentEnv!.id);
-          if (!areaGroup) {
-            areaGroup = {
-              area_id: grandparentEnv.id,
-              area_name: grandparentEnv.name,
-              environments: []
-            };
-            companyGroup.areas.push(areaGroup);
-          }
-
-          let envGroup = areaGroup.environments.find(e => e.environment_id === parentEnv!.id);
-          if (!envGroup) {
-            envGroup = {
-              environment_id: parentEnv!.id,
-              environment_name: parentEnv!.name,
-              locals: []
-            };
-            areaGroup.environments.push(envGroup);
-          }
-
-          let localGroup = envGroup.locals.find(l => l.local_id === currentEnv.id);
-          if (!localGroup) {
-            localGroup = {
-              local_id: currentEnv.id,
-              local_name: currentEnv.name,
-              audits: []
-            };
-            envGroup.locals.push(localGroup);
-          }
-
-          // Calcular scores por senso
-          const auditItemsForThisAudit = auditItemsByAuditId.get(audit.id) || [];
-          const sensoScores = calculateSensoScores(auditItemsForThisAudit, audit.score);
-
-          localGroup.audits.push({
-            id: audit.id,
-            status: audit.status,
-            score: audit.score,
-            score_level: audit.score_level,
-            started_at: audit.started_at,
-            auditor_name: auditor?.full_name,
-            ...sensoScores
-          });
-        }
-      }
-
-      // Ordenar auditorias em andamento por data mais recente
-      inProgressList.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
-
-      setGroupedAudits(Object.values(grouped));
-      setScheduledAudits(scheduled);
-      setInProgressAudits(inProgressList);
-      setTotalAudits(total);
-      setCompletedCount(completed);
-      setInProgressCount(inProgress);
     } catch (error: any) {
       console.error('Error fetching auditorias data:', error);
+      
+      // Try cache as fallback
+      console.log('[Auditorias] Online fetch failed, trying cache as fallback...');
+      const cacheSuccess = await fetchFromCache();
+      if (cacheSuccess) {
+        toast({
+          title: "Usando dados em cache",
+          description: "Não foi possível conectar ao servidor. Mostrando dados salvos.",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       const errorMessage = error?.message || 'Erro desconhecido ao carregar dados';
       setLoadError(errorMessage);
       toast({
@@ -461,12 +556,28 @@ const Auditorias = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Auditorias</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Gerencie todas as auditorias 5S
-          </p>
+        {/* Header with offline indicator */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Auditorias</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              Gerencie todas as auditorias 5S
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {isFromCache && (
+              <Badge variant="outline" className="gap-1 text-blue-500 border-blue-500/30">
+                <Database className="h-3 w-3" />
+                Cache
+              </Badge>
+            )}
+            {isOffline && (
+              <Badge variant="outline" className="gap-1 text-amber-500 border-amber-500/30">
+                <CloudOff className="h-3 w-3" />
+                Offline
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Stats Cards */}
