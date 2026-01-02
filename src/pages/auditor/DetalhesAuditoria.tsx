@@ -120,13 +120,22 @@ export default function DetalhesAuditoria() {
 
       const { data: itemsData, error: itemsError } = await supabase
         .from('audit_items')
-        .select('*')
+        .select(`
+          *,
+          company_criteria!audit_items_criterion_id_fkey(senso)
+        `)
         .eq('audit_id', id)
         .order('created_at');
 
       if (itemsError) throw itemsError;
 
-      setItems(itemsData || []);
+      // Map items with senso from company_criteria
+      const itemsWithSenso = (itemsData || []).map((item: any) => ({
+        ...item,
+        senso: item.company_criteria?.senso || null
+      }));
+
+      setItems(itemsWithSenso);
     } catch (error) {
       console.error('Error fetching audit details:', error);
       toast({

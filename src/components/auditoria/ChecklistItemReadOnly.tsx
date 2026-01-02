@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { AuditItem } from "@/types/audit";
 import { Check, X } from "lucide-react";
+
+// Senso configuration with names and colors
+const SENSO_CONFIG: Record<string, { name: string; color: string }> = {
+  '1S': { name: 'Utilização', color: 'bg-red-500/20 text-red-400 border-red-500/30' },
+  '2S': { name: 'Organização', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+  '3S': { name: 'Limpeza', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+  '4S': { name: 'Padronização', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+  '5S': { name: 'Disciplina', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+};
 
 interface ChecklistItemReadOnlyProps {
   item: AuditItem;
@@ -21,11 +31,27 @@ export function ChecklistItemReadOnly({ item, index }: ChecklistItemReadOnlyProp
     <>
       <Card className={item.answer ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"}>
         <CardContent className="p-3 sm:p-4 space-y-2.5 sm:space-y-3">
+          {/* Senso Badges */}
+          {item.senso && item.senso.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {item.senso.map((s) => {
+                const config = SENSO_CONFIG[s];
+                if (!config) return null;
+                return (
+                  <Badge 
+                    key={s} 
+                    variant="outline" 
+                    className={`text-[10px] sm:text-xs px-1.5 py-0.5 ${config.color}`}
+                  >
+                    {s} - {config.name}
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+
           {/* Question */}
           <div>
-            <p className="text-xs sm:text-sm font-medium text-muted-foreground/70 mb-1.5">
-              Pergunta {index + 1}
-            </p>
             <p className="text-sm sm:text-base font-medium leading-snug text-foreground">{item.question}</p>
           </div>
 
