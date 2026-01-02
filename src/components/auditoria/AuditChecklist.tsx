@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { ChecklistItem } from "./ChecklistItem";
 import { EmptyAuditWarning } from "@/components/auditorias/EmptyAuditWarning";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Save, CloudOff } from "lucide-react";
+import { Loader2, Save, CloudOff, Database } from "lucide-react";
 import type { AuditItem } from "@/types/audit";
 import {
   isOfflineId,
@@ -16,6 +16,7 @@ import {
   getCachedAuditItemsByAuditId,
   addToStore,
   completeOfflineAudit,
+  getAllFromStore,
 } from "@/lib/offlineStorage";
 
 interface AuditChecklistProps {
@@ -31,14 +32,27 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [locationName, setLocationName] = useState("");
+  const [isDataFromCache, setIsDataFromCache] = useState(false);
+
+  // Determine if we should use offline mode
+  const shouldUseOfflineMode = isOfflineAudit || isOfflineId(auditId) || isOffline;
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    
+    if (isOfflineAudit || isOfflineId(auditId)) {
+      await fetchOfflineAuditItems();
+    } else if (!navigator.onLine || isOffline) {
+      // Try to get from cache for regular audits when offline
+      await fetchFromCacheOrOnline();
+    } else {
+      await fetchAuditItems();
+    }
+  }, [auditId, isOfflineAudit, isOffline]);
 
   useEffect(() => {
-    if (isOfflineAudit || isOfflineId(auditId)) {
-      fetchOfflineAuditItems();
-    } else {
-      fetchAuditItems();
-    }
-  }, [auditId, isOfflineAudit]);
+    fetchData();
+  }, [fetchData]);
 
   const fetchOfflineAuditItems = async () => {
     try {
@@ -51,8 +65,41 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
       // Get items from IndexedDB
       const itemsData = await getCachedAuditItemsByAuditId(auditId);
       setItems(itemsData || []);
+      setIsDataFromCache(true);
     } catch (error) {
       console.error('Error fetching offline audit items:', error);
+      toast({
+        title: "Erro ao carregar auditoria",
+        description: "Tente novamente mais tarde.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchFromCacheOrOnline = async () => {
+    try {
+      // First try to get from cache
+      const cachedAudit = await getFromStore<any>('audits', auditId);
+      const cachedItems = await getCachedAuditItemsByAuditId(auditId);
+      
+      if (cachedAudit && cachedItems && cachedItems.length > 0) {
+        setLocationName(cachedAudit._locationName || cachedAudit.environments?.name || 'Local');
+        setItems(cachedItems);
+        setIsDataFromCache(true);
+        setIsLoading(false);
+        return;
+      }
+      
+      // If no cache, we're offline and can't fetch
+      toast({
+        title: "Dados não disponíveis offline",
+        description: "Esta auditoria não está no cache. Conecte-se à internet.",
+        variant: "destructive"
+      });
+    } catch (error) {
+      console.error('Error fetching from cache:', error);
       toast({
         title: "Erro ao carregar auditoria",
         description: "Tente novamente mais tarde.",
@@ -94,13 +141,21 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
         senso: item.company_criteria?.senso || null
       }));
       setItems(itemsWithSenso);
+      setIsDataFromCache(false);
+      
+      // Cache for offline use
+      if (auditData) {
+        await addToStore('audits', { ...auditData, _locationName: auditData.environments.name });
+      }
+      if (itemsWithSenso.length > 0) {
+        for (const item of itemsWithSenso) {
+          await addToStore('auditItems', item);
+        }
+      }
     } catch (error) {
       console.error('Error fetching audit items:', error);
-      toast({
-        title: "Erro ao carregar auditoria",
-        description: "Tente novamente mais tarde.",
-        variant: "destructive"
-      });
+      // Try cache as fallback
+      await fetchFromCacheOrOnline();
     } finally {
       setIsLoading(false);
     }
@@ -321,12 +376,20 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
         <div className="space-y-3 sm:space-y-4">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-lg sm:text-2xl font-bold">{locationName}</h2>
-            {(isOfflineAudit || isOffline) && (
-              <Badge variant="outline" className="gap-1 text-amber-500 border-amber-500/30">
-                <CloudOff className="h-3 w-3" />
-                Offline
-              </Badge>
-            )}
+            <div className="flex gap-1">
+              {isDataFromCache && (
+                <Badge variant="outline" className="gap-1 text-blue-500 border-blue-500/30">
+                  <Database className="h-3 w-3" />
+                  Cache
+                </Badge>
+              )}
+              {shouldUseOfflineMode && (
+                <Badge variant="outline" className="gap-1 text-amber-500 border-amber-500/30">
+                  <CloudOff className="h-3 w-3" />
+                  Offline
+                </Badge>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -386,7 +449,7 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
             {isSaving ? (
               <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin mr-2" />
             ) : null}
-            {isOfflineAudit || isOffline ? 'Finalizar Offline' : 'Finalizar Auditoria'}
+            {shouldUseOfflineMode ? 'Finalizar Offline' : 'Finalizar Auditoria'}
           </Button>
         </div>
       </Card>

@@ -430,6 +430,10 @@ export interface OfflineAudit {
   total_yes: number;
   total_no: number;
   score: number | null;
+  score_level?: string;
+  completed_at?: string | null;
+  observations?: string | null;
+  next_audit_date?: string | null;
   _isOffline: true;
   _locationName?: string;
   _companyName?: string;
