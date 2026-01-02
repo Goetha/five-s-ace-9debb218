@@ -1,21 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  getCachedCompanies, 
-  getCachedCriteria, 
-  getCachedMasterCriteria,
-  getCachedMasterModels,
-  getCachedEnvironments,
-  getCachedAudits,
-  cacheCompanies,
-  cacheCriteria,
-  cacheMasterCriteria,
-  cacheMasterModels,
-  cacheEnvironments,
-  cacheAudits,
-  getLastSyncTime,
-  setLastSyncTime,
-  initDB
-} from '@/lib/offlineStorage';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 type CacheType = 'companies' | 'criteria' | 'master_criteria' | 'master_models' | 'environments' | 'audits';
 
@@ -35,25 +18,6 @@ interface UseOfflineDataResult<T> {
   refetch: () => Promise<void>;
 }
 
-// Map cache types to their storage functions
-const cacheGetters: Record<CacheType, () => Promise<any[]>> = {
-  companies: getCachedCompanies,
-  criteria: getCachedCriteria,
-  master_criteria: getCachedMasterCriteria,
-  master_models: getCachedMasterModels,
-  environments: getCachedEnvironments,
-  audits: getCachedAudits,
-};
-
-const cacheSetters: Record<CacheType, (data: any[]) => Promise<void>> = {
-  companies: cacheCompanies,
-  criteria: cacheCriteria,
-  master_criteria: cacheMasterCriteria,
-  master_models: cacheMasterModels,
-  environments: cacheEnvironments,
-  audits: cacheAudits,
-};
-
 export function useOfflineData<T>({ 
   cacheKey, 
   fetchOnline, 
@@ -65,6 +29,7 @@ export function useOfflineData<T>({
   const [isFromCache, setIsFromCache] = useState(false);
   const [lastSyncAt, setLastSyncAtState] = useState<string | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const fetchedRef = useRef(false);
 
   // Monitor online/offline status
   useEffect(() => {
@@ -80,20 +45,6 @@ export function useOfflineData<T>({
     };
   }, []);
 
-  // Load last sync time
-  useEffect(() => {
-    const loadLastSync = async () => {
-      try {
-        await initDB();
-        const syncTime = await getLastSyncTime();
-        setLastSyncAtState(syncTime);
-      } catch (e) {
-        console.error('Error loading last sync time:', e);
-      }
-    };
-    loadLastSync();
-  }, []);
-
   const fetchData = useCallback(async () => {
     if (!enabled) {
       setIsLoading(false);
@@ -104,77 +55,29 @@ export function useOfflineData<T>({
     setError(null);
 
     try {
-      await initDB();
-
-      if (navigator.onLine) {
-        // Online: try to fetch from server
-        try {
-          const onlineData = await fetchOnline();
-          setData(onlineData);
-          setIsFromCache(false);
-
-          // Cache the data
-          const cacheSetter = cacheSetters[cacheKey];
-          if (cacheSetter && onlineData.length > 0) {
-            await cacheSetter(onlineData);
-            await setLastSyncTime();
-            const newSyncTime = await getLastSyncTime();
-            setLastSyncAtState(newSyncTime);
-          }
-        } catch (onlineError) {
-          console.warn(`Online fetch failed for ${cacheKey}, trying cache:`, onlineError);
-          // Fallback to cache
-          const cacheGetter = cacheGetters[cacheKey];
-          const cachedData = await cacheGetter();
-          if (cachedData && cachedData.length > 0) {
-            setData(cachedData as T[]);
-            setIsFromCache(true);
-          } else {
-            throw onlineError;
-          }
-        }
-      } else {
-        // Offline: load from cache
-        const cacheGetter = cacheGetters[cacheKey];
-        const cachedData = await cacheGetter();
-        setData(cachedData as T[]);
-        setIsFromCache(true);
-
-        if (cachedData.length === 0) {
-          console.warn(`No cached data available for ${cacheKey}`);
-        }
-      }
+      // Always try online first - simpler and more reliable
+      const onlineData = await fetchOnline();
+      setData(onlineData);
+      setIsFromCache(false);
+      setLastSyncAtState(new Date().toISOString());
     } catch (e) {
       console.error(`Error fetching data for ${cacheKey}:`, e);
       setError(e as Error);
-      
-      // Last resort: try cache
-      try {
-        const cacheGetter = cacheGetters[cacheKey];
-        const cachedData = await cacheGetter();
-        if (cachedData && cachedData.length > 0) {
-          setData(cachedData as T[]);
-          setIsFromCache(true);
-        }
-      } catch (cacheError) {
-        console.error('Cache fallback also failed:', cacheError);
-      }
+      // If online fetch fails, just set empty data
+      // IndexedDB caching is optional and shouldn't block the UI
+      setData([]);
     } finally {
       setIsLoading(false);
     }
   }, [cacheKey, fetchOnline, enabled]);
 
-  // Initial fetch
+  // Initial fetch - only once
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Refetch when coming back online
-  useEffect(() => {
-    if (!isOffline && isFromCache) {
+    if (!fetchedRef.current) {
+      fetchedRef.current = true;
       fetchData();
     }
-  }, [isOffline, isFromCache, fetchData]);
+  }, [fetchData]);
 
   return {
     data,
