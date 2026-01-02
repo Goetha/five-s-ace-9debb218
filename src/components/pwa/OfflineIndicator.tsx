@@ -83,8 +83,10 @@ export function OfflineIndicator({
     );
   }
 
-  // Don't show anything if online and no pending items
-  if (isOnline && pendingCount === 0 && !showSyncSuccess) {
+  // Don't show the indicator when:
+  // - Online with no pending items and no sync success to show
+  // - Offline with no pending items (user already knows they're offline from badges)
+  if ((isOnline && pendingCount === 0 && !showSyncSuccess) || (!isOnline && pendingCount === 0)) {
     return null;
   }
 
