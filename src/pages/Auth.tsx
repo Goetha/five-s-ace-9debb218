@@ -1,24 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { SignInPage, Testimonial } from "@/components/ui/sign-in";
+import { FullScreenLogin } from "@/components/ui/full-screen-login";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-
-const testimonials: Testimonial[] = [];
 
 export default function Auth() {
   const navigate = useNavigate();
   const { signIn, user, userRole, isLoading: authLoading } = useAuth();
-  const [animationData, setAnimationData] = useState<object | null>(null);
-
-  // Load Lottie animation
-  useEffect(() => {
-    fetch('/animations/Creative_Idea.json')
-      .then(res => res.json())
-      .then(data => setAnimationData(data))
-      .catch(err => console.error('Failed to load animation:', err));
-  }, []);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Redirect if already authenticated based on role
   useEffect(() => {
@@ -36,6 +26,8 @@ export default function Auth() {
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
@@ -50,6 +42,7 @@ export default function Auth() {
           : error.message,
         variant: "destructive",
       });
+      setIsSubmitting(false);
     } else {
       toast({
         title: "Login realizado!",
@@ -60,7 +53,6 @@ export default function Auth() {
     }
   };
 
-
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10">
@@ -70,13 +62,9 @@ export default function Auth() {
   }
 
   return (
-    <SignInPage
-      title={<span className="font-light text-foreground tracking-tighter">SaaS 5S Manager</span>}
-      description="Sistema de gestão de auditorias 5S"
-      lottieAnimationData={animationData || undefined}
-      testimonials={testimonials}
-      onSignIn={handleLogin}
-      isLoading={authLoading}
+    <FullScreenLogin
+      onLogin={handleLogin}
+      isLoading={isSubmitting}
     />
   );
 }
