@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface UseOfflineQueryOptions<T> {
@@ -30,6 +30,18 @@ export function useOfflineQuery<T>({
   const [isLoading, setIsLoading] = useState(true);
   const [isFromCache, setIsFromCache] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [hasFetched, setHasFetched] = useState(false);
+
+  // Use refs to avoid dependency issues
+  const fetchOnlineRef = useRef(fetchOnline);
+  const getFromCacheRef = useRef(getFromCache);
+  const saveToCacheRef = useRef(saveToCache);
+  
+  useEffect(() => {
+    fetchOnlineRef.current = fetchOnline;
+    getFromCacheRef.current = getFromCache;
+    saveToCacheRef.current = saveToCache;
+  }, [fetchOnline, getFromCache, saveToCache]);
 
   const fetchData = useCallback(async () => {
     if (!enabled) {
@@ -45,7 +57,7 @@ export function useOfflineQuery<T>({
       if (!navigator.onLine || isOffline) {
         console.log(`[${queryKey}] Offline - fetching from cache`);
         try {
-          const cachedData = await getFromCache();
+          const cachedData = await getFromCacheRef.current();
           setData(cachedData);
           setIsFromCache(true);
         } catch (cacheError) {
@@ -66,20 +78,20 @@ export function useOfflineQuery<T>({
           setTimeout(() => reject(new Error('Request timeout')), 10000);
         });
         
-        const onlineData = await Promise.race([fetchOnline(), timeoutPromise]);
+        const onlineData = await Promise.race([fetchOnlineRef.current(), timeoutPromise]);
         setData(onlineData);
         setIsFromCache(false);
 
         // Save to cache for offline use
-        if (saveToCache && onlineData) {
-          await saveToCache(onlineData);
+        if (saveToCacheRef.current && onlineData) {
+          await saveToCacheRef.current(onlineData);
           console.log(`[${queryKey}] Data cached for offline use`);
         }
       } catch (onlineError) {
         console.warn(`[${queryKey}] Online fetch failed, falling back to cache:`, onlineError);
         // If online fetch fails, try cache as fallback
         try {
-          const cachedData = await getFromCache();
+          const cachedData = await getFromCacheRef.current();
           if (cachedData && (Array.isArray(cachedData) ? cachedData.length > 0 : true)) {
             setData(cachedData);
             setIsFromCache(true);
@@ -96,12 +108,19 @@ export function useOfflineQuery<T>({
       setError(err instanceof Error ? err : new Error('Failed to fetch data'));
     } finally {
       setIsLoading(false);
+      setHasFetched(true);
     }
-  }, [queryKey, fetchOnline, getFromCache, saveToCache, enabled, isOffline]);
+  }, [queryKey, enabled, isOffline]);
 
+  // Fetch only once when enabled changes or on mount
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (enabled && !hasFetched) {
+      fetchData();
+    } else if (!enabled) {
+      setIsLoading(false);
+      setHasFetched(false);
+    }
+  }, [enabled, hasFetched, fetchData]);
 
   // Listen for online/offline changes
   useEffect(() => {
