@@ -15,7 +15,16 @@ export function CompanyBoardModal({
   companyData,
   onAuditClick
 }: CompanyBoardModalProps) {
-  if (!open || !companyData) return null;
+  // Don't render anything if not open OR if no company data
+  if (!open) return null;
+  
+  // If open but no data, show loading or close
+  if (!companyData) {
+    // Auto-close the modal if it was opened without data
+    console.warn('[CompanyBoardModal] Opened without companyData, closing...');
+    onOpenChange(false);
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
