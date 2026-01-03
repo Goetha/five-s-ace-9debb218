@@ -44,16 +44,29 @@ export function useOfflineQuery<T>({
       // If offline, use cache immediately
       if (!navigator.onLine || isOffline) {
         console.log(`[${queryKey}] Offline - fetching from cache`);
-        const cachedData = await getFromCache();
-        setData(cachedData);
-        setIsFromCache(true);
+        try {
+          const cachedData = await getFromCache();
+          setData(cachedData);
+          setIsFromCache(true);
+        } catch (cacheError) {
+          console.error(`[${queryKey}] Cache fetch failed:`, cacheError);
+          setData(null);
+          setIsFromCache(false);
+        }
+        setIsLoading(false);
         return;
       }
 
-      // Try to fetch online
+      // Try to fetch online with timeout
       try {
         console.log(`[${queryKey}] Online - fetching from server`);
-        const onlineData = await fetchOnline();
+        
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 10000);
+        });
+        
+        const onlineData = await Promise.race([fetchOnline(), timeoutPromise]);
         setData(onlineData);
         setIsFromCache(false);
 
@@ -65,12 +78,17 @@ export function useOfflineQuery<T>({
       } catch (onlineError) {
         console.warn(`[${queryKey}] Online fetch failed, falling back to cache:`, onlineError);
         // If online fetch fails, try cache as fallback
-        const cachedData = await getFromCache();
-        if (cachedData && (Array.isArray(cachedData) ? cachedData.length > 0 : true)) {
-          setData(cachedData);
-          setIsFromCache(true);
-        } else {
-          throw onlineError;
+        try {
+          const cachedData = await getFromCache();
+          if (cachedData && (Array.isArray(cachedData) ? cachedData.length > 0 : true)) {
+            setData(cachedData);
+            setIsFromCache(true);
+          } else {
+            throw onlineError;
+          }
+        } catch (cacheError) {
+          console.error(`[${queryKey}] Cache fallback also failed:`, cacheError);
+          setError(onlineError instanceof Error ? onlineError : new Error('Failed to fetch data'));
         }
       }
     } catch (err) {
@@ -112,8 +130,6 @@ export function useOfflineQuery<T>({
 
 // Convenience hook for environments with offline support
 export function useOfflineEnvironments(companyId: string | undefined) {
-  const { isOffline } = useAuth();
-  
   return useOfflineQuery({
     queryKey: `environments-${companyId}`,
     enabled: !!companyId,
@@ -130,9 +146,14 @@ export function useOfflineEnvironments(companyId: string | undefined) {
       return data || [];
     },
     getFromCache: async () => {
-      const { getCachedEnvironmentsByCompanyId } = await import('@/lib/offlineStorage');
-      const envs = await getCachedEnvironmentsByCompanyId(companyId!);
-      return envs.filter(e => e.status === 'active');
+      try {
+        const { getCachedEnvironmentsByCompanyId } = await import('@/lib/offlineStorage');
+        const envs = await getCachedEnvironmentsByCompanyId(companyId!);
+        return envs.filter(e => e.status === 'active');
+      } catch (err) {
+        console.error('[useOfflineEnvironments] Cache error:', err);
+        return [];
+      }
     },
     saveToCache: async (data) => {
       const { cacheEnvironments } = await import('@/lib/offlineStorage');
@@ -169,19 +190,24 @@ export function useOfflineEnvironmentCriteria(environmentId: string | undefined)
       return criteria || [];
     },
     getFromCache: async () => {
-      const { getCachedEnvironmentCriteriaByEnvId, getCachedCriteria } = await import('@/lib/offlineStorage');
-      
-      // Get links from cache
-      const links = await getCachedEnvironmentCriteriaByEnvId(environmentId!);
-      if (!links || links.length === 0) return [];
-      
-      // Get criteria from cache
-      const allCriteria = await getCachedCriteria();
-      const criterionIds = links.map(l => l.criterion_id);
-      
-      return allCriteria.filter(c => 
-        criterionIds.includes(c.id) && c.status === 'active'
-      );
+      try {
+        const { getCachedEnvironmentCriteriaByEnvId, getCachedCriteria } = await import('@/lib/offlineStorage');
+        
+        // Get links from cache
+        const links = await getCachedEnvironmentCriteriaByEnvId(environmentId!);
+        if (!links || links.length === 0) return [];
+        
+        // Get criteria from cache
+        const allCriteria = await getCachedCriteria();
+        const criterionIds = links.map(l => l.criterion_id);
+        
+        return allCriteria.filter(c => 
+          criterionIds.includes(c.id) && c.status === 'active'
+        );
+      } catch (err) {
+        console.error('[useOfflineEnvironmentCriteria] Cache error:', err);
+        return [];
+      }
     },
     saveToCache: async (data) => {
       const { cacheCriteria } = await import('@/lib/offlineStorage');
