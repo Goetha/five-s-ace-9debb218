@@ -452,11 +452,11 @@ export function NewAuditDialog({
           </Button>
           <Button
             onClick={handleStartAudit}
-            disabled={!selectedLocation || isCreating || criteriaData.length === 0}
+            disabled={!selectedLocation || isCreating || (criteriaData?.length ?? 0) === 0}
             className="h-9 sm:h-10 text-sm"
           >
             {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {criteriaData.length === 0 ? 'Sem critérios' : isOffline ? 'Iniciar Offline' : 'Iniciar Auditoria'}
+            {(criteriaData?.length ?? 0) === 0 ? 'Sem critérios' : isOffline ? 'Iniciar Offline' : 'Iniciar Auditoria'}
           </Button>
         </div>
       </DialogContent>
