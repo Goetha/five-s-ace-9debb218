@@ -183,14 +183,14 @@ export function NewAuditDialog({
             auditor_id: user.id,
             status: 'in_progress',
             started_at: new Date().toISOString(),
-            total_questions: criteriaData.length,
+            total_questions: criteriaData?.length ?? 0,
             total_yes: 0,
             total_no: 0,
             score: null,
             _locationName: selectedLocationName,
             _companyName: preSelectedCompanyName,
           },
-          criteriaData.map(c => ({
+          (criteriaData ?? []).map(c => ({
             criterion_id: c.id,
             question: c.name,
             senso: c.senso,
@@ -219,11 +219,11 @@ export function NewAuditDialog({
 
         if (auditError) throw auditError;
 
-        if (!criteriaData || criteriaData.length === 0) {
+        if (!criteriaData || (criteriaData?.length ?? 0) === 0) {
           throw new Error('Nenhum critério vinculado a este local.');
         }
 
-        const auditItems = criteriaData.map(criterion => ({
+        const auditItems = (criteriaData ?? []).map(criterion => ({
           audit_id: audit.id,
           criterion_id: criterion.id,
           question: criterion.name,
@@ -402,11 +402,11 @@ export function NewAuditDialog({
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Carregando critérios...
                 </div>
-              ) : criteriaData.length > 0 ? (
+              ) : (criteriaData?.length ?? 0) > 0 ? (
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                   <span className="font-medium text-blue-900 dark:text-blue-100 text-sm sm:text-base">
-                    Esta auditoria terá {criteriaData.length} {criteriaData.length === 1 ? 'pergunta' : 'perguntas'}
+                    Esta auditoria terá {criteriaData?.length ?? 0} {(criteriaData?.length ?? 0) === 1 ? 'pergunta' : 'perguntas'}
                   </span>
                 </div>
               ) : (
