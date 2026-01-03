@@ -271,7 +271,7 @@ export function NewAuditDialog({
         className="max-h-[90vh] w-[95vw] sm:max-w-[500px] p-4 sm:p-6 flex flex-col overflow-hidden" 
         aria-describedby="new-audit-description"
       >
-        <DialogErrorBoundary onReset={handleReset}>
+        {/* Header always visible - outside error boundary */}
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-lg sm:text-xl">Nova Auditoria</DialogTitle>
@@ -295,6 +295,7 @@ export function NewAuditDialog({
           </DialogDescription>
         </DialogHeader>
 
+        <DialogErrorBoundary onReset={handleReset}>
         <div className="flex-1 overflow-y-auto space-y-3 sm:space-y-4 py-2 sm:py-4 pr-1">
           {/* Loading state */}
           {isLoadingEnvs && (
@@ -437,8 +438,9 @@ export function NewAuditDialog({
             </>
           )}
         </div>
+        </DialogErrorBoundary>
 
-        {/* Footer fixo */}
+        {/* Footer fixo - outside error boundary so cancel always works */}
         <div className="flex justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t mt-auto flex-shrink-0">
           <Button
             variant="outline"
@@ -457,7 +459,6 @@ export function NewAuditDialog({
             {criteriaData.length === 0 ? 'Sem critérios' : isOffline ? 'Iniciar Offline' : 'Iniciar Auditoria'}
           </Button>
         </div>
-        </DialogErrorBoundary>
       </DialogContent>
     </Dialog>
   );
