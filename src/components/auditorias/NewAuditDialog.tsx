@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Component, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Dialog,
@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2, AlertCircle, CloudOff, Database } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, CloudOff, Database, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -28,6 +28,47 @@ import {
 import {
   createOfflineAudit,
 } from "@/lib/offlineStorage";
+
+// Error Boundary for the dialog content
+class DialogErrorBoundary extends Component<{ children: ReactNode; onReset: () => void }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: ReactNode; onReset: () => void }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[NewAuditDialog] Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 text-center space-y-4">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
+          <h3 className="font-semibold text-lg">Erro ao carregar</h3>
+          <p className="text-sm text-muted-foreground">
+            {this.state.error?.message || 'Ocorreu um erro inesperado.'}
+          </p>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              this.props.onReset();
+            }}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Tentar novamente
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface NewAuditDialogProps {
   open: boolean;
@@ -57,6 +98,7 @@ export function NewAuditDialog({
     data: environments = [], 
     isLoading: isLoadingEnvs,
     isFromCache: envsFromCache,
+    error: envsError,
   } = useOfflineEnvironments(open ? preSelectedCompanyId : undefined);
 
   // Use offline-aware hook for criteria (only when location is selected)
@@ -64,7 +106,18 @@ export function NewAuditDialog({
     data: criteriaData = [],
     isLoading: isLoadingCriteria,
     isFromCache: criteriaFromCache,
+    error: criteriaError,
   } = useOfflineEnvironmentCriteria(selectedLocation || undefined);
+
+  // Log errors for debugging
+  useEffect(() => {
+    if (envsError) {
+      console.error('[NewAuditDialog] Error loading environments:', envsError);
+    }
+    if (criteriaError) {
+      console.error('[NewAuditDialog] Error loading criteria:', criteriaError);
+    }
+  }, [envsError, criteriaError]);
 
   // Reset selections when dialog opens
   useEffect(() => {
@@ -77,25 +130,25 @@ export function NewAuditDialog({
   }, [open, preSelectedCompanyId]);
 
   // Hierarquia: root (parent_id = null) -> áreas (parent_id = root) -> ambientes -> locais
-  const rootEnv = useMemo(() => 
-    environments.find(e => e.parent_id === null), 
-    [environments]
-  );
+  const rootEnv = useMemo(() => {
+    if (!environments || environments.length === 0) return null;
+    return environments.find(e => e.parent_id === null) || null;
+  }, [environments]);
   
-  const areas = useMemo(() => 
-    rootEnv ? environments.filter(e => e.parent_id === rootEnv.id) : [],
-    [environments, rootEnv]
-  );
+  const areas = useMemo(() => {
+    if (!rootEnv || !environments) return [];
+    return environments.filter(e => e.parent_id === rootEnv.id);
+  }, [environments, rootEnv]);
   
-  const envs = useMemo(() => 
-    selectedArea ? environments.filter(e => e.parent_id === selectedArea) : [],
-    [environments, selectedArea]
-  );
+  const envs = useMemo(() => {
+    if (!selectedArea || !environments) return [];
+    return environments.filter(e => e.parent_id === selectedArea);
+  }, [environments, selectedArea]);
   
-  const locations = useMemo(() => 
-    selectedEnvironment ? environments.filter(e => e.parent_id === selectedEnvironment) : [],
-    [environments, selectedEnvironment]
-  );
+  const locations = useMemo(() => {
+    if (!selectedEnvironment || !environments) return [];
+    return environments.filter(e => e.parent_id === selectedEnvironment);
+  }, [environments, selectedEnvironment]);
 
   const handleAreaChange = (value: string) => {
     setSelectedArea(value);
@@ -205,12 +258,20 @@ export function NewAuditDialog({
 
   const isUsingCache = envsFromCache || criteriaFromCache;
 
+  const handleReset = () => {
+    setSelectedArea("");
+    setSelectedEnvironment("");
+    setSelectedLocation("");
+    setSelectedLocationName("");
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
         className="max-h-[90vh] w-[95vw] sm:max-w-[500px] p-4 sm:p-6 flex flex-col overflow-hidden" 
         aria-describedby="new-audit-description"
       >
+        <DialogErrorBoundary onReset={handleReset}>
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-lg sm:text-xl">Nova Auditoria</DialogTitle>
@@ -235,13 +296,37 @@ export function NewAuditDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-3 sm:space-y-4 py-2 sm:py-4 pr-1">
-          {/* Empresa (pré-selecionada) */}
-          <div className="space-y-1.5 sm:space-y-2">
-            <Label className="text-sm">Empresa</Label>
-            <div className="p-2.5 sm:p-3 bg-primary/5 border border-primary/20 rounded-md">
-              <p className="font-medium text-primary text-sm sm:text-base">{preSelectedCompanyName}</p>
+          {/* Loading state */}
+          {isLoadingEnvs && (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+              <p className="text-sm text-muted-foreground">Carregando ambientes...</p>
             </div>
-          </div>
+          )}
+
+          {/* Error state */}
+          {!isLoadingEnvs && envsError && (
+            <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                <span className="text-sm font-medium">Erro ao carregar ambientes</span>
+              </div>
+              <p className="text-xs text-destructive/80 mt-1">
+                {envsError.message || 'Tente fechar e abrir novamente.'}
+              </p>
+            </div>
+          )}
+
+          {/* Content - only show when not loading */}
+          {!isLoadingEnvs && (
+            <>
+              {/* Empresa (pré-selecionada) */}
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label className="text-sm">Empresa</Label>
+                <div className="p-2.5 sm:p-3 bg-primary/5 border border-primary/20 rounded-md">
+                  <p className="font-medium text-primary text-sm sm:text-base">{preSelectedCompanyName}</p>
+                </div>
+              </div>
 
           {/* Área */}
           <div className="space-y-1.5 sm:space-y-2">
@@ -349,6 +434,8 @@ export function NewAuditDialog({
               </p>
             </div>
           )}
+            </>
+          )}
         </div>
 
         {/* Footer fixo */}
@@ -370,6 +457,7 @@ export function NewAuditDialog({
             {criteriaData.length === 0 ? 'Sem critérios' : isOffline ? 'Iniciar Offline' : 'Iniciar Auditoria'}
           </Button>
         </div>
+        </DialogErrorBoundary>
       </DialogContent>
     </Dialog>
   );
