@@ -13,8 +13,8 @@ export function DateDivider({ date }: DateDividerProps) {
   };
 
   return (
-    <div className="flex justify-center my-4">
-      <span className="bg-muted/80 text-muted-foreground text-xs px-3 py-1 rounded-full shadow-sm">
+    <div className="flex justify-center my-3">
+      <span className="bg-zinc-800/80 backdrop-blur-sm text-zinc-400 text-[11px] px-3 py-1 rounded-md shadow-sm">
         {getDateLabel()}
       </span>
     </div>

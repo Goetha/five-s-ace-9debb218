@@ -87,18 +87,13 @@ export function AuditTimeline({ audits, onAuditClick, isLoading }: AuditTimeline
   }
 
   return (
-    <ScrollArea className="flex-1" ref={scrollRef}>
-      <div
-        className="min-h-full py-4 space-y-2"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}
-      >
+    <ScrollArea className="flex-1 bg-zinc-950" ref={scrollRef}>
+      <div className="min-h-full py-4 space-y-1">
         {groupedByDate.map((group, groupIndex) => (
           <div key={groupIndex}>
             <DateDivider date={group.date} />
-            <div className="space-y-2">
-              {group.audits.map((audit) => (
+            <div className="space-y-1.5">
+              {group.audits.map((audit, auditIndex) => (
                 <AuditMessageBubble
                   key={audit.id}
                   id={audit.id}
@@ -110,6 +105,7 @@ export function AuditTimeline({ audits, onAuditClick, isLoading }: AuditTimeline
                   startedAt={audit.started_at}
                   completedAt={audit.completed_at}
                   onClick={() => onAuditClick(audit.id)}
+                  index={auditIndex}
                 />
               ))}
             </div>
