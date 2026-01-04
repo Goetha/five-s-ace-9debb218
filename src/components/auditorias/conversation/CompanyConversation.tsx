@@ -132,7 +132,7 @@ export function CompanyConversation({ companyId }: CompanyConversationProps) {
   };
 
   const handleAuditClick = (auditId: string) => {
-    navigate(`/auditor/auditoria/${auditId}`);
+    navigate(`/auditor/auditoria/${auditId}?from=${companyId}`);
   };
 
   const handleNewAudit = () => {

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { CompanyAdminLayout } from "@/components/company-admin/CompanyAdminLayout";
 import Header from "@/components/layout/Header";
@@ -32,6 +32,7 @@ interface AuditWithLocation extends Audit {
 export default function DetalhesAuditoria() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { userRole, isOffline } = useAuth();
   const [audit, setAudit] = useState<AuditWithLocation | null>(null);
@@ -39,8 +40,22 @@ export default function DetalhesAuditoria() {
   const [isLoading, setIsLoading] = useState(true);
   const [isOfflineAudit, setIsOfflineAudit] = useState(false);
   
-  const backLink = userRole === 'ifa_admin' ? '/auditorias' : '/auditor/minhas-auditorias';
-  const backLabel = userRole === 'ifa_admin' ? 'Auditorias' : 'Minhas Auditorias';
+  // Get the "from" parameter to know where to go back
+  const fromCompany = searchParams.get('from');
+  
+  // Build back link based on context
+  const backLink = useMemo(() => {
+    if (userRole === 'ifa_admin') {
+      // If came from company conversation, go back there
+      if (fromCompany) {
+        return `/auditorias?company=${fromCompany}`;
+      }
+      return '/auditorias';
+    }
+    return '/auditor/minhas-auditorias';
+  }, [userRole, fromCompany]);
+  
+  const backLabel = userRole === 'ifa_admin' ? 'Voltar' : 'Minhas Auditorias';
 
   useEffect(() => {
     if (id) {
