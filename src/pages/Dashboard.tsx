@@ -108,7 +108,7 @@ const Dashboard = () => {
   }), [companiesWithAuditInfo]);
 
   const handleCompanyClick = (companyId: string) => {
-    navigate(`/empresas?company=${companyId}`);
+    navigate(`/auditorias?company=${companyId}`);
   };
 
   const handleArchivedClick = () => {
