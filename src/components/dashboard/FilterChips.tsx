@@ -22,22 +22,22 @@ const filters: { key: FilterType; label: string }[] = [
 
 export function FilterChips({ activeFilter, onFilterChange, counts }: FilterChipsProps) {
   return (
-    <div className="px-4 py-2 flex gap-2 overflow-x-auto scrollbar-hide bg-background">
+    <div className="px-4 sm:px-6 lg:px-8 py-2 flex gap-2 overflow-x-auto scrollbar-hide">
       {filters.map((filter) => (
         <button
           key={filter.key}
           onClick={() => onFilterChange(filter.key)}
           className={cn(
-            "px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
+            "px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors border",
             activeFilter === filter.key
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground hover:bg-muted/80"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-transparent text-muted-foreground border-border hover:bg-muted/50"
           )}
         >
           {filter.label}
-          {counts && filter.key !== 'all' && (
+          {counts && (
             <span className="ml-1 text-xs opacity-80">
-              ({filter.key === 'pending' ? counts.pending : filter.key === 'favorites' ? counts.favorites : counts.withPa})
+              ({filter.key === 'all' ? counts.all : filter.key === 'pending' ? counts.pending : filter.key === 'favorites' ? counts.favorites : counts.withPa})
             </span>
           )}
         </button>

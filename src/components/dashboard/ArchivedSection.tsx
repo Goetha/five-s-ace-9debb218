@@ -11,9 +11,9 @@ export function ArchivedSection({ count, onClick }: ArchivedSectionProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left border-b border-border"
+      className="w-full px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left border-b border-border"
     >
-      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center shrink-0">
+      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-muted flex items-center justify-center shrink-0">
         <Archive className="h-5 w-5 text-muted-foreground" />
       </div>
       
