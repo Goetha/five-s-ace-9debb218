@@ -103,18 +103,18 @@ export function CompanyListItem({
   return (
     <button
       onClick={onClick}
-      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left active:bg-muted"
+      className="w-full px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left active:bg-muted border-b border-border"
     >
       {/* Avatar */}
       <div className={cn(
-        "w-12 h-12 rounded-full flex items-center justify-center text-white font-medium text-base shrink-0",
+        "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-white font-medium text-sm sm:text-base shrink-0",
         avatarColor
       )}>
         {initials}
       </div>
       
       {/* Content */}
-      <div className="flex-1 min-w-0 border-b border-border pb-3">
+      <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           {/* Name row */}
           <div className="flex items-center gap-1 min-w-0 flex-1">
