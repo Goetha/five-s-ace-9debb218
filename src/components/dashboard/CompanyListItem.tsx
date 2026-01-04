@@ -1,6 +1,6 @@
 import { CheckCheck, BellOff, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface CompanyListItemProps {
@@ -27,14 +27,14 @@ function getInitials(name: string): string {
 
 function getAvatarColor(name: string): string {
   const colors = [
-    'bg-[#00A884]', // Green
-    'bg-[#53BDEB]', // Blue
-    'bg-[#FF9500]', // Orange
-    'bg-[#FF2D55]', // Pink
-    'bg-[#AF52DE]', // Purple
-    'bg-[#5856D6]', // Indigo
-    'bg-[#FF3B30]', // Red
-    'bg-[#34C759]', // Emerald
+    'bg-emerald-500',
+    'bg-sky-500',
+    'bg-orange-500',
+    'bg-pink-500',
+    'bg-purple-500',
+    'bg-indigo-500',
+    'bg-red-500',
+    'bg-teal-500',
   ];
   
   let hash = 0;
@@ -103,7 +103,7 @@ export function CompanyListItem({
   return (
     <button
       onClick={onClick}
-      className="w-full px-3 py-3 flex items-center gap-3 hover:bg-[#202C33] transition-colors text-left active:bg-[#2A3942]"
+      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left active:bg-muted"
     >
       {/* Avatar */}
       <div className={cn(
@@ -114,13 +114,13 @@ export function CompanyListItem({
       </div>
       
       {/* Content */}
-      <div className="flex-1 min-w-0 border-b border-[#222D34] pb-3">
+      <div className="flex-1 min-w-0 border-b border-border pb-3">
         <div className="flex items-center justify-between gap-2">
           {/* Name row */}
           <div className="flex items-center gap-1 min-w-0 flex-1">
-            <span className="font-medium text-[#E9EDEF] truncate">{name}</span>
+            <span className="font-medium text-foreground truncate">{name}</span>
             {isFavorite && (
-              <Star className="h-3.5 w-3.5 text-[#FFD700] fill-[#FFD700] shrink-0" />
+              <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400 shrink-0" />
             )}
           </div>
           
@@ -128,7 +128,7 @@ export function CompanyListItem({
           <div className="flex items-center gap-1 shrink-0">
             <span className={cn(
               "text-xs",
-              pendingCount > 0 ? "text-[#00A884]" : "text-[#8696A0]"
+              pendingCount > 0 ? "text-primary" : "text-muted-foreground"
             )}>
               {timestamp}
             </span>
@@ -139,17 +139,17 @@ export function CompanyListItem({
         <div className="flex items-center justify-between gap-2 mt-0.5">
           <div className="flex items-center gap-1 min-w-0 flex-1">
             {isCompleted && (
-              <CheckCheck className="h-4 w-4 text-[#53BDEB] shrink-0" />
+              <CheckCheck className="h-4 w-4 text-primary shrink-0" />
             )}
-            <span className="text-sm text-[#8696A0] truncate">{statusText}</span>
+            <span className="text-sm text-muted-foreground truncate">{statusText}</span>
           </div>
           
           <div className="flex items-center gap-1.5 shrink-0">
             {isMuted && (
-              <BellOff className="h-3.5 w-3.5 text-[#8696A0]" />
+              <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
             )}
             {pendingCount > 0 && (
-              <span className="bg-[#00A884] text-[#111B21] text-xs font-medium px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+              <span className="bg-primary text-primary-foreground text-xs font-medium px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
                 {pendingCount}
               </span>
             )}

@@ -22,7 +22,7 @@ const filters: { key: FilterType; label: string }[] = [
 
 export function FilterChips({ activeFilter, onFilterChange, counts }: FilterChipsProps) {
   return (
-    <div className="px-3 py-2 flex gap-2 overflow-x-auto scrollbar-hide">
+    <div className="px-4 py-2 flex gap-2 overflow-x-auto scrollbar-hide bg-background">
       {filters.map((filter) => (
         <button
           key={filter.key}
@@ -30,8 +30,8 @@ export function FilterChips({ activeFilter, onFilterChange, counts }: FilterChip
           className={cn(
             "px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
             activeFilter === filter.key
-              ? "bg-[#00A884] text-[#111B21]"
-              : "bg-[#202C33] text-[#8696A0] hover:bg-[#2A3942]"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
           )}
         >
           {filter.label}

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOfflineData } from "@/hooks/useOfflineData";
+import Header from "@/components/layout/Header";
 import { OfflineBanner } from "@/components/pwa/OfflineBanner";
 import { WhatsAppHeader } from "@/components/dashboard/WhatsAppHeader";
 import { CompanySearchBar } from "@/components/dashboard/CompanySearchBar";
@@ -124,77 +125,79 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#111B21] flex flex-col">
-      <WhatsAppHeader 
-        onNewCompany={handleNewCompany}
-      />
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header />
+      
+      <main className="flex-1 flex flex-col">
+        <WhatsAppHeader onNewCompany={handleNewCompany} />
 
-      {/* Offline Banner */}
-      <OfflineBanner 
-        isOffline={isOffline}
-        isFromCache={isFromCache}
-        lastSyncAt={lastSyncAt}
-        onRefresh={refetchCompanies}
-        isRefreshing={loadingCompanies}
-      />
+        {/* Offline Banner */}
+        <OfflineBanner 
+          isOffline={isOffline}
+          isFromCache={isFromCache}
+          lastSyncAt={lastSyncAt}
+          onRefresh={refetchCompanies}
+          isRefreshing={loadingCompanies}
+        />
 
-      <CompanySearchBar 
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-      />
+        <CompanySearchBar 
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
 
-      <FilterChips 
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-        counts={filterCounts}
-      />
+        <FilterChips 
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+          counts={filterCounts}
+        />
 
-      {/* Company List */}
-      <div className="flex-1 overflow-y-auto">
-        {loadingCompanies ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-[#00A884]" />
-          </div>
-        ) : (
-          <>
-            <ArchivedSection 
-              count={archivedCompanies.length}
-              onClick={handleArchivedClick}
-            />
+        {/* Company List */}
+        <div className="flex-1 overflow-y-auto">
+          {loadingCompanies ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              <ArchivedSection 
+                count={archivedCompanies.length}
+                onClick={handleArchivedClick}
+              />
 
-            {filteredCompanies.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                <div className="w-16 h-16 rounded-full bg-[#202C33] flex items-center justify-center mb-4">
-                  <span className="text-2xl">🏢</span>
+              {filteredCompanies.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <span className="text-2xl">🏢</span>
+                  </div>
+                  <p className="text-muted-foreground mb-2">
+                    {searchTerm ? 'Nenhuma empresa encontrada' : 'Nenhuma empresa cadastrada'}
+                  </p>
+                  <button
+                    onClick={handleNewCompany}
+                    className="text-primary font-medium hover:underline"
+                  >
+                    Adicionar empresa
+                  </button>
                 </div>
-                <p className="text-[#8696A0] mb-2">
-                  {searchTerm ? 'Nenhuma empresa encontrada' : 'Nenhuma empresa cadastrada'}
-                </p>
-                <button
-                  onClick={handleNewCompany}
-                  className="text-[#00A884] font-medium hover:underline"
-                >
-                  Adicionar empresa
-                </button>
-              </div>
-            ) : (
-              filteredCompanies.map(company => (
-                <CompanyListItem
-                  key={company.id}
-                  id={company.id}
-                  name={company.name}
-                  lastAuditScore={company.lastAuditScore}
-                  lastAuditDate={company.lastAuditDate}
-                  pendingCount={company.pendingCount}
-                  isCompleted={company.isCompleted}
-                  status={company.status}
-                  onClick={() => handleCompanyClick(company.id)}
-                />
-              ))
-            )}
-          </>
-        )}
-      </div>
+              ) : (
+                filteredCompanies.map(company => (
+                  <CompanyListItem
+                    key={company.id}
+                    id={company.id}
+                    name={company.name}
+                    lastAuditScore={company.lastAuditScore}
+                    lastAuditDate={company.lastAuditDate}
+                    pendingCount={company.pendingCount}
+                    isCompleted={company.isCompleted}
+                    status={company.status}
+                    onClick={() => handleCompanyClick(company.id)}
+                  />
+                ))
+              )}
+            </>
+          )}
+        </div>
+      </main>
 
       {/* New Company Modal */}
       <NewCompanyModal

@@ -8,15 +8,15 @@ interface CompanySearchBarProps {
 
 export function CompanySearchBar({ searchTerm, onSearchChange }: CompanySearchBarProps) {
   return (
-    <div className="px-3 py-2">
+    <div className="px-4 py-3 bg-background">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8696A0]" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="Pesquisar"
+          placeholder="Pesquisar empresas..."
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-10 bg-[#202C33] border-none text-[#E9EDEF] placeholder:text-[#8696A0] rounded-lg h-9 focus-visible:ring-0 focus-visible:ring-offset-0"
+          className="pl-10 bg-muted border-border text-foreground placeholder:text-muted-foreground rounded-lg h-10"
         />
       </div>
     </div>
