@@ -9,12 +9,12 @@ export function DateDivider({ date }: DateDividerProps) {
   const getDateLabel = () => {
     if (isToday(date)) return "Hoje";
     if (isYesterday(date)) return "Ontem";
-    return format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+    return format(date, "dd 'de' MMMM", { locale: ptBR });
   };
 
   return (
-    <div className="flex justify-center my-3">
-      <span className="bg-zinc-800/80 backdrop-blur-sm text-zinc-400 text-[11px] px-3 py-1 rounded-md shadow-sm">
+    <div className="flex items-center justify-center py-3 px-4">
+      <span className="text-xs font-medium text-muted-foreground bg-muted px-3 py-1 rounded-full">
         {getDateLabel()}
       </span>
     </div>

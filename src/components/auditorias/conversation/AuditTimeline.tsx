@@ -1,8 +1,9 @@
 import { useMemo, useRef, useEffect } from "react";
-import { format, isSameDay } from "date-fns";
+import { isSameDay } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DateDivider } from "./DateDivider";
-import { AuditMessageBubble } from "./AuditMessageBubble";
+import { AuditListItem } from "./AuditListItem";
+import { ClipboardList } from "lucide-react";
 
 interface AuditData {
   id: string;
@@ -25,11 +26,11 @@ interface AuditTimelineProps {
 export function AuditTimeline({ audits, onAuditClick, isLoading }: AuditTimelineProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Ordenar auditorias por data (mais antigas primeiro para timeline)
+  // Ordenar auditorias por data (mais recentes primeiro)
   const sortedAudits = useMemo(() => {
     return [...audits].sort(
       (a, b) =>
-        new Date(a.started_at).getTime() - new Date(b.started_at).getTime()
+        new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
     );
   }, [audits]);
 
@@ -52,21 +53,9 @@ export function AuditTimeline({ audits, onAuditClick, isLoading }: AuditTimeline
     return groups;
   }, [sortedAudits]);
 
-  // Scroll para o final quando carregar
-  useEffect(() => {
-    if (scrollRef.current && !isLoading) {
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({
-          top: scrollRef.current.scrollHeight,
-          behavior: "smooth",
-        });
-      }, 100);
-    }
-  }, [audits, isLoading]);
-
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">Carregando...</div>
       </div>
     );
@@ -74,9 +63,9 @@ export function AuditTimeline({ audits, onAuditClick, isLoading }: AuditTimeline
 
   if (audits.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-6 bg-background">
         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-          <span className="text-2xl">📋</span>
+          <ClipboardList className="h-8 w-8 text-muted-foreground" />
         </div>
         <h3 className="font-medium text-foreground mb-1">Nenhuma auditoria</h3>
         <p className="text-sm text-muted-foreground">
@@ -87,14 +76,14 @@ export function AuditTimeline({ audits, onAuditClick, isLoading }: AuditTimeline
   }
 
   return (
-    <ScrollArea className="flex-1 bg-zinc-950" ref={scrollRef}>
-      <div className="min-h-full py-4 space-y-1">
+    <ScrollArea className="flex-1 bg-background" ref={scrollRef}>
+      <div className="min-h-full">
         {groupedByDate.map((group, groupIndex) => (
           <div key={groupIndex}>
             <DateDivider date={group.date} />
-            <div className="space-y-1.5">
-              {group.audits.map((audit, auditIndex) => (
-                <AuditMessageBubble
+            <div>
+              {group.audits.map((audit) => (
+                <AuditListItem
                   key={audit.id}
                   id={audit.id}
                   locationName={audit.location_name}
@@ -105,7 +94,6 @@ export function AuditTimeline({ audits, onAuditClick, isLoading }: AuditTimeline
                   startedAt={audit.started_at}
                   completedAt={audit.completed_at}
                   onClick={() => onAuditClick(audit.id)}
-                  index={auditIndex}
                 />
               ))}
             </div>
