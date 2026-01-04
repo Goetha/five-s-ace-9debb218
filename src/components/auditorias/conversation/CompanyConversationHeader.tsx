@@ -1,4 +1,4 @@
-import { ArrowLeft, FileText, MoreVertical } from "lucide-react";
+import { ArrowLeft, FileText, Loader2, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -14,6 +14,7 @@ interface CompanyConversationHeaderProps {
   onBack: () => void;
   onExportReport: () => void;
   onViewDetails?: () => void;
+  isExporting?: boolean;
 }
 
 export function CompanyConversationHeader({
@@ -22,6 +23,7 @@ export function CompanyConversationHeader({
   onBack,
   onExportReport,
   onViewDetails,
+  isExporting = false,
 }: CompanyConversationHeaderProps) {
   const getInitials = (name: string) => {
     return name
@@ -80,9 +82,14 @@ export function CompanyConversationHeader({
           size="icon"
           className="h-10 w-10"
           onClick={onExportReport}
-          title="Exportar relatório"
+          disabled={isExporting}
+          title="Exportar relatório PDF"
         >
-          <FileText className="h-5 w-5" />
+          {isExporting ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <FileText className="h-5 w-5" />
+          )}
         </Button>
 
         <DropdownMenu>

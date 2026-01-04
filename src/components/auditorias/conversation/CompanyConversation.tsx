@@ -7,6 +7,7 @@ import { CompanyConversationHeader } from "./CompanyConversationHeader";
 import { AuditTimeline } from "./AuditTimeline";
 import { ConversationInputBar } from "./ConversationInputBar";
 import { NewAuditDialog } from "../NewAuditDialog";
+import { fetchCompanyReportData, generateCompanyReportPDF } from "@/lib/reports";
 
 interface CompanyConversationProps {
   companyId: string;
@@ -32,6 +33,7 @@ export function CompanyConversation({ companyId }: CompanyConversationProps) {
   const [companyName, setCompanyName] = useState("");
   const [audits, setAudits] = useState<AuditData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [isNewAuditOpen, setIsNewAuditOpen] = useState(false);
 
   const fetchCompanyData = useCallback(async () => {
@@ -139,12 +141,47 @@ export function CompanyConversation({ companyId }: CompanyConversationProps) {
     setIsNewAuditOpen(true);
   };
 
-  const handleExportReport = () => {
-    // TODO: Implementar exportação de relatório da empresa
+  const handleExportReport = async () => {
+    if (isExporting) return;
+    
+    setIsExporting(true);
     toast({
-      title: "Exportar relatório",
-      description: "Funcionalidade em desenvolvimento.",
+      title: "Gerando relatório...",
+      description: "Aguarde enquanto o PDF é gerado.",
     });
+
+    try {
+      const reportData = await fetchCompanyReportData(companyId);
+      
+      if (!reportData) {
+        throw new Error("Não foi possível carregar os dados do relatório");
+      }
+
+      if (reportData.total_audits === 0) {
+        toast({
+          title: "Sem dados para exportar",
+          description: "Esta empresa ainda não possui auditorias concluídas.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await generateCompanyReportPDF(reportData);
+      
+      toast({
+        title: "Relatório exportado!",
+        description: "O PDF foi gerado com sucesso.",
+      });
+    } catch (error: any) {
+      console.error("Error exporting report:", error);
+      toast({
+        title: "Erro ao exportar",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleViewDetails = () => {
@@ -159,6 +196,7 @@ export function CompanyConversation({ companyId }: CompanyConversationProps) {
         onBack={handleBack}
         onExportReport={handleExportReport}
         onViewDetails={handleViewDetails}
+        isExporting={isExporting}
       />
 
       <AuditTimeline
