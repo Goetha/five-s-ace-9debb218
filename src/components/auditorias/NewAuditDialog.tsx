@@ -268,195 +268,231 @@ export function NewAuditDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="max-h-[90vh] w-[95vw] sm:max-w-[500px] p-4 sm:p-6 flex flex-col overflow-hidden" 
+        className="max-h-[85vh] w-[calc(100vw-32px)] sm:max-w-[460px] p-0 flex flex-col overflow-hidden rounded-2xl border-border/50" 
         aria-describedby="new-audit-description"
       >
-        {/* Header always visible - outside error boundary */}
-        <DialogHeader className="flex-shrink-0">
+        {/* Header */}
+        <DialogHeader className="flex-shrink-0 p-5 pb-4 border-b border-border/50 bg-gradient-to-b from-primary/5 to-transparent">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg sm:text-xl">Nova Auditoria</DialogTitle>
-            <div className="flex gap-1">
+            <div className="space-y-1">
+              <DialogTitle className="text-xl font-semibold">Nova Auditoria</DialogTitle>
+              <DialogDescription id="new-audit-description" className="text-sm text-muted-foreground">
+                Selecione onde iniciar a auditoria
+              </DialogDescription>
+            </div>
+            <div className="flex gap-1.5">
               {isUsingCache && (
-                <Badge variant="outline" className="gap-1 text-blue-500 border-blue-500/30">
+                <Badge variant="outline" className="gap-1 text-xs text-blue-500 border-blue-500/30 bg-blue-500/10">
                   <Database className="h-3 w-3" />
                   Cache
                 </Badge>
               )}
               {isOffline && (
-                <Badge variant="outline" className="gap-1 text-amber-500 border-amber-500/30">
+                <Badge variant="outline" className="gap-1 text-xs text-amber-500 border-amber-500/30 bg-amber-500/10">
                   <CloudOff className="h-3 w-3" />
                   Offline
                 </Badge>
               )}
             </div>
           </div>
-          <DialogDescription id="new-audit-description" className="text-sm">
-            Selecione o ambiente e local para iniciar a auditoria
-          </DialogDescription>
         </DialogHeader>
 
         <DialogErrorBoundary onReset={handleReset}>
-        <div className="flex-1 overflow-y-auto space-y-3 sm:space-y-4 py-2 sm:py-4 pr-1">
-          {/* Loading state */}
-          {isLoadingEnvs && (
-            <div className="flex flex-col items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
-              <p className="text-sm text-muted-foreground">Carregando ambientes...</p>
-            </div>
-          )}
-
-          {/* Error state */}
-          {!isLoadingEnvs && envsError && (
-            <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                <span className="text-sm font-medium">Erro ao carregar ambientes</span>
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {/* Loading state */}
+            {isLoadingEnvs && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+                <p className="text-sm text-muted-foreground">Carregando ambientes...</p>
               </div>
-              <p className="text-xs text-destructive/80 mt-1">
-                {envsError.message || 'Tente fechar e abrir novamente.'}
-              </p>
-            </div>
-          )}
+            )}
 
-          {/* Content - only show when not loading */}
-          {!isLoadingEnvs && (
-            <>
-              {/* Empresa (pré-selecionada) */}
-              <div className="space-y-1.5 sm:space-y-2">
-                <Label className="text-sm">Empresa</Label>
-                <div className="p-2.5 sm:p-3 bg-primary/5 border border-primary/20 rounded-md">
-                  <p className="font-medium text-primary text-sm sm:text-base">{preSelectedCompanyName}</p>
-                </div>
-              </div>
-
-          {/* Área */}
-          <div className="space-y-1.5 sm:space-y-2">
-            <Label htmlFor="area" className="text-sm">Área *</Label>
-            <Select value={selectedArea} onValueChange={handleAreaChange} disabled={isLoadingEnvs}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={isLoadingEnvs ? "Carregando..." : areas.length === 0 ? "Nenhuma área disponível" : "Selecione a área"} />
-              </SelectTrigger>
-              <SelectContent>
-                {areas.map(area => (
-                  <SelectItem key={area.id} value={area.id}>{area.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Ambiente */}
-          <div className="space-y-1.5 sm:space-y-2">
-            <Label htmlFor="environment" className="text-sm">Ambiente *</Label>
-            <Select 
-              value={selectedEnvironment} 
-              onValueChange={handleEnvironmentChange} 
-              disabled={!selectedArea || envs.length === 0}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={
-                  !selectedArea 
-                    ? "Selecione uma área primeiro" 
-                    : envs.length === 0 
-                    ? "Nenhum ambiente disponível" 
-                    : "Selecione o ambiente"
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                {envs.map(env => (
-                  <SelectItem key={env.id} value={env.id}>{env.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Local */}
-          <div className="space-y-1.5 sm:space-y-2">
-            <Label htmlFor="location" className="text-sm">Local *</Label>
-            <Select 
-              value={selectedLocation} 
-              onValueChange={handleLocationChange} 
-              disabled={!selectedEnvironment || locations.length === 0}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={
-                  !selectedEnvironment 
-                    ? "Selecione um ambiente primeiro" 
-                    : locations.length === 0 
-                    ? "Nenhum local disponível" 
-                    : "Selecione o local"
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map(loc => (
-                  <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Preview de Critérios */}
-          {selectedLocation && (
-            <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg space-y-2">
-              {isLoadingCriteria ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Carregando critérios...
-                </div>
-              ) : (criteriaData?.length ?? 0) > 0 ? (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                  <span className="font-medium text-blue-900 dark:text-blue-100 text-sm sm:text-base">
-                    Esta auditoria terá {criteriaData?.length ?? 0} {(criteriaData?.length ?? 0) === 1 ? 'pergunta' : 'perguntas'}
-                  </span>
-                </div>
-              ) : (
-                <div className="space-y-2 sm:space-y-3">
-                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                    <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span className="font-medium text-sm sm:text-base">Nenhum critério disponível</span>
+            {/* Error state */}
+            {!isLoadingEnvs && envsError && (
+              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl">
+                <div className="flex items-center gap-3 text-destructive">
+                  <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                    <AlertCircle className="h-5 w-5" />
                   </div>
-                  <p className="text-xs sm:text-sm text-amber-600 dark:text-amber-500">
-                    Não há critérios ativos configurados para este local.
-                  </p>
+                  <div>
+                    <span className="text-sm font-medium block">Erro ao carregar ambientes</span>
+                    <p className="text-xs text-destructive/70 mt-0.5">
+                      {envsError.message || 'Tente fechar e abrir novamente.'}
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Offline info - now shows that offline IS supported */}
-          {isOffline && (
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
-              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                <CloudOff className="h-4 w-4" />
-                <span className="text-sm font-medium">Modo offline ativo</span>
               </div>
-              <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">
-                Você pode criar auditorias offline. Os dados serão sincronizados quando voltar online.
-              </p>
-            </div>
-          )}
-            </>
-          )}
-        </div>
+            )}
+
+            {/* Content */}
+            {!isLoadingEnvs && !envsError && (
+              <>
+                {/* Empresa Card */}
+                <div className="p-4 bg-card border border-border/50 rounded-xl">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Empresa</Label>
+                  <p className="font-semibold text-foreground mt-1">{preSelectedCompanyName}</p>
+                </div>
+
+                {/* Selects em um card agrupado */}
+                <div className="space-y-3 p-4 bg-card border border-border/50 rounded-xl">
+                  {/* Área */}
+                  <div className="space-y-2">
+                    <Label htmlFor="area" className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      Área <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={selectedArea} onValueChange={handleAreaChange} disabled={isLoadingEnvs}>
+                      <SelectTrigger className="w-full h-11 bg-background/50 hover:bg-background transition-colors">
+                        <SelectValue placeholder={isLoadingEnvs ? "Carregando..." : areas.length === 0 ? "Nenhuma área disponível" : "Toque para selecionar"} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover border-border">
+                        {areas.map(area => (
+                          <SelectItem key={area.id} value={area.id} className="py-3">{area.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Ambiente */}
+                  <div className="space-y-2">
+                    <Label htmlFor="environment" className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      Ambiente <span className="text-destructive">*</span>
+                    </Label>
+                    <Select 
+                      value={selectedEnvironment} 
+                      onValueChange={handleEnvironmentChange} 
+                      disabled={!selectedArea || envs.length === 0}
+                    >
+                      <SelectTrigger className={`w-full h-11 transition-colors ${!selectedArea ? 'opacity-50' : 'bg-background/50 hover:bg-background'}`}>
+                        <SelectValue placeholder={
+                          !selectedArea 
+                            ? "Selecione uma área primeiro" 
+                            : envs.length === 0 
+                            ? "Nenhum ambiente disponível" 
+                            : "Toque para selecionar"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover border-border">
+                        {envs.map(env => (
+                          <SelectItem key={env.id} value={env.id} className="py-3">{env.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Local */}
+                  <div className="space-y-2">
+                    <Label htmlFor="location" className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      Local <span className="text-destructive">*</span>
+                    </Label>
+                    <Select 
+                      value={selectedLocation} 
+                      onValueChange={handleLocationChange} 
+                      disabled={!selectedEnvironment || locations.length === 0}
+                    >
+                      <SelectTrigger className={`w-full h-11 transition-colors ${!selectedEnvironment ? 'opacity-50' : 'bg-background/50 hover:bg-background'}`}>
+                        <SelectValue placeholder={
+                          !selectedEnvironment 
+                            ? "Selecione um ambiente primeiro" 
+                            : locations.length === 0 
+                            ? "Nenhum local disponível" 
+                            : "Toque para selecionar"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover border-border">
+                        {locations.map(loc => (
+                          <SelectItem key={loc.id} value={loc.id} className="py-3">{loc.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Preview de Critérios */}
+                {selectedLocation && (
+                  <div className={`p-4 rounded-xl border ${
+                    isLoadingCriteria 
+                      ? 'bg-muted/30 border-border/50' 
+                      : (criteriaData?.length ?? 0) > 0 
+                        ? 'bg-emerald-500/10 border-emerald-500/20' 
+                        : 'bg-amber-500/10 border-amber-500/20'
+                  }`}>
+                    {isLoadingCriteria ? (
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span className="text-sm">Verificando critérios...</span>
+                      </div>
+                    ) : (criteriaData?.length ?? 0) > 0 ? (
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                        </div>
+                        <div>
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            {criteriaData?.length ?? 0} {(criteriaData?.length ?? 0) === 1 ? 'pergunta' : 'perguntas'}
+                          </span>
+                          <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70">
+                            Pronto para iniciar a auditoria
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                          <AlertCircle className="h-5 w-5 text-amber-500" />
+                        </div>
+                        <div>
+                          <span className="font-semibold text-amber-600 dark:text-amber-400">
+                            Sem critérios
+                          </span>
+                          <p className="text-xs text-amber-600/70 dark:text-amber-400/70">
+                            Configure critérios para este local
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Offline info */}
+                {isOffline && (
+                  <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                        <CloudOff className="h-5 w-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">Modo offline</span>
+                        <p className="text-xs text-blue-600/70 dark:text-blue-400/70">
+                          Sincroniza automaticamente ao reconectar
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </DialogErrorBoundary>
 
-        {/* Footer fixo - outside error boundary so cancel always works */}
-        <div className="flex justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t mt-auto flex-shrink-0">
+        {/* Footer */}
+        <div className="flex gap-3 p-5 pt-4 border-t border-border/50 bg-gradient-to-t from-muted/30 to-transparent flex-shrink-0">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isCreating}
-            className="h-9 sm:h-10 text-sm"
+            className="flex-1 h-12 text-base font-medium"
           >
             Cancelar
           </Button>
           <Button
             onClick={handleStartAudit}
             disabled={!selectedLocation || isCreating || (criteriaData?.length ?? 0) === 0}
-            className="h-9 sm:h-10 text-sm"
+            className="flex-1 h-12 text-base font-medium"
           >
-            {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {(criteriaData?.length ?? 0) === 0 ? 'Sem critérios' : isOffline ? 'Iniciar Offline' : 'Iniciar Auditoria'}
+            {isCreating && <Loader2 className="h-5 w-5 mr-2 animate-spin" />}
+            {(criteriaData?.length ?? 0) === 0 ? 'Sem critérios' : isOffline ? 'Iniciar Offline' : 'Iniciar'}
           </Button>
         </div>
       </DialogContent>
