@@ -1,4 +1,4 @@
-import { Plus, FileText, ChevronRight } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
@@ -16,27 +16,28 @@ export function WhatsAppHeader({ onNewCompany }: WhatsAppHeaderProps) {
         </Link>
       </nav>
 
-      {/* Title + Actions */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-            Empresas
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Lista de empresas para auditoria
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Button variant="outline" size="sm" className="hidden sm:flex">
-            <FileText className="h-4 w-4 mr-2" />
-            Exportar
-          </Button>
-          <Button size="sm" onClick={onNewCompany}>
-            <Plus className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Nova Empresa</span>
-            <span className="sm:hidden">Nova</span>
-          </Button>
-        </div>
+      {/* Title */}
+      <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+        Empresas
+      </h1>
+      <p className="text-muted-foreground mt-1">
+        Lista de empresas para auditoria
+      </p>
+
+      {/* Actions - horizontal below description */}
+      <div className="flex items-center gap-2 mt-4">
+        <Button variant="outline" size="sm">
+          <FileText className="h-4 w-4 mr-2" />
+          Exportar
+        </Button>
+        <Button 
+          size="sm" 
+          onClick={onNewCompany}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Nova Empresa
+        </Button>
       </div>
     </div>
   );
