@@ -7,13 +7,12 @@ interface ConversationInputBarProps {
 
 export function ConversationInputBar({ onNewAudit }: ConversationInputBarProps) {
   return (
-    <div className="sticky bottom-0 z-20 bg-card border-t border-border px-4 py-3 safe-area-bottom">
+    <div className="sticky bottom-0 z-20 bg-card border-t border-border px-3 py-2 safe-area-bottom">
       <Button
         onClick={onNewAudit}
         className="w-full gap-2"
-        size="lg"
       >
-        <Plus className="h-5 w-5" />
+        <Plus className="h-4 w-4" />
         Nova Auditoria
       </Button>
     </div>

@@ -81,19 +81,19 @@ export function AuditListItem({
   return (
     <button
       onClick={onClick}
-      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left active:bg-muted border-b border-border"
+      className="w-full px-3 py-2.5 flex items-center gap-2.5 hover:bg-muted/50 transition-colors text-left active:bg-muted border-b border-border"
     >
       {/* Avatar com cor do score */}
       <div
         className={cn(
-          "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0",
+          "w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0",
           scoreColor
         )}
       >
         {displayScore !== null ? (
           <span>{displayScore}%</span>
         ) : (
-          <Clock className="h-5 w-5" />
+          <Clock className="h-4 w-4" />
         )}
       </div>
 
@@ -101,36 +101,36 @@ export function AuditListItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           {/* Location name */}
-          <span className="font-medium text-foreground truncate">
+          <span className="font-medium text-sm text-foreground truncate">
             {locationName}
           </span>
 
           {/* Timestamp */}
-          <span className="text-xs text-muted-foreground shrink-0">
+          <span className="text-[10px] text-muted-foreground shrink-0">
             {timestamp}
           </span>
         </div>
 
         {/* Path + Status row */}
-        <div className="flex items-center justify-between gap-2 mt-0.5">
+        <div className="flex items-center justify-between gap-1 mt-0.5">
           <div className="flex items-center gap-1 min-w-0 flex-1">
-            <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-            <span className="text-sm text-muted-foreground truncate">
+            <MapPin className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground truncate">
               {areaName} › {environmentName}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             {isCompleted && (
               <CheckCheck
                 className={cn(
-                  "h-4 w-4",
+                  "h-3.5 w-3.5",
                   isGoodScore ? "text-emerald-500" : "text-muted-foreground"
                 )}
               />
             )}
             {!isCompleted && (
-              <span className="text-xs text-blue-400 font-medium">
+              <span className="text-[10px] text-blue-400 font-medium">
                 Em andamento
               </span>
             )}
