@@ -4,9 +4,10 @@ import { Link } from "react-router-dom";
 
 interface WhatsAppHeaderProps {
   onNewCompany: () => void;
+  onExportReport: () => void;
 }
 
-export function WhatsAppHeader({ onNewCompany }: WhatsAppHeaderProps) {
+export function WhatsAppHeader({ onNewCompany, onExportReport }: WhatsAppHeaderProps) {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6">
       {/* Breadcrumb */}
@@ -26,7 +27,7 @@ export function WhatsAppHeader({ onNewCompany }: WhatsAppHeaderProps) {
 
       {/* Actions - horizontal below description */}
       <div className="flex items-center gap-2 mt-4">
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={onExportReport}>
           <FileText className="h-4 w-4 mr-2" />
           Exportar
         </Button>

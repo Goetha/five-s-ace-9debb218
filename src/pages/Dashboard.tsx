@@ -11,12 +11,14 @@ import { FilterChips, FilterType } from "@/components/dashboard/FilterChips";
 import { ArchivedSection } from "@/components/dashboard/ArchivedSection";
 import { CompanyListItem } from "@/components/dashboard/CompanyListItem";
 import { NewCompanyModal } from "@/components/empresas/NewCompanyModal";
+import { ExportReportModal } from "@/components/dashboard/ExportReportModal";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [showNewCompanyModal, setShowNewCompanyModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Fetch companies with offline support
   const { 
@@ -129,7 +131,7 @@ const Dashboard = () => {
       <Header />
       
       <main className="flex-1 flex flex-col">
-        <WhatsAppHeader onNewCompany={handleNewCompany} />
+        <WhatsAppHeader onNewCompany={handleNewCompany} onExportReport={() => setShowExportModal(true)} />
 
         {/* Offline Banner */}
         <OfflineBanner 
@@ -219,6 +221,13 @@ const Dashboard = () => {
           refetchCompanies();
           return company.id;
         }}
+      />
+
+      {/* Export Report Modal */}
+      <ExportReportModal
+        open={showExportModal}
+        onOpenChange={setShowExportModal}
+        companies={companies.filter(c => c.status === 'active').map(c => ({ id: c.id, name: c.name }))}
       />
     </div>
   );
