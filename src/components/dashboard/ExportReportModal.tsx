@@ -98,7 +98,7 @@ export function ExportReportModal({ open, onOpenChange, companies }: ExportRepor
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-h-[85vh] w-[calc(100vw-32px)] sm:max-w-[460px] p-0 flex flex-col overflow-hidden rounded-2xl border-border/50">
+      <DialogContent className="max-h-[85vh] w-[calc(100vw-48px)] mx-auto sm:max-w-[460px] p-0 flex flex-col overflow-hidden rounded-2xl border-border/50">
         {/* Header */}
         <DialogHeader className="flex-shrink-0 p-5 pb-4 border-b border-border/50 bg-gradient-to-b from-primary/5 to-transparent">
           <div className="flex items-center gap-3">
