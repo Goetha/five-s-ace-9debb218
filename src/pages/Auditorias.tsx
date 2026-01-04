@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSearchParams } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { NewAuditDialog } from "@/components/auditorias/NewAuditDialog";
 import { CompanyAuditCard } from "@/components/auditorias/CompanyAuditCard";
 import { CompanyBoardModal } from "@/components/auditorias/CompanyBoardModal";
 import { InProgressAuditsList, InProgressAudit } from "@/components/auditorias/InProgressAuditsList";
+import { CompanyConversation } from "@/components/auditorias/conversation/CompanyConversation";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
@@ -95,19 +97,15 @@ function calculateSensoScores(
   };
 }
 
-interface ScheduledAudit {
-  id: string;
-  company_name: string;
-  location_name: string;
-  environment_name: string;
-  auditor_name: string;
-  next_audit_date: string;
-}
-
 const Auditorias = () => {
   const { userRole, isOffline } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  
+  // Verificar se tem company na URL
+  const companyIdFromUrl = searchParams.get("company");
+  
   const [companies, setCompanies] = useState<Company[]>([]);
   const [groupedAudits, setGroupedAudits] = useState<AuditGroupedData[]>([]);
   const [scheduledAudits, setScheduledAudits] = useState<ScheduledAudit[]>([]);
@@ -122,6 +120,11 @@ const Auditorias = () => {
   const [selectedCompanyForBoard, setSelectedCompanyForBoard] = useState<AuditGroupedData | null>(null);
   const [isBoardModalOpen, setIsBoardModalOpen] = useState(false);
   const [isFromCache, setIsFromCache] = useState(false);
+
+  // Se tem companyId na URL, renderiza a visualização de conversa
+  if (companyIdFromUrl) {
+    return <CompanyConversation companyId={companyIdFromUrl} />;
+  }
 
   useEffect(() => {
     if (userRole === 'ifa_admin') {
