@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-type CacheType = 'companies' | 'criteria' | 'master_criteria' | 'master_models' | 'environments' | 'audits';
+type CacheType = 'companies' | 'criteria' | 'master_criteria' | 'master_models' | 'environments' | 'audits' | 'audits_summary';
 
 interface UseOfflineDataOptions<T> {
   cacheKey: CacheType;
