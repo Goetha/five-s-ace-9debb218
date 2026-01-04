@@ -44,8 +44,13 @@ export function CompanyConversation({ companyId }: CompanyConversationProps) {
         .eq("id", companyId)
         .single();
 
-      if (companyError) throw companyError;
-      setCompanyName(company.name);
+      if (companyError) {
+        if (companyError.code === 'PGRST116') {
+          throw new Error("Empresa não encontrada");
+        }
+        throw companyError;
+      }
+      setCompanyName(company?.name || "Empresa");
 
       // Buscar auditorias da empresa
       const { data: auditsData, error: auditsError } = await supabase
