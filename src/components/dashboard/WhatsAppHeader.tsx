@@ -1,57 +1,34 @@
-import { MoreVertical, FileText, Plus } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface WhatsAppHeaderProps {
   onNewCompany: () => void;
-  onExport?: () => void;
 }
 
-export function WhatsAppHeader({ onNewCompany, onExport }: WhatsAppHeaderProps) {
+export function WhatsAppHeader({ onNewCompany }: WhatsAppHeaderProps) {
   return (
-    <header className="sticky top-0 z-50 bg-[#1F2C34] px-4 py-3 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-[#8696A0] hover:text-foreground hover:bg-[#2A3942]">
-              <MoreVertical className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="bg-[#233138] border-[#3B4A54]">
-            <DropdownMenuItem className="text-[#E9EDEF] focus:bg-[#2A3942] focus:text-[#E9EDEF]">
-              Configurações
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-[#E9EDEF] focus:bg-[#2A3942] focus:text-[#E9EDEF]">
-              Estatísticas
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <h1 className="text-xl font-medium text-[#E9EDEF]">Empresas</h1>
+    <div className="px-4 sm:px-6 lg:px-8 py-6 border-b border-border bg-background">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            Empresas
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Lista de empresas para auditoria
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="hidden sm:flex">
+            <FileText className="h-4 w-4 mr-2" />
+            Exportar
+          </Button>
+          <Button size="sm" onClick={onNewCompany}>
+            <Plus className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Nova Empresa</span>
+            <span className="sm:hidden">Nova</span>
+          </Button>
+        </div>
       </div>
-      
-      <div className="flex items-center gap-1">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="text-[#8696A0] hover:text-foreground hover:bg-[#2A3942]"
-          onClick={onExport}
-        >
-          <FileText className="h-5 w-5" />
-        </Button>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="text-[#8696A0] hover:text-foreground hover:bg-[#2A3942]"
-          onClick={onNewCompany}
-        >
-          <Plus className="h-5 w-5" />
-        </Button>
-      </div>
-    </header>
+    </div>
   );
 }
