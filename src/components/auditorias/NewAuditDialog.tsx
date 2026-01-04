@@ -268,7 +268,7 @@ export function NewAuditDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="max-h-[85vh] w-[calc(100vw-32px)] sm:max-w-[460px] p-0 flex flex-col overflow-hidden rounded-2xl border-border/50" 
+        className="max-h-[85vh] w-[calc(100vw-48px)] mx-auto sm:max-w-[460px] p-0 flex flex-col overflow-hidden rounded-2xl border-border/50"
         aria-describedby="new-audit-description"
       >
         {/* Header */}
