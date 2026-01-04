@@ -139,6 +139,14 @@ export function CompanyConversation({ companyId }: CompanyConversationProps) {
     setIsNewAuditOpen(true);
   };
 
+  const handleExportReport = () => {
+    // TODO: Implementar exportação de relatório da empresa
+    toast({
+      title: "Exportar relatório",
+      description: "Funcionalidade em desenvolvimento.",
+    });
+  };
+
   const handleViewDetails = () => {
     navigate(`/empresas?company=${companyId}`);
   };
@@ -149,7 +157,7 @@ export function CompanyConversation({ companyId }: CompanyConversationProps) {
         companyName={companyName || "Carregando..."}
         totalAudits={audits.length}
         onBack={handleBack}
-        onNewAudit={handleNewAudit}
+        onExportReport={handleExportReport}
         onViewDetails={handleViewDetails}
       />
 

@@ -1,4 +1,4 @@
-import { ArrowLeft, MoreVertical, Plus } from "lucide-react";
+import { ArrowLeft, FileText, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -12,7 +12,7 @@ interface CompanyConversationHeaderProps {
   companyName: string;
   totalAudits: number;
   onBack: () => void;
-  onNewAudit: () => void;
+  onExportReport: () => void;
   onViewDetails?: () => void;
 }
 
@@ -20,7 +20,7 @@ export function CompanyConversationHeader({
   companyName,
   totalAudits,
   onBack,
-  onNewAudit,
+  onExportReport,
   onViewDetails,
 }: CompanyConversationHeaderProps) {
   const getInitials = (name: string) => {
@@ -74,14 +74,15 @@ export function CompanyConversationHeader({
           </p>
         </div>
 
-        {/* Botões de Ação */}
+        {/* Botão Exportar PDF */}
         <Button
           variant="ghost"
           size="icon"
           className="h-10 w-10"
-          onClick={onNewAudit}
+          onClick={onExportReport}
+          title="Exportar relatório"
         >
-          <Plus className="h-5 w-5" />
+          <FileText className="h-5 w-5" />
         </Button>
 
         <DropdownMenu>
@@ -100,9 +101,6 @@ export function CompanyConversationHeader({
                 Ver detalhes da empresa
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={onNewAudit}>
-              Nova auditoria
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
