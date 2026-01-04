@@ -60,7 +60,7 @@ export function CompanyConversationHeader({
         </Button>
 
         {/* Avatar */}
-        <Avatar className={`h-10 w-10 ${getAvatarColor(companyName)}`}>
+        <Avatar className={`h-10 w-10 ${getAvatarColor(companyName)} ring-2 ring-primary-foreground/30`}>
           <AvatarFallback className="bg-transparent text-white font-semibold text-sm">
             {getInitials(companyName)}
           </AvatarFallback>
