@@ -47,20 +47,20 @@ export function CompanyConversationHeader({
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-primary text-primary-foreground px-2 py-2 shadow-md">
+    <header className="sticky top-0 z-20 bg-card border-b border-border px-2 py-2">
       <div className="flex items-center gap-2">
         {/* Botão Voltar */}
         <Button
           variant="ghost"
           size="icon"
-          className="h-10 w-10 text-primary-foreground hover:bg-primary-foreground/10"
+          className="h-10 w-10"
           onClick={onBack}
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
 
         {/* Avatar */}
-        <Avatar className={`h-10 w-10 ${getAvatarColor(companyName)} ring-2 ring-primary-foreground/30`}>
+        <Avatar className={`h-10 w-10 ${getAvatarColor(companyName)}`}>
           <AvatarFallback className="bg-transparent text-white font-semibold text-sm">
             {getInitials(companyName)}
           </AvatarFallback>
@@ -68,8 +68,8 @@ export function CompanyConversationHeader({
 
         {/* Nome e Info */}
         <div className="flex-1 min-w-0">
-          <h1 className="font-semibold text-base truncate">{companyName}</h1>
-          <p className="text-xs text-primary-foreground/70">
+          <h1 className="font-semibold text-base truncate text-foreground">{companyName}</h1>
+          <p className="text-xs text-muted-foreground">
             {totalAudits} {totalAudits === 1 ? "auditoria" : "auditorias"}
           </p>
         </div>
@@ -78,7 +78,7 @@ export function CompanyConversationHeader({
         <Button
           variant="ghost"
           size="icon"
-          className="h-10 w-10 text-primary-foreground hover:bg-primary-foreground/10"
+          className="h-10 w-10"
           onClick={onNewAudit}
         >
           <Plus className="h-5 w-5" />
@@ -89,7 +89,7 @@ export function CompanyConversationHeader({
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 text-primary-foreground hover:bg-primary-foreground/10"
+              className="h-10 w-10"
             >
               <MoreVertical className="h-5 w-5" />
             </Button>
