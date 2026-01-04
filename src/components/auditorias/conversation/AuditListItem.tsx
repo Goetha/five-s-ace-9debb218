@@ -33,22 +33,17 @@ function formatTimestamp(date: string | null): string {
   if (!date) return "";
 
   const d = new Date(date);
+  const time = format(d, "HH:mm");
 
   if (isToday(d)) {
-    return format(d, "HH:mm");
+    return time;
   }
 
   if (isYesterday(d)) {
-    return "Ontem";
+    return `Ontem ${time}`;
   }
 
-  const weekAgo = new Date();
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  if (d > weekAgo) {
-    return format(d, "EEE", { locale: ptBR });
-  }
-
-  return format(d, "dd/MM");
+  return format(d, "dd/MM HH:mm");
 }
 
 function getStatusText(score: number | null): string {
