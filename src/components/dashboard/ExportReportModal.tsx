@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, FileText, Search, Building2, CheckCircle2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { fetchCompanyReportData, generateCompanyReportPDF } from "@/lib/reports";
+import { fetchCompanyReportData, generateCompanyReportPDFPremium } from "@/lib/reports";
 
 interface Company {
   id: string;
@@ -66,7 +66,7 @@ export function ExportReportModal({ open, onOpenChange, companies }: ExportRepor
         return;
       }
 
-      await generateCompanyReportPDF(reportData);
+      await generateCompanyReportPDFPremium(reportData);
       
       toast({
         title: "Relatório exportado!",
