@@ -145,13 +145,17 @@ export function CompanyConversation({ companyId }: CompanyConversationProps) {
     if (isExporting) return;
     
     setIsExporting(true);
-    toast({
-      title: "Gerando relatório...",
-      description: "Aguarde enquanto o PDF é gerado.",
-    });
 
     try {
+      console.log("[PDF Export] Starting export for company:", companyId);
+      
+      toast({
+        title: "Gerando relatório...",
+        description: "Aguarde enquanto o PDF é gerado.",
+      });
+
       const reportData = await fetchCompanyReportData(companyId);
+      console.log("[PDF Export] Report data fetched:", reportData);
       
       if (!reportData) {
         throw new Error("Não foi possível carregar os dados do relatório");
@@ -163,17 +167,20 @@ export function CompanyConversation({ companyId }: CompanyConversationProps) {
           description: "Esta empresa ainda não possui auditorias concluídas.",
           variant: "destructive",
         });
+        setIsExporting(false);
         return;
       }
 
+      console.log("[PDF Export] Generating PDF with", reportData.total_audits, "audits");
       await generateCompanyReportPDF(reportData);
+      console.log("[PDF Export] PDF generated successfully");
       
       toast({
         title: "Relatório exportado!",
         description: "O PDF foi gerado com sucesso.",
       });
     } catch (error: any) {
-      console.error("Error exporting report:", error);
+      console.error("[PDF Export] Error:", error);
       toast({
         title: "Erro ao exportar",
         description: error.message || "Tente novamente mais tarde.",
