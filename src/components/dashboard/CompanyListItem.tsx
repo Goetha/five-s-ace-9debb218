@@ -139,7 +139,7 @@ export function CompanyListItem({
         <div className="flex items-center justify-between gap-2 mt-0.5">
           <div className="flex items-center gap-1 min-w-0 flex-1">
             {isCompleted && (
-              <CheckCheck className="h-4 w-4 text-primary shrink-0" />
+              <CheckCheck className="h-4 w-4 text-emerald-500 shrink-0" />
             )}
             <span className="text-sm text-muted-foreground truncate">{statusText}</span>
           </div>
