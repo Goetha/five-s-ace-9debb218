@@ -22,7 +22,8 @@ const filters: { key: FilterType; label: string }[] = [
 
 export function FilterChips({ activeFilter, onFilterChange, counts }: FilterChipsProps) {
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-2 flex gap-2 overflow-x-auto scrollbar-hide">
+    <div className="px-4 sm:px-6 lg:px-8 py-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="flex gap-2 min-w-max">
       {filters.map((filter) => (
         <button
           key={filter.key}
@@ -42,6 +43,7 @@ export function FilterChips({ activeFilter, onFilterChange, counts }: FilterChip
           )}
         </button>
       ))}
+      </div>
     </div>
   );
 }
