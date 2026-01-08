@@ -75,6 +75,10 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string>("");
   const [allEnvironments, setAllEnvironments] = useState<any[]>([]);
+  // Checkboxes para criação automática de locais
+  const [createPiso, setCreatePiso] = useState(false);
+  const [createParede, setCreateParede] = useState(false);
+  const [createTeto, setCreateTeto] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -124,6 +128,10 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         setIcon('building');
         setDescription('');
         setStatus('active');
+        // Reset checkboxes de locais automáticos
+        setCreatePiso(false);
+        setCreateParede(false);
+        setCreateTeto(false);
         
         // Determine type based on parentId context
         if (parentId) {
@@ -442,9 +450,48 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           }
         }
 
+        // Criar locais automáticos (Piso, Parede, Teto) se marcados
+        const locaisCriados: string[] = [];
+        if (newEnv && environmentType === 'environment') {
+          const locaisParaCriar: { name: string }[] = [];
+          
+          if (createPiso) {
+            locaisParaCriar.push({ name: 'Piso' });
+            locaisCriados.push('Piso');
+          }
+          if (createParede) {
+            locaisParaCriar.push({ name: 'Parede' });
+            locaisCriados.push('Parede');
+          }
+          if (createTeto) {
+            locaisParaCriar.push({ name: 'Teto' });
+            locaisCriados.push('Teto');
+          }
+          
+          if (locaisParaCriar.length > 0) {
+            const { error: locaisError } = await supabase
+              .from('environments')
+              .insert(locaisParaCriar.map(local => ({
+                company_id: companyIdData as string,
+                name: local.name,
+                parent_id: newEnv.id,
+                status: 'active',
+                description: null
+              })));
+            
+            if (locaisError) {
+              console.error("Error creating locations:", locaisError);
+            }
+          }
+        }
+
+        const locaisMsg = locaisCriados.length > 0 
+          ? ` com ${locaisCriados.length} local(is): ${locaisCriados.join(', ')}`
+          : '';
+
         toast({
           title: "✓ Criado com sucesso!",
-          description: `${environmentType === 'area' ? 'A área' : environmentType === 'environment' ? 'O ambiente' : 'O local'} "${name}" foi criado.`,
+          description: `${environmentType === 'area' ? 'A área' : environmentType === 'environment' ? 'O ambiente' : 'O local'} "${name}" foi criado${locaisMsg}.`,
         });
       }
 
@@ -618,6 +665,57 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Criar Locais Automáticos - Apenas para Ambientes */}
+            {environmentType === 'environment' && !isEditing && (
+              <div className="space-y-2 mb-4">
+                <Label>Criar Locais Automaticamente</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Marque os locais que deseja criar junto com este ambiente
+                </p>
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="create-piso"
+                      checked={createPiso}
+                      onCheckedChange={(checked) => setCreatePiso(checked === true)}
+                    />
+                    <label
+                      htmlFor="create-piso"
+                      className="text-sm font-medium leading-none cursor-pointer"
+                    >
+                      Piso
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="create-parede"
+                      checked={createParede}
+                      onCheckedChange={(checked) => setCreateParede(checked === true)}
+                    />
+                    <label
+                      htmlFor="create-parede"
+                      className="text-sm font-medium leading-none cursor-pointer"
+                    >
+                      Parede
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Checkbox
+                      id="create-teto"
+                      checked={createTeto}
+                      onCheckedChange={(checked) => setCreateTeto(checked === true)}
+                    />
+                    <label
+                      htmlFor="create-teto"
+                      className="text-sm font-medium leading-none cursor-pointer"
+                    >
+                      Teto
+                    </label>
+                  </div>
                 </div>
               </div>
             )}
