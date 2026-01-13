@@ -16,5 +16,5 @@ export interface EnvironmentFormData {
   parent_id: string | null;
   description: string;
   status: 'active' | 'inactive';
-  type: 'area' | 'environment' | 'local';
+  type: 'environment' | 'sector';
 }

@@ -60,9 +60,8 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
   const [isAnimating, setIsAnimating] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string; level: number } | null>(null);
-  const [expandedChildren, setExpandedChildren] = useState<Record<string, boolean>>({});
   const [showManageCriteria, setShowManageCriteria] = useState(false);
-  const [selectedLocal, setSelectedLocal] = useState<{ id: string; name: string } | null>(null);
+  const [selectedSector, setSelectedSector] = useState<{ id: string; name: string } | null>(null);
   const [criteriaCounts, setCriteriaCounts] = useState<Record<string, number>>({});
 
   const IconComponent = iconMap[environment.icon as keyof typeof iconMap] || Building2;
@@ -74,9 +73,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
 
   const fetchCriteriaCounts = async () => {
     try {
-      // Get all environment IDs from locations list
       const allEnvIds = locations.map(loc => loc.id);
-
       if (allEnvIds.length === 0) return;
 
       const { data, error } = await supabase
@@ -97,52 +94,37 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
     }
   };
   
-  // Determine hierarchy level
-  // Level 1: Area (direct child of root)
-  // Level 2: Environment (child of area)
-  // Level 3: Local (child of environment)
+  // Determine hierarchy level - Nova estrutura: Empresa > Ambiente > Setor
+  // Level 1: Ambiente (direct child of root/empresa)
+  // Level 2: Setor (child of ambiente)
   const getLevel = (env: typeof environment): number => {
-    console.log('🔍 getLevel for:', env.name, 'parent_id:', env.parent_id);
     if (!env.parent_id) {
-      console.log('  → Level 0 (Root)');
-      return 0;
+      return 0; // Root (Empresa)
     }
 
-    // Conta quantos níveis até chegar na raiz (empresa)
-    let level = 1; // Já sabemos que tem um pai
+    let level = 1;
     let parentId: string | null | undefined = env.parent_id;
 
     while (parentId) {
       const parent = locations?.find((l) => l.id === parentId);
-      console.log('  → Looking for parent:', parentId, 'Found:', parent?.name);
       if (!parent || !parent.parent_id) {
-        // Chegou na raiz ou não encontrou mais ancestrais
-        console.log('  → Reached root, final level:', level);
         break;
       }
-
       level++;
       parentId = parent.parent_id;
     }
 
-    console.log('  → Final level:', level, 'for', env.name);
-    return level; // 1 = Área, 2 = Ambiente, 3 = Local
+    return level; // 1 = Ambiente, 2 = Setor
   };
   
   const level = getLevel(environment);
-  const typeLabel = level === 1 ? 'Área' : level === 2 ? 'Ambiente' : 'Local';
+  const typeLabel = level === 1 ? 'Ambiente' : 'Setor';
   const typeBadgeColor = level === 1 
-    ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30' 
-    : level === 2
-    ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30'
+    ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30' 
     : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30';
   
-  // Group locations by level
-  const childEnvironments = locations?.filter(l => l.parent_id === environment.id) || [];
-  const grandchildLocations = locations?.filter(l => {
-    const parent = locations?.find(p => p.id === l.parent_id);
-    return parent && parent.parent_id === environment.id;
-  }) || [];
+  // Setores (children of this ambiente)
+  const childSectors = locations?.filter(l => l.parent_id === environment.id) || [];
 
   const handleDelete = async (id: string, level: number) => {
     try {
@@ -153,7 +135,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
 
       if (error) throw error;
 
-      const levelName = level === 1 ? 'Área' : level === 2 ? 'Ambiente' : 'Local';
+      const levelName = level === 1 ? 'Ambiente' : 'Setor';
       toast({
         title: `${levelName} excluído com sucesso!`,
       });
@@ -170,8 +152,8 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
     }
   };
 
-  const handleManageCriteria = (local: Environment) => {
-    setSelectedLocal({ id: local.id, name: local.name });
+  const handleManageCriteria = (sector: Environment) => {
+    setSelectedSector({ id: sector.id, name: sector.name });
     setShowManageCriteria(true);
   };
 
@@ -192,7 +174,6 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
       style={{ animationDelay: `${animationDelay}ms` }}
     >
       <CardHeader className="p-3 sm:p-4">
-        {/* Main Card Layout */}
         <div className="flex items-center justify-between gap-3">
           {/* Left: Icon + Info */}
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
@@ -228,7 +209,8 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
               <Pencil className="h-3.5 w-3.5" />
             </Button>
             
-            {level < 3 && (
+            {/* Só mostra botão de adicionar se for Ambiente (level 1) */}
+            {level === 1 && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -239,7 +221,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
               </Button>
             )}
 
-            {childEnvironments.length > 0 && (
+            {childSectors.length > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -270,8 +252,8 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
       <CardContent className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0">
         <div className="flex items-center gap-3 sm:gap-4 text-[10px] sm:text-xs text-muted-foreground mb-2">
           <div className="flex items-center gap-1">
-            <Layers className="h-3 w-3" />
-            <span>{childEnvironments.length} {level === 1 ? 'ambientes' : 'locais'}</span>
+            <MapPin className="h-3 w-3" />
+            <span>{childSectors.length} setores</span>
           </div>
           <div className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
@@ -279,165 +261,70 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
           </div>
         </div>
 
-        {/* Child Environments/Locations List */}
-        {isExpanded && childEnvironments.length > 0 && (
+        {/* Setores List */}
+        {isExpanded && childSectors.length > 0 && (
           <div className={`mt-3 space-y-2 ${isAnimating ? 'expand-content' : ''}`}>
-            {childEnvironments.map((child, childIndex) => {
-              const ChildIcon = iconMap[child.icon as keyof typeof iconMap] || MapPin;
-              const childLevel = getLevel(child);
-              const childTypeLabel = childLevel === 1 ? 'Área' : childLevel === 2 ? 'Ambiente' : 'Local';
-              const childBadgeColor = childLevel === 1 
-                ? 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30' 
-                : childLevel === 2 
-                ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30'
-                : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30';
-              
-              const grandchildren = locations?.filter(l => l.parent_id === child.id) || [];
-              const isChildExpanded = expandedChildren[child.id] ?? true;
+            {childSectors.map((sector, sectorIndex) => {
+              const SectorIcon = iconMap[sector.icon as keyof typeof iconMap] || MapPin;
 
               return (
                 <div 
-                  key={child.id} 
-                  className="space-y-2 animate-fade-in-up"
-                  style={{ animationDelay: `${childIndex * 50}ms` }}
+                  key={sector.id} 
+                  className="flex items-center justify-between gap-2 p-2.5 bg-muted/30 rounded-lg hover:bg-muted/50 transition-all duration-200 touch-feedback hover:shadow-sm animate-fade-in-up"
+                  style={{ animationDelay: `${sectorIndex * 50}ms` }}
                 >
-                  {/* Child Card (Ambiente) */}
-                  <div className="flex items-center justify-between gap-2 p-2.5 bg-muted/30 rounded-lg hover:bg-muted/50 transition-all duration-200 touch-feedback hover:shadow-sm">
-                    {/* Left: Icon + Info */}
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <div className="p-1.5 bg-background rounded shrink-0 transition-transform duration-200 hover:scale-105">
-                        <ChildIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-sm font-medium truncate">{child.name}</span>
-                          <Badge variant="outline" className={`${childBadgeColor} text-[10px] shrink-0 badge-hover transition-all duration-200`}>
-                            {childTypeLabel}
-                          </Badge>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground">
-                          {child.audits_count || 0} auditorias
-                        </p>
-                      </div>
+                  {/* Left: Icon + Info */}
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="p-1.5 bg-background rounded shrink-0 transition-transform duration-200 hover:scale-105">
+                      <SectorIcon className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
-
-                    {/* Right: Action Buttons */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEdit(child)}
-                        className="h-7 w-7 p-0 hover:bg-muted transition-all duration-200 hover:scale-110 active:scale-95"
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                      
-                      {childLevel < 3 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onAddLocation(child.id)}
-                          className="h-7 w-7 p-0 hover:bg-muted transition-all duration-200 hover:scale-110 active:scale-95"
-                        >
-                          <Plus className="h-3 w-3 transition-transform duration-200 hover:rotate-90" />
-                        </Button>
-                      )}
-
-                      {grandchildren.length > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setExpandedChildren((prev) => ({
-                              ...prev,
-                              [child.id]: !isChildExpanded,
-                            }))
-                          }
-                          className="h-7 w-7 p-0 hover:bg-muted transition-all duration-200"
-                        >
-                          <ChevronDown 
-                            className={`h-3 w-3 transition-transform duration-300 ease-out ${isChildExpanded ? 'rotate-180' : 'rotate-0'}`} 
-                          />
-                        </Button>
-                      )}
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setItemToDelete({ id: child.id, name: child.name, level: childLevel });
-                          setShowDeleteDialog(true);
-                        }}
-                        className="h-7 w-7 p-0 hover:bg-destructive/10 transition-all duration-200 hover:scale-110 active:scale-95"
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-medium truncate">{sector.name}</span>
+                        <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30 text-[10px] shrink-0 badge-hover transition-all duration-200">
+                          Setor
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] px-1 shrink-0 badge-hover transition-all duration-200">
+                          {criteriaCounts[sector.id] || 0} critérios
+                        </Badge>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        {sector.audits_count || 0} auditorias
+                      </p>
                     </div>
                   </div>
-                  
-                  {/* Grandchildren (Locais within Ambientes) */}
-                  {isChildExpanded && grandchildren.length > 0 && (
-                    <div className="ml-6 space-y-1.5 expand-content">
-                      {grandchildren.map((grandchild, grandchildIndex) => {
-                        const GrandchildIcon = iconMap[grandchild.icon as keyof typeof iconMap] || MapPin;
-                        return (
-                          <div
-                            key={grandchild.id}
-                            className="flex items-center justify-between gap-2 p-2 bg-muted/20 rounded hover:bg-muted/40 transition-all duration-200 touch-feedback hover:shadow-sm animate-slide-in-left"
-                            style={{ animationDelay: `${grandchildIndex * 30}ms` }}
-                          >
-                            {/* Left: Icon + Info */}
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <GrandchildIcon className="h-3 w-3 text-muted-foreground shrink-0 transition-transform duration-200 hover:scale-110" />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-xs font-medium truncate">{grandchild.name}</span>
-                                  <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30 text-[9px] px-1 shrink-0 badge-hover transition-all duration-200">
-                                    Local
-                                  </Badge>
-                                  <Badge variant="outline" className="text-[9px] px-1 shrink-0 badge-hover transition-all duration-200">
-                                    {criteriaCounts[grandchild.id] || 0} critérios
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
 
-                            {/* Right: Action Buttons */}
-                            <div className="flex items-center gap-1 shrink-0">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-muted transition-all duration-200 hover:scale-110 active:scale-95"
-                                onClick={() => handleManageCriteria(grandchild)}
-                                title="Gerenciar Critérios"
-                              >
-                                <ClipboardList className="h-2.5 w-2.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-muted transition-all duration-200 hover:scale-110 active:scale-95"
-                                onClick={() => onEdit(grandchild)}
-                              >
-                                <Pencil className="h-2.5 w-2.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-destructive/10 transition-all duration-200 hover:scale-110 active:scale-95"
-                                onClick={() => {
-                                  setItemToDelete({ id: grandchild.id, name: grandchild.name, level: 3 });
-                                  setShowDeleteDialog(true);
-                                }}
-                              >
-                                <Trash2 className="h-2.5 w-2.5 text-destructive" />
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  {/* Right: Action Buttons */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 hover:bg-muted transition-all duration-200 hover:scale-110 active:scale-95"
+                      onClick={() => handleManageCriteria(sector)}
+                      title="Gerenciar Critérios"
+                    >
+                      <ClipboardList className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEdit(sector)}
+                      className="h-7 w-7 p-0 hover:bg-muted transition-all duration-200 hover:scale-110 active:scale-95"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setItemToDelete({ id: sector.id, name: sector.name, level: 2 });
+                        setShowDeleteDialog(true);
+                      }}
+                      className="h-7 w-7 p-0 hover:bg-destructive/10 transition-all duration-200 hover:scale-110 active:scale-95"
+                    >
+                      <Trash2 className="h-3 w-3 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               );
             })}
@@ -450,16 +337,11 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir {itemToDelete?.level === 1 ? 'a área' : itemToDelete?.level === 2 ? 'o ambiente' : 'o local'}{' '}
+              Tem certeza que deseja excluir {itemToDelete?.level === 1 ? 'o ambiente' : 'o setor'}{' '}
               <span className="font-semibold">{itemToDelete?.name}</span>?
-              {itemToDelete?.level === 1 && childEnvironments.length > 0 && (
+              {itemToDelete?.level === 1 && childSectors.length > 0 && (
                 <span className="block mt-2 text-destructive">
-                  Atenção: Todos os {childEnvironments.length} ambientes e seus locais vinculados também serão excluídos.
-                </span>
-              )}
-              {itemToDelete?.level === 2 && grandchildLocations.length > 0 && (
-                <span className="block mt-2 text-destructive">
-                  Atenção: Todos os {grandchildLocations.length} locais vinculados também serão excluídos.
+                  Atenção: Todos os {childSectors.length} setores vinculados também serão excluídos.
                 </span>
               )}
             </AlertDialogDescription>
@@ -476,15 +358,15 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
         </AlertDialogContent>
       </AlertDialog>
 
-      {selectedLocal && (
+      {selectedSector && (
         <ManageCriteriaModal
           isOpen={showManageCriteria}
           onClose={() => {
             setShowManageCriteria(false);
-            setSelectedLocal(null);
+            setSelectedSector(null);
           }}
-          localId={selectedLocal.id}
-          localName={selectedLocal.name}
+          localId={selectedSector.id}
+          localName={selectedSector.name}
           companyId={environment.company_id}
           onUpdate={handleCriteriaUpdate}
         />

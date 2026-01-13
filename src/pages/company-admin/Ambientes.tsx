@@ -3,7 +3,7 @@ import { CompanyAdminLayout } from "@/components/company-admin/CompanyAdminLayou
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Layers, MapPin, Plus, CheckCircle } from "lucide-react";
+import { Layers, MapPin, Plus, CheckCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { EnvironmentCard } from "@/components/company-admin/environments/EnvironmentCard";
 import { CompanyCard } from "@/components/company-admin/environments/CompanyCard";
@@ -68,42 +68,32 @@ export default function Ambientes() {
     }
   };
 
-  // Organize hierarchy: Root -> Areas -> Environments -> Locals
+  // Organize hierarchy: Root (Empresa) -> Ambientes -> Setores
   const company = allEnvironments.find(env => !env.parent_id);
   
-  // Level 1: Areas (direct children of root)
-  const areasList = allEnvironments.filter(env => env.parent_id === company?.id);
+  // Level 1: Ambientes (direct children of root)
+  const environmentsList = allEnvironments.filter(env => env.parent_id === company?.id);
   
-  // Level 2: Environments (children of areas)
-  const environmentsList = allEnvironments.filter(env => {
+  // Level 2: Setores (children of ambientes)
+  const sectorsList = allEnvironments.filter(env => {
     const parent = allEnvironments.find(e => e.id === env.parent_id);
     return parent && parent.parent_id === company?.id;
   });
-  
-  // Level 3: Locals (children of environments)
-  const localsList = allEnvironments.filter(env => {
-    const parent = allEnvironments.find(e => e.id === env.parent_id);
-    if (!parent) return false;
-    const grandparent = allEnvironments.find(e => e.id === parent.parent_id);
-    return grandparent && grandparent.parent_id === company?.id;
-  });
 
   // Apply filters
-  const filteredAreas = areasList.filter((env) => {
+  const filteredEnvironments = environmentsList.filter((env) => {
     const matchesSearch = env.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || env.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const totalAreas = areasList.length;
   const totalEnvironments = environmentsList.length;
-  const totalLocals = localsList.length;
-  const activeAreas = areasList.filter(e => e.status === 'active').length;
+  const totalSectors = sectorsList.length;
   const activeEnvironments = environmentsList.filter(e => e.status === 'active').length;
-  const activeLocals = localsList.filter(l => l.status === 'active').length;
+  const activeSectors = sectorsList.filter(s => s.status === 'active').length;
 
   return (
-    <CompanyAdminLayout breadcrumbs={[{ label: "Dashboard" }, { label: "Áreas" }]}>
+    <CompanyAdminLayout breadcrumbs={[{ label: "Dashboard" }, { label: "Ambientes" }]}>
       <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
         <div className="hidden sm:block mb-6">
           <Breadcrumb>
@@ -113,7 +103,7 @@ export default function Ambientes() {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>Áreas, Ambientes e Locais</BreadcrumbPage>
+                <BreadcrumbPage>Ambientes e Setores</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -121,26 +111,14 @@ export default function Ambientes() {
 
         {/* Header */}
         <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold">Áreas, Ambientes e Locais</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Ambientes e Setores</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
             Gerencie a estrutura hierárquica da sua empresa
           </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-          <Card>
-            <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Áreas</p>
-                  <p className="text-xl sm:text-2xl font-bold">{totalAreas}</p>
-                </div>
-                <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 shrink-0" />
-              </div>
-            </CardContent>
-          </Card>
-
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
           <Card>
             <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
               <div className="flex items-center justify-between gap-2">
@@ -157,8 +135,8 @@ export default function Ambientes() {
             <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Locais</p>
-                  <p className="text-xl sm:text-2xl font-bold">{totalLocals}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Setores</p>
+                  <p className="text-xl sm:text-2xl font-bold">{totalSectors}</p>
                 </div>
                 <MapPin className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 shrink-0" />
               </div>
@@ -170,7 +148,7 @@ export default function Ambientes() {
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-muted-foreground truncate">Ativos</p>
-                  <p className="text-xl sm:text-2xl font-bold">{activeAreas + activeEnvironments + activeLocals}</p>
+                  <p className="text-xl sm:text-2xl font-bold">{activeEnvironments + activeSectors}</p>
                 </div>
                 <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-primary shrink-0" />
               </div>
@@ -181,7 +159,7 @@ export default function Ambientes() {
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 sm:mb-6">
           <Input
-            placeholder="Buscar áreas..."
+            placeholder="Buscar ambientes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-1 h-9 sm:h-10"
@@ -198,12 +176,12 @@ export default function Ambientes() {
           </Select>
         </div>
 
-        {/* Company Card with Areas */}
+        {/* Company Card with Environments */}
         {company && (
           <CompanyCard
             company={company}
-            totalEnvironments={totalAreas}
-            totalLocations={totalEnvironments + totalLocals}
+            totalEnvironments={totalEnvironments}
+            totalLocations={totalSectors}
             onAddEnvironment={() => {
               setEditingEnvironment(null);
               setParentIdForNew(company.id);
@@ -214,20 +192,13 @@ export default function Ambientes() {
           />
         )}
 
-        {/* Areas List */}
+        {/* Environments List */}
         <div className="space-y-4 mt-6">
-          {filteredAreas.map((area) => {
-            // Get all descendants (environments and locals) for this area
-            const areaChildren = allEnvironments.filter(env => env.parent_id === area.id);
-            const areaGrandchildren = allEnvironments.filter(env => 
-              areaChildren.some(child => child.id === env.parent_id)
-            );
-            const allDescendants = [...areaChildren, ...areaGrandchildren];
-            
+          {filteredEnvironments.map((environment) => {
             return (
               <EnvironmentCard
-                key={area.id}
-                environment={area}
+                key={environment.id}
+                environment={environment}
                 locations={allEnvironments}
                 onEdit={(env) => {
                   setEditingEnvironment(env);

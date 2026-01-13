@@ -27,9 +27,8 @@ interface UseOfflineEnvironmentsResult {
   companies: Company[];
   allEnvironments: Environment[];
   getRootEnvironment: (companyId: string) => Environment | undefined;
-  getAreas: (companyId: string) => Environment[];
-  getEnvironments: (areaId: string) => Environment[];
-  getLocations: (environmentId: string) => Environment[];
+  getEnvironments: (companyId: string) => Environment[];
+  getSectors: (environmentId: string) => Environment[];
   isLoading: boolean;
   isOffline: boolean;
   isFromCache: boolean;
@@ -255,14 +254,15 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // Hierarchy helpers
+  // Hierarchy helpers - Nova estrutura: Empresa > Ambiente > Setor
   const getRootEnvironment = useCallback((companyId: string): Environment | undefined => {
     return allEnvironments.find(
       env => env.company_id === companyId && env.parent_id === null
     );
   }, [allEnvironments]);
 
-  const getAreas = useCallback((companyId: string): Environment[] => {
+  // Ambientes: filhos diretos da raiz (empresa)
+  const getEnvironments = useCallback((companyId: string): Environment[] => {
     const root = getRootEnvironment(companyId);
     if (!root) return [];
     return allEnvironments.filter(
@@ -270,13 +270,8 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     );
   }, [allEnvironments, getRootEnvironment]);
 
-  const getEnvironments = useCallback((areaId: string): Environment[] => {
-    return allEnvironments.filter(
-      env => env.parent_id === areaId && env.status === 'active'
-    );
-  }, [allEnvironments]);
-
-  const getLocations = useCallback((environmentId: string): Environment[] => {
+  // Setores: filhos dos ambientes
+  const getSectors = useCallback((environmentId: string): Environment[] => {
     return allEnvironments.filter(
       env => env.parent_id === environmentId && env.status === 'active'
     );
@@ -286,9 +281,8 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     companies,
     allEnvironments,
     getRootEnvironment,
-    getAreas,
     getEnvironments,
-    getLocations,
+    getSectors,
     isLoading,
     isOffline,
     isFromCache,
