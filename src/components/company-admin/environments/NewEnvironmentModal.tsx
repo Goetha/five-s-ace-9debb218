@@ -28,7 +28,6 @@ import {
   Car,
   Trees,
   Cog,
-  Folder,
   Loader2,
   Layers,
   MapPin,
@@ -63,7 +62,7 @@ const iconOptions = [
 ];
 
 export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvironment, parentId, companyId: propsCompanyId }: NewEnvironmentModalProps) {
-  const [environmentType, setEnvironmentType] = useState<"area" | "environment" | "local">("area");
+  const [environmentType, setEnvironmentType] = useState<"environment" | "sector">("environment");
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("Factory");
   const [description, setDescription] = useState("");
@@ -75,10 +74,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
   const [companyId, setCompanyId] = useState<string>("");
   const [allEnvironments, setAllEnvironments] = useState<any[]>([]);
-  // Checkboxes para criação automática de locais
-  const [createPiso, setCreatePiso] = useState(false);
-  const [createParede, setCreateParede] = useState(false);
-  const [createTeto, setCreateTeto] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -103,23 +98,17 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         
         // Determine type based on parent_id hierarchy
         if (!editingEnvironment.parent_id) {
-          setEnvironmentType('area');
+          setEnvironmentType('environment');
         } else {
           const parent = allEnvironments.find(e => e.id === editingEnvironment.parent_id);
           if (!parent) {
-            setEnvironmentType('area');
+            setEnvironmentType('environment');
           } else if (!parent.parent_id) {
-            // Parent is root (empresa), so this is an area
-            setEnvironmentType('area');
+            // Parent is root (empresa), so this is an environment
+            setEnvironmentType('environment');
           } else {
-            const grandparent = allEnvironments.find(e => e.id === parent.parent_id);
-            if (!grandparent?.parent_id) {
-              // Grandparent is root, parent is area, this is environment
-              setEnvironmentType('environment');
-            } else {
-              // This is a local (3rd level)
-              setEnvironmentType('local');
-            }
+            // This is a sector (child of environment)
+            setEnvironmentType('sector');
           }
         }
       } else {
@@ -128,30 +117,20 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         setIcon('building');
         setDescription('');
         setStatus('active');
-        // Reset checkboxes de locais automáticos
-        setCreatePiso(false);
-        setCreateParede(false);
-        setCreateTeto(false);
         
         // Determine type based on parentId context
         if (parentId) {
           const parent = allEnvironments.find(e => e.id === parentId);
           if (!parent?.parent_id) {
-            // Parent is root, creating an area
-            setEnvironmentType('area');
+            // Parent is root, creating an environment
+            setEnvironmentType('environment');
           } else {
-            const grandparent = allEnvironments.find(e => e.id === parent.parent_id);
-            if (!grandparent?.parent_id) {
-              // Grandparent is root, parent is area, creating environment
-              setEnvironmentType('environment');
-            } else {
-              // Creating local (3rd level)
-              setEnvironmentType('local');
-            }
+            // Creating sector (child of environment)
+            setEnvironmentType('sector');
           }
           setSelectedParentId(parentId);
         } else {
-          setEnvironmentType('area');
+          setEnvironmentType('environment');
           setSelectedParentId('');
         }
       }
@@ -267,13 +246,11 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
   const getModalTitle = () => {
     if (editingEnvironment) {
-      if (environmentType === 'area') return 'Editar Área';
       if (environmentType === 'environment') return 'Editar Ambiente';
-      return 'Editar Local';
+      return 'Editar Setor';
     }
-    if (environmentType === 'area') return 'Criar Nova Área';
     if (environmentType === 'environment') return 'Criar Novo Ambiente';
-    return 'Criar Novo Local';
+    return 'Criar Novo Setor';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -282,16 +259,16 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
     if (!name.trim()) {
       toast({
         title: "Campos obrigatórios",
-        description: `Preencha o nome ${environmentType === 'area' ? 'da área' : environmentType === 'environment' ? 'do ambiente' : 'do local'}.`,
+        description: `Preencha o nome ${environmentType === 'environment' ? 'do ambiente' : 'do setor'}.`,
         variant: "destructive",
       });
       return;
     }
 
-    if (environmentType !== "area" && !selectedParentId) {
+    if (environmentType === "sector" && !selectedParentId) {
       toast({
         title: "Campos obrigatórios",
-        description: `Selecione ${environmentType === 'environment' ? 'a área pai' : 'o ambiente pai'}.`,
+        description: "Selecione o ambiente pai.",
         variant: "destructive",
       });
       return;
@@ -321,7 +298,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         // Update existing
         let finalParentId = selectedParentId;
         
-        if (environmentType === "area") {
+        if (environmentType === "environment") {
           const { data: rootEnv } = await supabase
             .from('environments')
             .select('id')
@@ -393,13 +370,13 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
         toast({
           title: "✓ Atualizado com sucesso!",
-          description: `${environmentType === 'area' ? 'A área' : environmentType === 'environment' ? 'O ambiente' : 'O local'} "${name}" foi atualizado.`,
+          description: `${environmentType === 'environment' ? 'O ambiente' : 'O setor'} "${name}" foi atualizado.`,
         });
       } else {
         // Create new
         let finalParentId = selectedParentId;
         
-        if (environmentType === "area") {
+        if (environmentType === "environment") {
           const { data: rootEnv } = await supabase
             .from('environments')
             .select('id')
@@ -450,48 +427,9 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           }
         }
 
-        // Criar locais automáticos (Piso, Parede, Teto) se marcados
-        const locaisCriados: string[] = [];
-        if (newEnv && environmentType === 'environment') {
-          const locaisParaCriar: { name: string }[] = [];
-          
-          if (createPiso) {
-            locaisParaCriar.push({ name: 'Piso' });
-            locaisCriados.push('Piso');
-          }
-          if (createParede) {
-            locaisParaCriar.push({ name: 'Parede' });
-            locaisCriados.push('Parede');
-          }
-          if (createTeto) {
-            locaisParaCriar.push({ name: 'Teto' });
-            locaisCriados.push('Teto');
-          }
-          
-          if (locaisParaCriar.length > 0) {
-            const { error: locaisError } = await supabase
-              .from('environments')
-              .insert(locaisParaCriar.map(local => ({
-                company_id: companyIdData as string,
-                name: local.name,
-                parent_id: newEnv.id,
-                status: 'active',
-                description: null
-              })));
-            
-            if (locaisError) {
-              console.error("Error creating locations:", locaisError);
-            }
-          }
-        }
-
-        const locaisMsg = locaisCriados.length > 0 
-          ? ` com ${locaisCriados.length} local(is): ${locaisCriados.join(', ')}`
-          : '';
-
         toast({
           title: "✓ Criado com sucesso!",
-          description: `${environmentType === 'area' ? 'A área' : environmentType === 'environment' ? 'O ambiente' : 'O local'} "${name}" foi criado${locaisMsg}.`,
+          description: `${environmentType === 'environment' ? 'O ambiente' : 'O setor'} "${name}" foi criado.`,
         });
       }
 
@@ -501,7 +439,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
       setDescription("");
       setSelectedParentId("");
       setStatus("active");
-      setEnvironmentType("area");
+      setEnvironmentType("environment");
       setSelectedModelIds([]);
       onOpenChange(false);
 
@@ -528,7 +466,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           <DialogDescription>
             {isEditing 
               ? "Atualize as informações" 
-              : `Preencha os dados ${environmentType === 'area' ? 'da área' : environmentType === 'environment' ? 'do ambiente' : 'do local'}`
+              : `Preencha os dados ${environmentType === 'environment' ? 'do ambiente' : 'do setor'}`
             }
           </DialogDescription>
         </DialogHeader>
@@ -537,25 +475,18 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           <ScrollArea className="max-h-[60vh] pr-4">
             {/* Environment Type Info */}
             <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg mb-4">
-              {environmentType === 'area' ? (
-                <>
-                  <Building2 className="h-4 w-4 text-primary" />
-                  <span className="text-sm text-muted-foreground">
-                    Áreas são divisões principais da empresa (ex: Depósito, Produção, Escritório)
-                  </span>
-                </>
-              ) : environmentType === 'environment' ? (
+              {environmentType === 'environment' ? (
                 <>
                   <Layers className="h-4 w-4 text-primary" />
                   <span className="text-sm text-muted-foreground">
-                    Ambientes são subdivisões de áreas (ex: Corredor, Sala, Setor)
+                    Ambientes são divisões da empresa (ex: Produção, Escritório, Depósito)
                   </span>
                 </>
               ) : (
                 <>
                   <MapPin className="h-4 w-4 text-primary" />
                   <span className="text-sm text-muted-foreground">
-                    Locais são pontos físicos específicos (ex: Piso, Prateleira, Posição)
+                    Setores são subdivisões dos ambientes onde as auditorias são realizadas
                   </span>
                 </>
               )}
@@ -564,13 +495,13 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
             {/* Name */}
             <div className="space-y-2 mb-4">
               <Label htmlFor="name">
-                Nome {environmentType === 'area' ? 'da Área' : environmentType === 'environment' ? 'do Ambiente' : 'do Local'} *
+                Nome {environmentType === 'environment' ? 'do Ambiente' : 'do Setor'} *
               </Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={environmentType === 'area' ? 'Ex: Depósito' : environmentType === 'environment' ? 'Ex: Corredor A' : 'Ex: Prateleira 1'}
+                placeholder={environmentType === 'environment' ? 'Ex: Produção' : 'Ex: Linha de Montagem'}
                 required
               />
             </div>
@@ -587,34 +518,23 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
               />
             </div>
 
-            {/* Parent Selection */}
-            {environmentType !== 'area' && (
+            {/* Parent Selection - Only for sectors */}
+            {environmentType === 'sector' && (
               <div className="space-y-2 mb-4">
-                <Label htmlFor="parent">
-                  {environmentType === 'environment' ? 'Área Pai *' : 'Ambiente Pai *'}
-                </Label>
+                <Label htmlFor="parent">Ambiente Pai *</Label>
                 <Select
                   value={selectedParentId}
                   onValueChange={setSelectedParentId}
                 >
                   <SelectTrigger id="parent">
-                    <SelectValue placeholder={
-                      environmentType === 'environment' ? 'Selecione a área' : 'Selecione o ambiente'
-                    } />
+                    <SelectValue placeholder="Selecione o ambiente" />
                   </SelectTrigger>
                   <SelectContent>
                     {availableEnvironments
                       .filter(env => {
-                        if (environmentType === 'environment') {
-                          // Show areas (children of root)
-                          const root = availableEnvironments.find(e => !e.parent_id);
-                          return env.parent_id === root?.id;
-                        } else {
-                          // Show environments (children of areas)
-                          const parent = availableEnvironments.find(e => e.id === env.parent_id);
-                          const root = availableEnvironments.find(e => !e.parent_id);
-                          return parent && parent.parent_id === root?.id;
-                        }
+                        // Show environments (children of root)
+                        const root = availableEnvironments.find(e => !e.parent_id);
+                        return env.parent_id === root?.id;
                       })
                       .map((env) => (
                         <SelectItem key={env.id} value={env.id}>
@@ -626,12 +546,12 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
               </div>
             )}
 
-            {/* Applicable Models - Only for Areas */}
-            {environmentType === 'area' && !editingEnvironment && (
+            {/* Applicable Models - Only for Environments */}
+            {environmentType === 'environment' && !editingEnvironment && (
               <div className="space-y-2 mb-4">
                 <Label>Modelos Aplicáveis</Label>
                 <p className="text-sm text-muted-foreground mb-2">
-                  Selecione os modelos de critérios que se aplicam a esta área
+                  Selecione os modelos de critérios que se aplicam a este ambiente
                 </p>
                 <div className="border rounded-lg p-4 space-y-3 max-h-64 overflow-y-auto">
                   {availableModels.map((model) => (
@@ -665,57 +585,6 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
                       </div>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
-
-            {/* Criar Locais Automáticos - Apenas para Ambientes */}
-            {environmentType === 'environment' && !isEditing && (
-              <div className="space-y-2 mb-4">
-                <Label>Criar Locais Automaticamente</Label>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Marque os locais que deseja criar junto com este ambiente
-                </p>
-                <div className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id="create-piso"
-                      checked={createPiso}
-                      onCheckedChange={(checked) => setCreatePiso(checked === true)}
-                    />
-                    <label
-                      htmlFor="create-piso"
-                      className="text-sm font-medium leading-none cursor-pointer"
-                    >
-                      Piso
-                    </label>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id="create-parede"
-                      checked={createParede}
-                      onCheckedChange={(checked) => setCreateParede(checked === true)}
-                    />
-                    <label
-                      htmlFor="create-parede"
-                      className="text-sm font-medium leading-none cursor-pointer"
-                    >
-                      Parede
-                    </label>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Checkbox
-                      id="create-teto"
-                      checked={createTeto}
-                      onCheckedChange={(checked) => setCreateTeto(checked === true)}
-                    />
-                    <label
-                      htmlFor="create-teto"
-                      className="text-sm font-medium leading-none cursor-pointer"
-                    >
-                      Teto
-                    </label>
-                  </div>
                 </div>
               </div>
             )}

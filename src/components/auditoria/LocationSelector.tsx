@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Building2, MapPin, Building, Warehouse, WifiOff, RefreshCw } from "lucide-react";
+import { Building, Layers, MapPin, WifiOff, RefreshCw } from "lucide-react";
 import { OfflineAwareSelect } from "@/components/ui/offline-aware-select";
 import { useOfflineEnvironments } from "@/hooks/useOfflineEnvironments";
 import { Badge } from "@/components/ui/badge";
@@ -16,9 +16,8 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
   const { user } = useAuth();
   const {
     companies,
-    getAreas,
     getEnvironments,
-    getLocations,
+    getSectors,
     isLoading,
     isOffline,
     isFromCache,
@@ -28,9 +27,8 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
   } = useOfflineEnvironments(user?.id);
 
   const [selectedCompany, setSelectedCompany] = useState<string>("");
-  const [selectedArea, setSelectedArea] = useState<string>("");
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>("");
-  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [selectedSector, setSelectedSector] = useState<string>("");
 
   // Auto-select company if only one
   useEffect(() => {
@@ -39,33 +37,25 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
     }
   }, [companies, selectedCompany]);
 
-  // Get filtered data based on selections
-  const areas = selectedCompany ? getAreas(selectedCompany) : [];
-  const environments = selectedArea ? getEnvironments(selectedArea) : [];
-  const locations = selectedEnvironment ? getLocations(selectedEnvironment) : [];
+  // Get filtered data based on selections - Nova hierarquia: Empresa > Ambiente > Setor
+  const environments = selectedCompany ? getEnvironments(selectedCompany) : [];
+  const sectors = selectedEnvironment ? getSectors(selectedEnvironment) : [];
 
   // Reset downstream selections when parent changes
   const handleCompanyChange = (value: string) => {
     setSelectedCompany(value);
-    setSelectedArea("");
     setSelectedEnvironment("");
-    setSelectedLocation("");
-  };
-
-  const handleAreaChange = (value: string) => {
-    setSelectedArea(value);
-    setSelectedEnvironment("");
-    setSelectedLocation("");
+    setSelectedSector("");
   };
 
   const handleEnvironmentChange = (value: string) => {
     setSelectedEnvironment(value);
-    setSelectedLocation("");
+    setSelectedSector("");
   };
 
   const handleStartAudit = () => {
-    if (selectedLocation && selectedCompany) {
-      onLocationSelected(selectedLocation, selectedCompany);
+    if (selectedSector && selectedCompany) {
+      onLocationSelected(selectedSector, selectedCompany);
     }
   };
 
@@ -119,7 +109,7 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
             )}
           </div>
           <p className="text-muted-foreground">
-            Selecione a localização exata que deseja avaliar
+            Selecione o setor que deseja avaliar
           </p>
           {isFromCache && lastSyncAt && (
             <p className="text-xs text-muted-foreground mt-1">
@@ -150,41 +140,16 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="area" className="flex items-center gap-2">
-              <Warehouse className="h-4 w-4" />
-              Área
-            </Label>
-            <OfflineAwareSelect
-              value={selectedArea}
-              onValueChange={handleAreaChange}
-              placeholder={
-                !selectedCompany
-                  ? "Primeiro selecione uma empresa"
-                  : areas.length === 0
-                  ? "Nenhuma área disponível"
-                  : "Selecione uma área"
-              }
-              items={areas}
-              isOffline={isOffline}
-              isFromCache={isFromCache}
-              getItemValue={(a) => a.id}
-              getItemLabel={(a) => a.name}
-              disabled={!selectedCompany || areas.length === 0}
-              className="w-full"
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="environment" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
+              <Layers className="h-4 w-4" />
               Ambiente
             </Label>
             <OfflineAwareSelect
               value={selectedEnvironment}
               onValueChange={handleEnvironmentChange}
               placeholder={
-                !selectedArea
-                  ? "Primeiro selecione uma área"
+                !selectedCompany
+                  ? "Primeiro selecione uma empresa"
                   : environments.length === 0
                   ? "Nenhum ambiente disponível"
                   : "Selecione um ambiente"
@@ -194,32 +159,32 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
               isFromCache={isFromCache}
               getItemValue={(e) => e.id}
               getItemLabel={(e) => e.name}
-              disabled={!selectedArea || environments.length === 0}
+              disabled={!selectedCompany || environments.length === 0}
               className="w-full"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="location" className="flex items-center gap-2">
+            <Label htmlFor="sector" className="flex items-center gap-2">
               <MapPin className="h-4 w-4" />
-              Local
+              Setor
             </Label>
             <OfflineAwareSelect
-              value={selectedLocation}
-              onValueChange={setSelectedLocation}
+              value={selectedSector}
+              onValueChange={setSelectedSector}
               placeholder={
                 !selectedEnvironment
                   ? "Primeiro selecione um ambiente"
-                  : locations.length === 0
-                  ? "Nenhum local disponível"
-                  : "Selecione um local"
+                  : sectors.length === 0
+                  ? "Nenhum setor disponível"
+                  : "Selecione um setor"
               }
-              items={locations}
+              items={sectors}
               isOffline={isOffline}
               isFromCache={isFromCache}
-              getItemValue={(l) => l.id}
-              getItemLabel={(l) => l.name}
-              disabled={!selectedEnvironment || locations.length === 0}
+              getItemValue={(s) => s.id}
+              getItemLabel={(s) => s.name}
+              disabled={!selectedEnvironment || sectors.length === 0}
               className="w-full"
             />
           </div>
@@ -234,7 +199,7 @@ export function LocationSelector({ onLocationSelected }: LocationSelectorProps) 
           )}
           <Button 
             onClick={handleStartAudit} 
-            disabled={!selectedLocation}
+            disabled={!selectedSector}
             className="flex-1"
             size="lg"
           >
