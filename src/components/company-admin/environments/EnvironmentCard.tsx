@@ -94,9 +94,9 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
     }
   };
   
-  // Determine hierarchy level - Nova estrutura: Empresa > Ambiente > Setor
-  // Level 1: Ambiente (direct child of root/empresa)
-  // Level 2: Setor (child of ambiente)
+  // Determine hierarchy level - Nova estrutura: Empresa > Setor > Local
+  // Level 1: Setor (direct child of root/empresa)
+  // Level 2: Local (child of setor)
   const getLevel = (env: typeof environment): number => {
     if (!env.parent_id) {
       return 0; // Root (Empresa)
@@ -114,17 +114,17 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
       parentId = parent.parent_id;
     }
 
-    return level; // 1 = Ambiente, 2 = Setor
+    return level; // 1 = Setor, 2 = Local
   };
   
   const level = getLevel(environment);
-  const typeLabel = level === 1 ? 'Ambiente' : 'Setor';
+  const typeLabel = level === 1 ? 'Setor' : 'Local';
   const typeBadgeColor = level === 1 
     ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30' 
     : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30';
   
-  // Setores (children of this ambiente)
-  const childSectors = locations?.filter(l => l.parent_id === environment.id) || [];
+  // Locais (children of this setor)
+  const childLocations = locations?.filter(l => l.parent_id === environment.id) || [];
 
   const handleDelete = async (id: string, level: number) => {
     try {
@@ -135,7 +135,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
 
       if (error) throw error;
 
-      const levelName = level === 1 ? 'Ambiente' : 'Setor';
+      const levelName = level === 1 ? 'Setor' : 'Local';
       toast({
         title: `${levelName} excluído com sucesso!`,
       });
@@ -209,7 +209,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
               <Pencil className="h-3.5 w-3.5" />
             </Button>
             
-            {/* Só mostra botão de adicionar se for Ambiente (level 1) */}
+            {/* Só mostra botão de adicionar se for Setor (level 1) */}
             {level === 1 && (
               <Button
                 variant="ghost"
@@ -221,7 +221,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
               </Button>
             )}
 
-            {childSectors.length > 0 && (
+            {childLocations.length > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -253,7 +253,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
         <div className="flex items-center gap-3 sm:gap-4 text-[10px] sm:text-xs text-muted-foreground mb-2">
           <div className="flex items-center gap-1">
             <MapPin className="h-3 w-3" />
-            <span>{childSectors.length} setores</span>
+            <span>{childLocations.length} locais</span>
           </div>
           <div className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
@@ -261,35 +261,35 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
           </div>
         </div>
 
-        {/* Setores List */}
-        {isExpanded && childSectors.length > 0 && (
+        {/* Locais List */}
+        {isExpanded && childLocations.length > 0 && (
           <div className={`mt-3 space-y-2 ${isAnimating ? 'expand-content' : ''}`}>
-            {childSectors.map((sector, sectorIndex) => {
-              const SectorIcon = iconMap[sector.icon as keyof typeof iconMap] || MapPin;
+            {childLocations.map((local, localIndex) => {
+              const LocalIcon = iconMap[local.icon as keyof typeof iconMap] || MapPin;
 
               return (
                 <div 
-                  key={sector.id} 
+                  key={local.id} 
                   className="flex items-center justify-between gap-2 p-2.5 bg-muted/30 rounded-lg hover:bg-muted/50 transition-all duration-200 touch-feedback hover:shadow-sm animate-fade-in-up"
-                  style={{ animationDelay: `${sectorIndex * 50}ms` }}
+                  style={{ animationDelay: `${localIndex * 50}ms` }}
                 >
                   {/* Left: Icon + Info */}
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <div className="p-1.5 bg-background rounded shrink-0 transition-transform duration-200 hover:scale-105">
-                      <SectorIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                      <LocalIcon className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-sm font-medium truncate">{sector.name}</span>
+                        <span className="text-sm font-medium truncate">{local.name}</span>
                         <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30 text-[10px] shrink-0 badge-hover transition-all duration-200">
-                          Setor
+                          Local
                         </Badge>
                         <Badge variant="outline" className="text-[10px] px-1 shrink-0 badge-hover transition-all duration-200">
-                          {criteriaCounts[sector.id] || 0} critérios
+                          {criteriaCounts[local.id] || 0} critérios
                         </Badge>
                       </div>
                       <p className="text-[10px] text-muted-foreground">
-                        {sector.audits_count || 0} auditorias
+                        {local.audits_count || 0} auditorias
                       </p>
                     </div>
                   </div>
@@ -300,7 +300,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                       variant="ghost"
                       size="sm"
                       className="h-7 w-7 p-0 hover:bg-muted transition-all duration-200 hover:scale-110 active:scale-95"
-                      onClick={() => handleManageCriteria(sector)}
+                      onClick={() => handleManageCriteria(local)}
                       title="Gerenciar Critérios"
                     >
                       <ClipboardList className="h-3 w-3" />
@@ -308,7 +308,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onEdit(sector)}
+                      onClick={() => onEdit(local)}
                       className="h-7 w-7 p-0 hover:bg-muted transition-all duration-200 hover:scale-110 active:scale-95"
                     >
                       <Pencil className="h-3 w-3" />
@@ -317,7 +317,7 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setItemToDelete({ id: sector.id, name: sector.name, level: 2 });
+                        setItemToDelete({ id: local.id, name: local.name, level: 2 });
                         setShowDeleteDialog(true);
                       }}
                       className="h-7 w-7 p-0 hover:bg-destructive/10 transition-all duration-200 hover:scale-110 active:scale-95"
@@ -337,11 +337,11 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir {itemToDelete?.level === 1 ? 'o ambiente' : 'o setor'}{' '}
+              Tem certeza que deseja excluir {itemToDelete?.level === 1 ? 'o setor' : 'o local'}{' '}
               <span className="font-semibold">{itemToDelete?.name}</span>?
-              {itemToDelete?.level === 1 && childSectors.length > 0 && (
+              {itemToDelete?.level === 1 && childLocations.length > 0 && (
                 <span className="block mt-2 text-destructive">
-                  Atenção: Todos os {childSectors.length} setores vinculados também serão excluídos.
+                  Atenção: Todos os {childLocations.length} locais vinculados também serão excluídos.
                 </span>
               )}
             </AlertDialogDescription>
