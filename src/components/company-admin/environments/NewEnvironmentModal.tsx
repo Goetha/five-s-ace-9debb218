@@ -62,7 +62,7 @@ const iconOptions = [
 ];
 
 export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvironment, parentId, companyId: propsCompanyId }: NewEnvironmentModalProps) {
-  const [environmentType, setEnvironmentType] = useState<"environment" | "sector">("environment");
+  const [environmentType, setEnvironmentType] = useState<"sector" | "local">("sector");
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("Factory");
   const [description, setDescription] = useState("");
@@ -98,17 +98,17 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         
         // Determine type based on parent_id hierarchy
         if (!editingEnvironment.parent_id) {
-          setEnvironmentType('environment');
+          setEnvironmentType('sector');
         } else {
           const parent = allEnvironments.find(e => e.id === editingEnvironment.parent_id);
           if (!parent) {
-            setEnvironmentType('environment');
-          } else if (!parent.parent_id) {
-            // Parent is root (empresa), so this is an environment
-            setEnvironmentType('environment');
-          } else {
-            // This is a sector (child of environment)
             setEnvironmentType('sector');
+          } else if (!parent.parent_id) {
+            // Parent is root (empresa), so this is a sector
+            setEnvironmentType('sector');
+          } else {
+            // This is a local (child of sector)
+            setEnvironmentType('local');
           }
         }
       } else {
@@ -122,15 +122,15 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         if (parentId) {
           const parent = allEnvironments.find(e => e.id === parentId);
           if (!parent?.parent_id) {
-            // Parent is root, creating an environment
-            setEnvironmentType('environment');
-          } else {
-            // Creating sector (child of environment)
+            // Parent is root, creating a sector
             setEnvironmentType('sector');
+          } else {
+            // Creating local (child of sector)
+            setEnvironmentType('local');
           }
           setSelectedParentId(parentId);
         } else {
-          setEnvironmentType('environment');
+          setEnvironmentType('sector');
           setSelectedParentId('');
         }
       }
@@ -246,11 +246,11 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
   const getModalTitle = () => {
     if (editingEnvironment) {
-      if (environmentType === 'environment') return 'Editar Ambiente';
-      return 'Editar Setor';
+      if (environmentType === 'sector') return 'Editar Setor';
+      return 'Editar Local';
     }
-    if (environmentType === 'environment') return 'Criar Novo Ambiente';
-    return 'Criar Novo Setor';
+    if (environmentType === 'sector') return 'Criar Novo Setor';
+    return 'Criar Novo Local';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -259,16 +259,16 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
     if (!name.trim()) {
       toast({
         title: "Campos obrigatórios",
-        description: `Preencha o nome ${environmentType === 'environment' ? 'do ambiente' : 'do setor'}.`,
+        description: `Preencha o nome ${environmentType === 'sector' ? 'do setor' : 'do local'}.`,
         variant: "destructive",
       });
       return;
     }
 
-    if (environmentType === "sector" && !selectedParentId) {
+    if (environmentType === "local" && !selectedParentId) {
       toast({
         title: "Campos obrigatórios",
-        description: "Selecione o ambiente pai.",
+        description: "Selecione o setor pai.",
         variant: "destructive",
       });
       return;
@@ -298,7 +298,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
         // Update existing
         let finalParentId = selectedParentId;
         
-        if (environmentType === "environment") {
+        if (environmentType === "sector") {
           const { data: rootEnv } = await supabase
             .from('environments')
             .select('id')
@@ -370,13 +370,13 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
         toast({
           title: "✓ Atualizado com sucesso!",
-          description: `${environmentType === 'environment' ? 'O ambiente' : 'O setor'} "${name}" foi atualizado.`,
+          description: `${environmentType === 'sector' ? 'O setor' : 'O local'} "${name}" foi atualizado.`,
         });
       } else {
         // Create new
         let finalParentId = selectedParentId;
         
-        if (environmentType === "environment") {
+        if (environmentType === "sector") {
           const { data: rootEnv } = await supabase
             .from('environments')
             .select('id')
@@ -429,7 +429,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
 
         toast({
           title: "✓ Criado com sucesso!",
-          description: `${environmentType === 'environment' ? 'O ambiente' : 'O setor'} "${name}" foi criado.`,
+          description: `${environmentType === 'sector' ? 'O setor' : 'O local'} "${name}" foi criado.`,
         });
       }
 
@@ -439,7 +439,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
       setDescription("");
       setSelectedParentId("");
       setStatus("active");
-      setEnvironmentType("environment");
+      setEnvironmentType("sector");
       setSelectedModelIds([]);
       onOpenChange(false);
 
@@ -466,7 +466,7 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           <DialogDescription>
             {isEditing 
               ? "Atualize as informações" 
-              : `Preencha os dados ${environmentType === 'environment' ? 'do ambiente' : 'do setor'}`
+              : `Preencha os dados ${environmentType === 'sector' ? 'do setor' : 'do local'}`
             }
           </DialogDescription>
         </DialogHeader>
@@ -475,18 +475,18 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
           <ScrollArea className="max-h-[60vh] pr-4">
             {/* Environment Type Info */}
             <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg mb-4">
-              {environmentType === 'environment' ? (
+              {environmentType === 'sector' ? (
                 <>
                   <Layers className="h-4 w-4 text-primary" />
                   <span className="text-sm text-muted-foreground">
-                    Ambientes são divisões da empresa (ex: Produção, Escritório, Depósito)
+                    Setores são divisões da empresa (ex: Produção, Escritório, Depósito)
                   </span>
                 </>
               ) : (
                 <>
                   <MapPin className="h-4 w-4 text-primary" />
                   <span className="text-sm text-muted-foreground">
-                    Setores são subdivisões dos ambientes onde as auditorias são realizadas
+                    Locais são subdivisões dos setores onde as auditorias são realizadas
                   </span>
                 </>
               )}
@@ -495,13 +495,13 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
             {/* Name */}
             <div className="space-y-2 mb-4">
               <Label htmlFor="name">
-                Nome {environmentType === 'environment' ? 'do Ambiente' : 'do Setor'} *
+                Nome {environmentType === 'sector' ? 'do Setor' : 'do Local'} *
               </Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={environmentType === 'environment' ? 'Ex: Produção' : 'Ex: Linha de Montagem'}
+                placeholder={environmentType === 'sector' ? 'Ex: Produção' : 'Ex: Linha de Montagem'}
                 required
               />
             </div>
@@ -518,21 +518,21 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
               />
             </div>
 
-            {/* Parent Selection - Only for sectors */}
-            {environmentType === 'sector' && (
+            {/* Parent Selection - Only for locals */}
+            {environmentType === 'local' && (
               <div className="space-y-2 mb-4">
-                <Label htmlFor="parent">Ambiente Pai *</Label>
+                <Label htmlFor="parent">Setor Pai *</Label>
                 <Select
                   value={selectedParentId}
                   onValueChange={setSelectedParentId}
                 >
                   <SelectTrigger id="parent">
-                    <SelectValue placeholder="Selecione o ambiente" />
+                    <SelectValue placeholder="Selecione o setor" />
                   </SelectTrigger>
                   <SelectContent>
                     {availableEnvironments
                       .filter(env => {
-                        // Show environments (children of root)
+                        // Show sectors (children of root)
                         const root = availableEnvironments.find(e => !e.parent_id);
                         return env.parent_id === root?.id;
                       })
@@ -546,12 +546,12 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
               </div>
             )}
 
-            {/* Applicable Models - Only for Environments */}
-            {environmentType === 'environment' && !editingEnvironment && (
+            {/* Applicable Models - Only for Sectors */}
+            {environmentType === 'sector' && !editingEnvironment && (
               <div className="space-y-2 mb-4">
                 <Label>Modelos Aplicáveis</Label>
                 <p className="text-sm text-muted-foreground mb-2">
-                  Selecione os modelos de critérios que se aplicam a este ambiente
+                  Selecione os modelos de critérios que se aplicam a este setor
                 </p>
                 <div className="border rounded-lg p-4 space-y-3 max-h-64 overflow-y-auto">
                   {availableModels.map((model) => (

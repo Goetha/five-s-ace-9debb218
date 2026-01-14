@@ -27,8 +27,8 @@ interface UseOfflineEnvironmentsResult {
   companies: Company[];
   allEnvironments: Environment[];
   getRootEnvironment: (companyId: string) => Environment | undefined;
-  getEnvironments: (companyId: string) => Environment[];
-  getSectors: (environmentId: string) => Environment[];
+  getSectors: (companyId: string) => Environment[];
+  getLocations: (sectorId: string) => Environment[];
   isLoading: boolean;
   isOffline: boolean;
   isFromCache: boolean;
@@ -254,15 +254,15 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // Hierarchy helpers - Nova estrutura: Empresa > Ambiente > Setor
+  // Hierarchy helpers - Nova estrutura: Empresa > Setor > Local
   const getRootEnvironment = useCallback((companyId: string): Environment | undefined => {
     return allEnvironments.find(
       env => env.company_id === companyId && env.parent_id === null
     );
   }, [allEnvironments]);
 
-  // Ambientes: filhos diretos da raiz (empresa)
-  const getEnvironments = useCallback((companyId: string): Environment[] => {
+  // Setores: filhos diretos da raiz (empresa)
+  const getSectors = useCallback((companyId: string): Environment[] => {
     const root = getRootEnvironment(companyId);
     if (!root) return [];
     return allEnvironments.filter(
@@ -270,10 +270,10 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     );
   }, [allEnvironments, getRootEnvironment]);
 
-  // Setores: filhos dos ambientes
-  const getSectors = useCallback((environmentId: string): Environment[] => {
+  // Locais: filhos dos setores
+  const getLocations = useCallback((sectorId: string): Environment[] => {
     return allEnvironments.filter(
-      env => env.parent_id === environmentId && env.status === 'active'
+      env => env.parent_id === sectorId && env.status === 'active'
     );
   }, [allEnvironments]);
 
@@ -281,8 +281,8 @@ export function useOfflineEnvironments(userId: string | undefined, targetCompany
     companies,
     allEnvironments,
     getRootEnvironment,
-    getEnvironments,
     getSectors,
+    getLocations,
     isLoading,
     isOffline,
     isFromCache,

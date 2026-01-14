@@ -68,32 +68,32 @@ export default function Ambientes() {
     }
   };
 
-  // Organize hierarchy: Root (Empresa) -> Ambientes -> Setores
+  // Organize hierarchy: Root (Empresa) -> Setores -> Locais
   const company = allEnvironments.find(env => !env.parent_id);
   
-  // Level 1: Ambientes (direct children of root)
-  const environmentsList = allEnvironments.filter(env => env.parent_id === company?.id);
+  // Level 1: Setores (direct children of root)
+  const sectorsList = allEnvironments.filter(env => env.parent_id === company?.id);
   
-  // Level 2: Setores (children of ambientes)
-  const sectorsList = allEnvironments.filter(env => {
+  // Level 2: Locais (children of setores)
+  const locationsList = allEnvironments.filter(env => {
     const parent = allEnvironments.find(e => e.id === env.parent_id);
     return parent && parent.parent_id === company?.id;
   });
 
   // Apply filters
-  const filteredEnvironments = environmentsList.filter((env) => {
+  const filteredSectors = sectorsList.filter((env) => {
     const matchesSearch = env.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || env.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const totalEnvironments = environmentsList.length;
   const totalSectors = sectorsList.length;
-  const activeEnvironments = environmentsList.filter(e => e.status === 'active').length;
-  const activeSectors = sectorsList.filter(s => s.status === 'active').length;
+  const totalLocations = locationsList.length;
+  const activeSectors = sectorsList.filter(e => e.status === 'active').length;
+  const activeLocations = locationsList.filter(l => l.status === 'active').length;
 
   return (
-    <CompanyAdminLayout breadcrumbs={[{ label: "Dashboard" }, { label: "Ambientes" }]}>
+    <CompanyAdminLayout breadcrumbs={[{ label: "Dashboard" }, { label: "Setores" }]}>
       <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
         <div className="hidden sm:block mb-6">
           <Breadcrumb>
@@ -103,7 +103,7 @@ export default function Ambientes() {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>Ambientes e Setores</BreadcrumbPage>
+                <BreadcrumbPage>Setores e Locais</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -111,7 +111,7 @@ export default function Ambientes() {
 
         {/* Header */}
         <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold">Ambientes e Setores</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Setores e Locais</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
             Gerencie a estrutura hierárquica da sua empresa
           </p>
@@ -123,8 +123,8 @@ export default function Ambientes() {
             <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Ambientes</p>
-                  <p className="text-xl sm:text-2xl font-bold">{totalEnvironments}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Setores</p>
+                  <p className="text-xl sm:text-2xl font-bold">{totalSectors}</p>
                 </div>
                 <Layers className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 shrink-0" />
               </div>
@@ -135,8 +135,8 @@ export default function Ambientes() {
             <CardContent className="pt-4 sm:pt-6 p-3 sm:p-6">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Setores</p>
-                  <p className="text-xl sm:text-2xl font-bold">{totalSectors}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Locais</p>
+                  <p className="text-xl sm:text-2xl font-bold">{totalLocations}</p>
                 </div>
                 <MapPin className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 shrink-0" />
               </div>
@@ -148,7 +148,7 @@ export default function Ambientes() {
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-muted-foreground truncate">Ativos</p>
-                  <p className="text-xl sm:text-2xl font-bold">{activeEnvironments + activeSectors}</p>
+                  <p className="text-xl sm:text-2xl font-bold">{activeSectors + activeLocations}</p>
                 </div>
                 <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-primary shrink-0" />
               </div>
@@ -159,7 +159,7 @@ export default function Ambientes() {
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 sm:mb-6">
           <Input
-            placeholder="Buscar ambientes..."
+            placeholder="Buscar setores..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-1 h-9 sm:h-10"
@@ -176,12 +176,12 @@ export default function Ambientes() {
           </Select>
         </div>
 
-        {/* Company Card with Environments */}
+        {/* Company Card with Sectors */}
         {company && (
           <CompanyCard
             company={company}
-            totalEnvironments={totalEnvironments}
-            totalLocations={totalSectors}
+            totalEnvironments={totalSectors}
+            totalLocations={totalLocations}
             onAddEnvironment={() => {
               setEditingEnvironment(null);
               setParentIdForNew(company.id);
@@ -192,22 +192,22 @@ export default function Ambientes() {
           />
         )}
 
-        {/* Environments List */}
+        {/* Sectors List */}
         <div className="space-y-4 mt-6">
-          {filteredEnvironments.map((environment) => {
+          {filteredSectors.map((sector) => {
             return (
               <EnvironmentCard
-                key={environment.id}
-                environment={environment}
+                key={sector.id}
+                environment={sector}
                 locations={allEnvironments}
                 onEdit={(env) => {
                   setEditingEnvironment(env);
                   setParentIdForNew(null);
                   setShowNewModal(true);
                 }}
-                onAddLocation={(envId) => {
+                onAddLocation={(sectorId) => {
                   setEditingEnvironment(null);
-                  setParentIdForNew(envId);
+                  setParentIdForNew(sectorId);
                   setShowNewModal(true);
                 }}
                 onRefresh={fetchEnvironments}

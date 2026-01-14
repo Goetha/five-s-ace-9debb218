@@ -87,8 +87,7 @@ export function NewAuditDialog({
   const { user, isOffline } = useAuth();
   const { toast } = useToast();
   
-  const [selectedArea, setSelectedArea] = useState<string>("");
-  const [selectedEnvironment, setSelectedEnvironment] = useState<string>("");
+  const [selectedSector, setSelectedSector] = useState<string>("");
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [selectedLocationName, setSelectedLocationName] = useState<string>("");
   const [isCreating, setIsCreating] = useState(false);
@@ -122,43 +121,32 @@ export function NewAuditDialog({
   // Reset selections when dialog opens
   useEffect(() => {
     if (open) {
-      setSelectedArea("");
-      setSelectedEnvironment("");
+      setSelectedSector("");
       setSelectedLocation("");
       setSelectedLocationName("");
     }
   }, [open, preSelectedCompanyId]);
 
-  // Hierarquia: root (parent_id = null) -> áreas (parent_id = root) -> ambientes -> locais
+  // Hierarquia: root (parent_id = null) -> setores -> locais
   const rootEnv = useMemo(() => {
     if (!environments || environments.length === 0) return null;
     return environments.find(e => e.parent_id === null) || null;
   }, [environments]);
   
-  const areas = useMemo(() => {
+  // Setores: filhos diretos da raiz
+  const sectors = useMemo(() => {
     if (!rootEnv || !environments) return [];
     return environments.filter(e => e.parent_id === rootEnv.id);
   }, [environments, rootEnv]);
   
-  const envs = useMemo(() => {
-    if (!selectedArea || !environments) return [];
-    return environments.filter(e => e.parent_id === selectedArea);
-  }, [environments, selectedArea]);
-  
+  // Locais: filhos do setor selecionado
   const locations = useMemo(() => {
-    if (!selectedEnvironment || !environments) return [];
-    return environments.filter(e => e.parent_id === selectedEnvironment);
-  }, [environments, selectedEnvironment]);
+    if (!selectedSector || !environments) return [];
+    return environments.filter(e => e.parent_id === selectedSector);
+  }, [environments, selectedSector]);
 
-  const handleAreaChange = (value: string) => {
-    setSelectedArea(value);
-    setSelectedEnvironment("");
-    setSelectedLocation("");
-    setSelectedLocationName("");
-  };
-
-  const handleEnvironmentChange = (value: string) => {
-    setSelectedEnvironment(value);
+  const handleSectorChange = (value: string) => {
+    setSelectedSector(value);
     setSelectedLocation("");
     setSelectedLocationName("");
   };
@@ -259,8 +247,7 @@ export function NewAuditDialog({
   const isUsingCache = envsFromCache || criteriaFromCache;
 
   const handleReset = () => {
-    setSelectedArea("");
-    setSelectedEnvironment("");
+    setSelectedSector("");
     setSelectedLocation("");
     setSelectedLocationName("");
   };
@@ -291,7 +278,7 @@ export function NewAuditDialog({
             </div>
           </div>
           <DialogDescription id="new-audit-description" className="text-sm">
-            Selecione o ambiente e local para iniciar a auditoria
+            Selecione o setor e local para iniciar a auditoria
           </DialogDescription>
         </DialogHeader>
 
@@ -329,41 +316,16 @@ export function NewAuditDialog({
                 </div>
               </div>
 
-          {/* Área */}
+          {/* Setor */}
           <div className="space-y-1.5 sm:space-y-2">
-            <Label htmlFor="area" className="text-sm">Área *</Label>
-            <Select value={selectedArea} onValueChange={handleAreaChange} disabled={isLoadingEnvs}>
+            <Label htmlFor="sector" className="text-sm">Setor *</Label>
+            <Select value={selectedSector} onValueChange={handleSectorChange} disabled={isLoadingEnvs}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder={isLoadingEnvs ? "Carregando..." : areas.length === 0 ? "Nenhuma área disponível" : "Selecione a área"} />
+                <SelectValue placeholder={isLoadingEnvs ? "Carregando..." : sectors.length === 0 ? "Nenhum setor disponível" : "Selecione o setor"} />
               </SelectTrigger>
               <SelectContent>
-                {areas.map(area => (
-                  <SelectItem key={area.id} value={area.id}>{area.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Ambiente */}
-          <div className="space-y-1.5 sm:space-y-2">
-            <Label htmlFor="environment" className="text-sm">Ambiente *</Label>
-            <Select 
-              value={selectedEnvironment} 
-              onValueChange={handleEnvironmentChange} 
-              disabled={!selectedArea || envs.length === 0}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={
-                  !selectedArea 
-                    ? "Selecione uma área primeiro" 
-                    : envs.length === 0 
-                    ? "Nenhum ambiente disponível" 
-                    : "Selecione o ambiente"
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                {envs.map(env => (
-                  <SelectItem key={env.id} value={env.id}>{env.name}</SelectItem>
+                {sectors.map(sector => (
+                  <SelectItem key={sector.id} value={sector.id}>{sector.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -375,12 +337,12 @@ export function NewAuditDialog({
             <Select 
               value={selectedLocation} 
               onValueChange={handleLocationChange} 
-              disabled={!selectedEnvironment || locations.length === 0}
+              disabled={!selectedSector || locations.length === 0}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={
-                  !selectedEnvironment 
-                    ? "Selecione um ambiente primeiro" 
+                  !selectedSector 
+                    ? "Selecione um setor primeiro" 
                     : locations.length === 0 
                     ? "Nenhum local disponível" 
                     : "Selecione o local"
