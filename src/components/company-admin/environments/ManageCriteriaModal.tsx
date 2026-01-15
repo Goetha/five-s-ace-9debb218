@@ -69,7 +69,7 @@ export function ManageCriteriaModal({
       const [companyResult, masterResult, linkedResult] = await Promise.all([
         supabase
           .from('company_criteria')
-          .select('id, name, description, senso, scoring_type')
+          .select('id, name, description, senso, scoring_type, master_criterion_id')
           .eq('company_id', companyId)
           .eq('status', 'active')
           .order('name'),
@@ -88,11 +88,29 @@ export function ManageCriteriaModal({
       if (masterResult.error) throw masterResult.error;
       if (linkedResult.error) throw linkedResult.error;
 
-      // Marcar critérios da empresa
-      const companyCriteria = (companyResult.data || []).map(c => ({
-        ...c,
-        isGlobal: false
-      }));
+      const companyCriteriaData = companyResult.data || [];
+      const linkedIds = new Set(linkedResult.data?.map(l => l.criterion_id) || []);
+      
+      // Criar mapa de master_criterion_id -> company_criteria.id para os que já foram copiados
+      const masterToCompanyMap = new Map<string, string>();
+      companyCriteriaData.forEach(c => {
+        if (c.master_criterion_id) {
+          masterToCompanyMap.set(c.master_criterion_id, c.id);
+        }
+      });
+
+      // Filtrar critérios da empresa que NÃO são cópias de master (origin != 'master')
+      // ou são cópias mas queremos mostrar apenas o original
+      const companyCriteriaToShow = companyCriteriaData
+        .filter(c => !c.master_criterion_id) // Não mostrar cópias de master
+        .map(c => ({
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          senso: c.senso,
+          scoring_type: c.scoring_type,
+          isGlobal: false
+        }));
 
       // Marcar critérios globais
       const masterCriteria = (masterResult.data || []).map(c => ({
@@ -101,10 +119,25 @@ export function ManageCriteriaModal({
       }));
 
       // Combinar: globais primeiro, depois os da empresa
-      const allCriteriaData = [...masterCriteria, ...companyCriteria];
+      const allCriteriaData = [...masterCriteria, ...companyCriteriaToShow];
+
+      // Para linkedCriteriaIds, precisamos mapear os company_criteria vinculados de volta para master_criteria IDs
+      const finalLinkedIds = new Set<string>();
+      
+      linkedIds.forEach(companyId => {
+        // Verificar se esse company_criteria é uma cópia de master
+        const companyCriterion = companyCriteriaData.find(c => c.id === companyId);
+        if (companyCriterion?.master_criterion_id) {
+          // É uma cópia de master, marcar o ID do master como selecionado
+          finalLinkedIds.add(companyCriterion.master_criterion_id);
+        } else {
+          // É um critério da empresa, manter o ID original
+          finalLinkedIds.add(companyId);
+        }
+      });
 
       setAllCriteria(allCriteriaData);
-      setLinkedCriteriaIds(new Set(linkedResult.data?.map(l => l.criterion_id) || []));
+      setLinkedCriteriaIds(finalLinkedIds);
     } catch (error) {
       console.error('Error fetching criteria:', error);
       toast.error('Erro ao carregar critérios');
@@ -134,6 +167,7 @@ export function ManageCriteriaModal({
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Buscar critérios vinculados atualmente
       const { data: currentLinked, error: fetchError } = await supabase
         .from('environment_criteria')
         .select('criterion_id')
@@ -142,10 +176,81 @@ export function ManageCriteriaModal({
       if (fetchError) throw fetchError;
 
       const currentIds = new Set(currentLinked?.map(l => l.criterion_id) || []);
-      const selectedIds = linkedCriteriaIds;
+      
+      // Separar os IDs selecionados em globais e da empresa
+      const selectedGlobalIds: string[] = [];
+      const selectedCompanyIds: string[] = [];
+      
+      linkedCriteriaIds.forEach(id => {
+        const criterion = allCriteria.find(c => c.id === id);
+        if (criterion?.isGlobal) {
+          selectedGlobalIds.push(id);
+        } else {
+          selectedCompanyIds.push(id);
+        }
+      });
 
-      const toAdd = [...selectedIds].filter(id => !currentIds.has(id));
-      const toRemove = [...currentIds].filter(id => !selectedIds.has(id));
+      // Para critérios globais, precisamos criar cópias em company_criteria primeiro
+      const globalToCompanyMap = new Map<string, string>();
+      
+      if (selectedGlobalIds.length > 0) {
+        // Verificar quais globais já existem como company_criteria
+        const { data: existingCopies } = await supabase
+          .from('company_criteria')
+          .select('id, master_criterion_id')
+          .eq('company_id', companyId)
+          .in('master_criterion_id', selectedGlobalIds);
+
+        const existingMap = new Map(
+          (existingCopies || []).map(c => [c.master_criterion_id, c.id])
+        );
+
+        // Criar cópias dos critérios globais que ainda não existem
+        const toCreateFromGlobal = selectedGlobalIds.filter(id => !existingMap.has(id));
+        
+        if (toCreateFromGlobal.length > 0) {
+          const globalCriteria = allCriteria.filter(c => toCreateFromGlobal.includes(c.id));
+          
+          const newCompanyCriteria = globalCriteria.map(gc => ({
+            company_id: companyId,
+            master_criterion_id: gc.id,
+            name: gc.name,
+            description: gc.description,
+            senso: gc.senso,
+            scoring_type: gc.scoring_type,
+            origin: 'master',
+            status: 'active'
+          }));
+
+          const { data: created, error: createError } = await supabase
+            .from('company_criteria')
+            .insert(newCompanyCriteria)
+            .select('id, master_criterion_id');
+
+          if (createError) throw createError;
+
+          // Mapear os IDs criados
+          (created || []).forEach(c => {
+            if (c.master_criterion_id) {
+              globalToCompanyMap.set(c.master_criterion_id, c.id);
+            }
+          });
+        }
+
+        // Adicionar os IDs existentes ao mapa
+        existingMap.forEach((companyId, masterId) => {
+          globalToCompanyMap.set(masterId, companyId);
+        });
+      }
+
+      // Converter IDs globais para IDs de company_criteria
+      const finalSelectedIds = new Set([
+        ...selectedCompanyIds,
+        ...selectedGlobalIds.map(gId => globalToCompanyMap.get(gId) || gId)
+      ]);
+
+      const toAdd = [...finalSelectedIds].filter(id => !currentIds.has(id));
+      const toRemove = [...currentIds].filter(id => !finalSelectedIds.has(id));
 
       if (toAdd.length > 0) {
         const { error: insertError } = await supabase
