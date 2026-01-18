@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, X, CheckCircle2 } from 'lucide-react';
+import { Search, Loader2, Plus, X, CheckCircle2, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -15,6 +15,7 @@ interface Criterion {
   senso: string[] | null;
   scoring_type: string;
   isGlobal?: boolean;
+  companyCriterionId?: string; // ID do company_criteria se for cópia de master
 }
 
 interface ManageCriteriaModalProps {
@@ -55,6 +56,10 @@ export function ManageCriteriaModal({
 
   // Estado para o dialog de criar critério
   const [showNewCriterionDialog, setShowNewCriterionDialog] = useState(false);
+  
+  // Estado para o dialog de editar critério
+  const [editingCriterion, setEditingCriterion] = useState<Criterion | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -91,11 +96,16 @@ export function ManageCriteriaModal({
       const companyCriteriaData = companyResult.data || [];
       const linkedIds = new Set(linkedResult.data?.map(l => l.criterion_id) || []);
       
-      // Criar mapa de master_criterion_id -> company_criteria.id para os que já foram copiados
-      const masterToCompanyMap = new Map<string, string>();
+      // Criar mapa de master_criterion_id -> company_criteria para os que já foram copiados
+      const masterToCompanyMap = new Map<string, { id: string; name: string; description: string | null; senso: string[] | null }>();
       companyCriteriaData.forEach(c => {
         if (c.master_criterion_id) {
-          masterToCompanyMap.set(c.master_criterion_id, c.id);
+          masterToCompanyMap.set(c.master_criterion_id, {
+            id: c.id,
+            name: c.name,
+            description: c.description,
+            senso: c.senso
+          });
         }
       });
 
@@ -112,11 +122,20 @@ export function ManageCriteriaModal({
           isGlobal: false
         }));
 
-      // Marcar critérios globais
-      const masterCriteria = (masterResult.data || []).map(c => ({
-        ...c,
-        isGlobal: true
-      }));
+      // Marcar critérios globais com os dados da cópia se existir
+      const masterCriteria = (masterResult.data || []).map(c => {
+        const companyCopy = masterToCompanyMap.get(c.id);
+        return {
+          id: c.id,
+          // Se existe cópia personalizada, usar nome/descrição da cópia
+          name: companyCopy?.name || c.name,
+          description: companyCopy?.description || c.description,
+          senso: companyCopy?.senso || c.senso,
+          scoring_type: c.scoring_type,
+          isGlobal: true,
+          companyCriterionId: companyCopy?.id
+        };
+      });
 
       // Combinar: globais primeiro, depois os da empresa
       const allCriteriaData = [...masterCriteria, ...companyCriteriaToShow];
@@ -162,6 +181,20 @@ export function ManageCriteriaModal({
     setAllCriteria(prev => [...prev, newCriterion].sort((a, b) => a.name.localeCompare(b.name)));
     setLinkedCriteriaIds(prev => new Set([...prev, newCriterion.id]));
     setShowNewCriterionDialog(false);
+  };
+
+  const handleEditCriterion = (criterion: Criterion, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingCriterion(criterion);
+    setShowEditDialog(true);
+  };
+
+  const handleCriterionUpdated = (updatedCriterion: Criterion) => {
+    setAllCriteria(prev => 
+      prev.map(c => c.id === updatedCriterion.id ? { ...c, ...updatedCriterion } : c)
+    );
+    setShowEditDialog(false);
+    setEditingCriterion(null);
   };
 
   const handleSave = async () => {
@@ -380,7 +413,7 @@ export function ManageCriteriaModal({
                         </div>
                         <div className="flex-1 min-w-0 space-y-1.5">
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
                               <p className={`text-sm leading-tight ${isSelected ? 'font-medium' : ''}`}>
                                 {criterion.name}
                               </p>
@@ -390,18 +423,31 @@ export function ManageCriteriaModal({
                                 </span>
                               )}
                             </div>
-                            {criterion.senso && criterion.senso.length > 0 && (
-                              <div className="flex gap-1 shrink-0">
-                                {criterion.senso.map((s) => (
-                                  <span
-                                    key={s}
-                                    className={`${getSensoColor(s)} text-white text-[10px] font-bold px-1.5 py-0.5 rounded`}
-                                  >
-                                    {s}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {isSelected && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 hover:bg-primary/10"
+                                  onClick={(e) => handleEditCriterion(criterion, e)}
+                                  title="Editar critério"
+                                >
+                                  <Pencil className="h-3.5 w-3.5 text-primary" />
+                                </Button>
+                              )}
+                              {criterion.senso && criterion.senso.length > 0 && (
+                                <div className="flex gap-1">
+                                  {criterion.senso.map((s) => (
+                                    <span
+                                      key={s}
+                                      className={`${getSensoColor(s)} text-white text-[10px] font-bold px-1.5 py-0.5 rounded`}
+                                    >
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           {criterion.description && (
                             <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
@@ -467,6 +513,19 @@ export function ManageCriteriaModal({
         onClose={() => setShowNewCriterionDialog(false)}
         companyId={companyId}
         onCreated={handleCriterionCreated}
+      />
+
+      {/* Modal separado para editar critério */}
+      <EditCriterionDialog
+        isOpen={showEditDialog}
+        onClose={() => {
+          setShowEditDialog(false);
+          setEditingCriterion(null);
+        }}
+        criterion={editingCriterion}
+        companyId={companyId}
+        localName={localName}
+        onUpdated={handleCriterionUpdated}
       />
     </>
   );
@@ -594,6 +653,191 @@ function NewCriterionDialog({ isOpen, onClose, companyId, onCreated }: NewCriter
           <Button onClick={handleCreate} disabled={saving || !name.trim()}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Criar e Vincular
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Dialog para editar critério
+interface EditCriterionDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  criterion: Criterion | null;
+  companyId: string;
+  localName: string;
+  onUpdated: (criterion: Criterion) => void;
+}
+
+function EditCriterionDialog({ isOpen, onClose, criterion, companyId, localName, onUpdated }: EditCriterionDialogProps) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [senso, setSenso] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && criterion) {
+      setName(criterion.name || '');
+      setDescription(criterion.description || '');
+      setSenso(criterion.senso || []);
+    }
+  }, [isOpen, criterion]);
+
+  const handleToggleSenso = (s: string) => {
+    setSenso(prev => {
+      if (prev.includes(s)) {
+        return prev.filter(x => x !== s);
+      } else {
+        return [...prev, s].sort();
+      }
+    });
+  };
+
+  const handleSave = async () => {
+    if (!name.trim() || !criterion) {
+      toast.error('Digite o nome do critério');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Se é um critério global, precisamos atualizar/criar a cópia em company_criteria
+      if (criterion.isGlobal) {
+        // Verificar se já existe uma cópia
+        const { data: existingCopy } = await supabase
+          .from('company_criteria')
+          .select('id')
+          .eq('company_id', companyId)
+          .eq('master_criterion_id', criterion.id)
+          .maybeSingle();
+
+        if (existingCopy) {
+          // Atualizar a cópia existente
+          const { error } = await supabase
+            .from('company_criteria')
+            .update({
+              name: name.trim(),
+              description: description.trim() || null,
+              senso: senso.length > 0 ? senso : null,
+            })
+            .eq('id', existingCopy.id);
+
+          if (error) throw error;
+        } else {
+          // Criar uma nova cópia customizada
+          const { error } = await supabase
+            .from('company_criteria')
+            .insert({
+              company_id: companyId,
+              master_criterion_id: criterion.id,
+              name: name.trim(),
+              description: description.trim() || null,
+              senso: senso.length > 0 ? senso : null,
+              origin: 'master',
+              scoring_type: criterion.scoring_type || 'conform-non-conform',
+              status: 'active'
+            });
+
+          if (error) throw error;
+        }
+      } else {
+        // É um critério da empresa, atualizar diretamente
+        const { error } = await supabase
+          .from('company_criteria')
+          .update({
+            name: name.trim(),
+            description: description.trim() || null,
+            senso: senso.length > 0 ? senso : null,
+          })
+          .eq('id', criterion.id);
+
+        if (error) throw error;
+      }
+
+      toast.success(`Critério atualizado para ${localName}!`);
+      onUpdated({
+        ...criterion,
+        name: name.trim(),
+        description: description.trim() || null,
+        senso: senso.length > 0 ? senso : null,
+      });
+    } catch (error) {
+      console.error('Error updating criterion:', error);
+      toast.error('Erro ao atualizar critério');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!criterion) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md w-[95vw] sm:w-full">
+        <DialogHeader>
+          <DialogTitle>
+            Editar Critério
+            {criterion.isGlobal && (
+              <span className="ml-2 text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 font-medium">
+                Global
+              </span>
+            )}
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            Alterações serão salvas apenas para <strong>{localName}</strong>
+          </p>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Nome *</label>
+            <Input
+              placeholder="Digite o nome do critério"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Descrição</label>
+            <Textarea
+              placeholder="Descrição do critério (opcional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Senso</label>
+            <div className="flex flex-wrap gap-2">
+              {SENSO_OPTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => handleToggleSenso(s)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${
+                    senso.includes(s)
+                      ? `${getSensoColor(s)} text-white`
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={saving || !name.trim()}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Salvar para {localName}
           </Button>
         </DialogFooter>
       </DialogContent>
