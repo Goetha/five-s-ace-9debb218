@@ -261,26 +261,50 @@ const Auditorias = () => {
           environments: [] as any[]
         };
         
-        const environments = (childrenByParent.get(area.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
+        const level2Children = (childrenByParent.get(area.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
         
-        for (const env of environments) {
-          const envGroup = {
-            environment_id: env.id,
-            environment_name: env.name,
-            locals: [] as any[]
-          };
-          
-          const locals = (childrenByParent.get(env.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
-          
-          for (const local of locals) {
-            envGroup.locals.push({
-              local_id: local.id,
-              local_name: local.name,
-              audits: []
-            });
+        // Verificar se os filhos têm sub-filhos (4 níveis) ou não (3 níveis)
+        const hasLevel4 = level2Children.some((child: any) => {
+          const childrenOfChild = childrenByParent.get(child.id) || [];
+          return childrenOfChild.length > 0;
+        });
+        
+        if (hasLevel4) {
+          // Hierarquia de 4 níveis: Area → Ambiente → Local
+          for (const env of level2Children) {
+            const envGroup = {
+              environment_id: env.id,
+              environment_name: env.name,
+              locals: [] as any[]
+            };
+            
+            const locals = (childrenByParent.get(env.id) || []).sort((a: any, b: any) => a.name.localeCompare(b.name));
+            
+            for (const local of locals) {
+              envGroup.locals.push({
+                local_id: local.id,
+                local_name: local.name,
+                audits: []
+              });
+            }
+            
+            areaGroup.environments.push(envGroup);
           }
-          
-          areaGroup.environments.push(envGroup);
+        } else {
+          // Hierarquia de 3 níveis: Area → Local (sem ambiente separado)
+          // Tratamos cada local como se fosse seu próprio ambiente
+          for (const local of level2Children) {
+            const envGroup = {
+              environment_id: local.id,
+              environment_name: local.name,
+              locals: [{
+                local_id: local.id,
+                local_name: local.name,
+                audits: []
+              }]
+            };
+            areaGroup.environments.push(envGroup);
+          }
         }
         
         grouped[company.id].areas.push(areaGroup);
@@ -348,17 +372,35 @@ const Auditorias = () => {
       // Encontrar onde a auditoria deve ser adicionada na hierarquia
       if (!locationEnv) continue;
 
-      let currentEnv = locationEnv;
-      let parentEnv = currentEnv.parent_id ? envMap.get(currentEnv.parent_id) : null;
+      const currentEnv = locationEnv;
+      const parentEnv = currentEnv.parent_id ? envMap.get(currentEnv.parent_id) : null;
       if (!parentEnv) continue;
       
-      let grandparentEnv = parentEnv.parent_id ? envMap.get(parentEnv.parent_id) : null;
+      const grandparentEnv = parentEnv.parent_id ? envMap.get(parentEnv.parent_id) : null;
       if (!grandparentEnv) continue;
       
       const greatGrandparent = grandparentEnv.parent_id ? envMap.get(grandparentEnv.parent_id) : null;
-      const isAreaLevel = greatGrandparent && !greatGrandparent.parent_id;
+      
+      // Suporta hierarquia de 3 níveis (Root → Área → Local) ou 4 níveis (Root → Área → Ambiente → Local)
+      const is3LevelHierarchy = grandparentEnv && !grandparentEnv.parent_id; // grandparent é root
+      const is4LevelHierarchy = greatGrandparent && !greatGrandparent.parent_id;
 
-      if (isAreaLevel) {
+      // Calcular scores por senso
+      const auditItemsForThisAudit = auditItemsByAuditId.get(audit.id) || [];
+      const sensoScores = calculateSensoScores(auditItemsForThisAudit, audit.score);
+
+      const auditEntry = {
+        id: audit.id,
+        status: audit.status,
+        score: audit.score,
+        score_level: audit.score_level,
+        started_at: audit.started_at,
+        auditor_name: auditor?.full_name,
+        ...sensoScores
+      };
+
+      if (is4LevelHierarchy) {
+        // 4 níveis: Root → Área (grandparent) → Ambiente (parent) → Local (current)
         let areaGroup = companyGroup.areas.find(a => a.area_id === grandparentEnv!.id);
         if (!areaGroup) {
           areaGroup = {
@@ -389,19 +431,44 @@ const Auditorias = () => {
           envGroup.locals.push(localGroup);
         }
 
-        // Calcular scores por senso
-        const auditItemsForThisAudit = auditItemsByAuditId.get(audit.id) || [];
-        const sensoScores = calculateSensoScores(auditItemsForThisAudit, audit.score);
+        localGroup.audits.push(auditEntry);
+      } else if (is3LevelHierarchy) {
+        // 3 níveis: Root → Área (parent) → Local (current)
+        // Tratamos como: Área = parent, Ambiente = "Geral", Local = current
+        let areaGroup = companyGroup.areas.find(a => a.area_id === parentEnv!.id);
+        if (!areaGroup) {
+          areaGroup = {
+            area_id: parentEnv.id,
+            area_name: parentEnv.name,
+            environments: []
+          };
+          companyGroup.areas.push(areaGroup);
+        }
 
-        localGroup.audits.push({
-          id: audit.id,
-          status: audit.status,
-          score: audit.score,
-          score_level: audit.score_level,
-          started_at: audit.started_at,
-          auditor_name: auditor?.full_name,
-          ...sensoScores
-        });
+        // Criar um ambiente virtual "Geral" para manter a estrutura consistente
+        // Ou usar o próprio local como ambiente e local ao mesmo tempo
+        let envGroup = areaGroup.environments.find(e => e.environment_id === currentEnv.id);
+        if (!envGroup) {
+          envGroup = {
+            environment_id: currentEnv.id,
+            environment_name: currentEnv.name,
+            locals: []
+          };
+          areaGroup.environments.push(envGroup);
+        }
+
+        // Usar o mesmo ID como local (para evitar duplicação visual)
+        let localGroup = envGroup.locals.find(l => l.local_id === currentEnv.id);
+        if (!localGroup) {
+          localGroup = {
+            local_id: currentEnv.id,
+            local_name: currentEnv.name,
+            audits: []
+          };
+          envGroup.locals.push(localGroup);
+        }
+
+        localGroup.audits.push(auditEntry);
       }
     }
 
