@@ -63,6 +63,8 @@ function buildEnvironmentTree(environments: Array<{ id: string; name: string; pa
 }
 
 // Build environment senso table with scores per environment
+// Follows 3-tier hierarchy: Root (company node, level 0) > Setor (level 1) > Local (level 2)
+// Only includes level 1 (Setor) and level 2 (Local) in the final output
 function buildEnvironmentSensoTable(
   environments: Array<{ id: string; name: string; parent_id: string | null }>,
   audits: Array<{ id: string; location_id: string; score: number | null }>,
@@ -70,17 +72,33 @@ function buildEnvironmentSensoTable(
 ): EnvironmentSensoRow[] {
   const envMap = new Map(environments.map(e => [e.id, e]));
   
-  // Calculate level for each environment
+  // Find root environments (parent_id is null - these are company nodes, level 0)
+  const rootEnvs = environments.filter(e => !e.parent_id);
+  const rootIds = new Set(rootEnvs.map(e => e.id));
+  
+  // Calculate level for each environment in 3-tier model
+  // Level 0: Root (company node, parent_id = null)
+  // Level 1: Setor (direct child of root)
+  // Level 2: Local (child of setor)
   function getLevel(envId: string): number {
-    let level = 0;
-    let currentId: string | null = envId;
-    while (currentId) {
-      const env = envMap.get(currentId);
-      if (!env || !env.parent_id) break;
-      currentId = env.parent_id;
-      level++;
+    const env = envMap.get(envId);
+    if (!env) return -1;
+    
+    // If no parent, it's root (level 0)
+    if (!env.parent_id) return 0;
+    
+    // If parent is root, it's level 1 (Setor)
+    if (rootIds.has(env.parent_id)) return 1;
+    
+    // Otherwise it's level 2 (Local)
+    // We don't support deeper levels in the 3-tier model
+    const parentEnv = envMap.get(env.parent_id);
+    if (parentEnv && parentEnv.parent_id && rootIds.has(parentEnv.parent_id)) {
+      return 2;
     }
-    return level;
+    
+    // If we get here, it's deeper than level 2 - skip these
+    return 3;
   }
   
   // Group items by audit location
@@ -131,7 +149,7 @@ function buildEnvironmentSensoTable(
       }
     }
     
-    // Add scores from children
+    // Add scores from children (all levels)
     for (const env of environments) {
       if (env.parent_id === envId) {
         const childScores = calculateEnvSensoScores(env.id);
@@ -145,13 +163,21 @@ function buildEnvironmentSensoTable(
     return scores;
   }
   
-  // Build flat list ordered by hierarchy
+  // Build flat list ordered by hierarchy, filtering out level 0 (root) and level 3+ (too deep)
   const rows: EnvironmentSensoRow[] = [];
   
   function addEnvAndChildren(envId: string | null, parentLevel: number) {
     const children = environments.filter(e => e.parent_id === envId);
     for (const child of children) {
-      const level = parentLevel + 1;
+      const level = getLevel(child.id);
+      
+      // Skip root (level 0) and anything deeper than level 2
+      if (level === 0 || level > 2) {
+        // But still recurse to find valid children
+        addEnvAndChildren(child.id, level);
+        continue;
+      }
+      
       const sensoData = calculateEnvSensoScores(child.id);
       
       const sensoScores = {
@@ -275,8 +301,8 @@ export async function fetchAuditReportData(auditId: string): Promise<AuditReport
       audit_id: audit.id,
       company_name: sanitizeTextForPDF((audit.companies as any)?.name || 'N/A'),
       location_name: sanitizeTextForPDF((audit.environments as any)?.name || 'N/A'),
-      area_name: sanitizeTextForPDF(locationHierarchy.area_name),
-      environment_name: sanitizeTextForPDF(locationHierarchy.environment_name),
+      sector_name: sanitizeTextForPDF(locationHierarchy.sector_name),
+      local_name: sanitizeTextForPDF(locationHierarchy.local_name),
       full_location_path: fullPath || 'N/A',
       auditor_name: sanitizeTextForPDF(auditorProfile?.full_name || 'N/A'),
       started_at: audit.started_at || audit.created_at,
@@ -483,27 +509,59 @@ export async function fetchCompanyReportData(
   }
 }
 
-async function getLocationHierarchy(locationId: string): Promise<{ area_name: string; environment_name: string }> {
+// Get hierarchy following 3-level structure: Empresa > Setor (level 1) > Local (level 2)
+// The location (Local) is level 2, its parent (Setor) is level 1, and above that is the company root (level 0)
+async function getLocationHierarchy(locationId: string): Promise<{ sector_name: string; local_name: string }> {
   try {
     const { data: envs } = await supabase
       .from('environments')
       .select('id, name, parent_id');
 
-    if (!envs) return { area_name: 'N/A', environment_name: 'N/A' };
+    if (!envs) return { sector_name: 'N/A', local_name: 'N/A' };
 
     const envMap = new Map(envs.map(e => [e.id, e]));
     const location = envMap.get(locationId);
-    if (!location) return { area_name: 'N/A', environment_name: 'N/A' };
+    if (!location) return { sector_name: 'N/A', local_name: 'N/A' };
 
+    // Walk up the hierarchy to find the correct levels
+    // In 3-level: Local -> Setor -> Root (company node)
     const parent = location.parent_id ? envMap.get(location.parent_id) : null;
-    const grandparent = parent?.parent_id ? envMap.get(parent.parent_id) : null;
+    
+    // Check if parent is the sector (level 1) or if we need to go one more level up
+    // Sector should have parent_id pointing to root (which has null parent_id or is the company root)
+    if (parent) {
+      const grandparent = parent.parent_id ? envMap.get(parent.parent_id) : null;
+      
+      // If grandparent exists and has no parent (is root), then:
+      // - grandparent = root (company node)
+      // - parent = setor (level 1)
+      // - location = local (level 2)
+      if (grandparent && !grandparent.parent_id) {
+        return {
+          sector_name: parent.name || 'N/A',
+          local_name: location.name || 'N/A'
+        };
+      }
+      
+      // If parent has no parent_id, parent is root, location is sector
+      if (!parent.parent_id) {
+        return {
+          sector_name: location.name || 'N/A',
+          local_name: 'N/A' // This is a sector, not a local
+        };
+      }
+      
+      // Otherwise, parent is the sector
+      return {
+        sector_name: parent.name || 'N/A',
+        local_name: location.name || 'N/A'
+      };
+    }
 
-    return {
-      area_name: grandparent?.name || 'N/A',
-      environment_name: parent?.name || 'N/A'
-    };
+    // Location has no parent, it's likely a root or sector
+    return { sector_name: location.name || 'N/A', local_name: 'N/A' };
   } catch {
-    return { area_name: 'N/A', environment_name: 'N/A' };
+    return { sector_name: 'N/A', local_name: 'N/A' };
   }
 }
 

@@ -315,11 +315,11 @@ function drawScoreIndicator(
   }
 }
 
-// Render summary table showing only level 1 environments
+// Render summary table showing only level 1 environments (Setores)
 function renderEnvironmentSummaryTable(helpers: PDFHelpers, rows: EnvironmentSensoRow[]) {
   const { pdf, pageWidth } = helpers;
   
-  // Filter only level 1 rows (main environments)
+  // Filter only level 1 rows (Setores in 3-tier hierarchy)
   const summaryRows = rows.filter(row => row.level === 1);
   if (summaryRows.length === 0) return;
   
@@ -504,7 +504,7 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
   // Header background for name column
   pdf.setFillColor('#F3F4F6');
   pdf.rect(tableLeft, headerY, nameColWidth, 12, 'F');
-  addText(helpers, 'Ambiente / Local', tableLeft + 3, headerY + 8, { fontSize: 7, fontStyle: 'bold', color: '#374151' });
+  addText(helpers, 'Setor / Local', tableLeft + 3, headerY + 8, { fontSize: 7, fontStyle: 'bold', color: '#374151' });
   
   // Senso column headers
   const sensoHeaders = [
@@ -532,21 +532,20 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
   
   helpers.yPos += 13;
   
-  // Render rows
+  // Render rows - only level 1 (Setor) and level 2 (Local) in 3-tier model
   for (const row of rows) {
-    // Aggregate rows (level 0,1,2) show icons, detail rows show percentages
-    const isAggregateRow = row.level <= 2;
+    // Level 1 = Setor (aggregate), Level 2 = Local (detail)
+    const isAggregateRow = row.level === 1;
     const rowHeight = isAggregateRow ? 14 : 9;
     
     checkPageBreak(helpers, rowHeight + 2);
     const rowY = helpers.yPos;
-    const indent = Math.min(row.level * 5, 20);
+    const indent = row.level === 2 ? 8 : 0; // Indent only locals
     
     // Row background based on level
     let bgColor = '#FFFFFF';
-    if (row.level === 0) bgColor = '#F0FDF4';
-    else if (row.level === 1) bgColor = '#ECFDF5';
-    else if (row.level === 2) bgColor = '#F0F9FF';
+    if (row.level === 1) bgColor = '#ECFDF5'; // Setor - green tint
+    else if (row.level === 2) bgColor = '#F0F9FF'; // Local - blue tint
     
     pdf.setFillColor(bgColor);
     pdf.rect(tableLeft, rowY, totalWidth, rowHeight, 'F');
@@ -556,17 +555,15 @@ function renderEnvironmentSensoTable(helpers: PDFHelpers, rows: EnvironmentSenso
     // Level indicator icon
     let levelIcon = '';
     let levelColor = '#6B7280';
-    if (row.level === 0) { levelIcon = 'v'; levelColor = '#059669'; }
-    else if (row.level === 1) { levelIcon = '*'; levelColor = '#10B981'; }
-    else if (row.level === 2) { levelIcon = '@'; levelColor = '#3B82F6'; }
-    else { levelIcon = '>'; levelColor = '#6B7280'; }
+    if (row.level === 1) { levelIcon = '>'; levelColor = '#10B981'; } // Setor
+    else if (row.level === 2) { levelIcon = '-'; levelColor = '#3B82F6'; } // Local
     
     // Environment name
     addText(helpers, levelIcon, tableLeft + 2 + indent, rowY + rowHeight / 2 + 1, { fontSize: 5, color: levelColor });
     addText(helpers, row.name, tableLeft + 8 + indent, rowY + rowHeight / 2 + 1, { 
-      fontSize: row.level <= 1 ? 7 : 6, 
-      fontStyle: row.level <= 1 ? 'bold' : 'normal',
-      color: row.level === 0 ? '#059669' : row.level === 1 ? '#10B981' : '#374151',
+      fontSize: row.level === 1 ? 7 : 6, 
+      fontStyle: row.level === 1 ? 'bold' : 'normal',
+      color: row.level === 1 ? '#10B981' : '#374151',
       maxWidth: nameColWidth - indent - 10
     });
     
@@ -690,8 +687,8 @@ export async function generateAuditPDF(data: AuditReportData): Promise<void> {
   
   const infoLines = [
     ['Empresa:', data.company_name],
-    ['Caminho:', data.full_location_path],
-    ['Local:', data.location_name],
+    ['Setor:', data.sector_name],
+    ['Local:', data.local_name || data.location_name],
     ['Auditor:', data.auditor_name],
     ['Data:', data.started_at ? format(new Date(data.started_at), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR }) : 'N/A'],
     ['Status:', data.completed_at ? 'Concluida' : 'Em andamento'],

@@ -2,8 +2,8 @@ export interface AuditReportData {
   audit_id: string;
   company_name: string;
   location_name: string;
-  area_name: string;
-  environment_name: string;
+  sector_name: string;   // Setor (level 1 in 3-tier hierarchy)
+  local_name: string;    // Local (level 2 in 3-tier hierarchy)
   full_location_path: string;
   auditor_name: string;
   started_at: string;
@@ -48,10 +48,11 @@ export interface EnvironmentNode {
 }
 
 // Environment with Senso scores for hierarchical table
+// 3-tier hierarchy: Empresa (root) > Setor (level 1) > Local (level 2)
 export interface EnvironmentSensoRow {
   id: string;
   name: string;
-  level: number;  // 0 = root, 1 = area, 2 = environment, 3 = local
+  level: number;  // 0 = root (company node), 1 = setor, 2 = local
   parent_id: string | null;
   senso_scores: {
     '1S': number | null;
