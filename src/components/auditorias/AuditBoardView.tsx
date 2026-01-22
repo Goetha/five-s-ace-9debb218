@@ -1,3 +1,4 @@
+import React from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, ChevronDown, ChevronRight, MapPin, Layers, ChevronsRight, CheckCircle2, AlertTriangle, XCircle, Minus } from "lucide-react";
@@ -31,6 +32,7 @@ export interface AuditGroupedData {
     environments: {
       environment_id: string;
       environment_name: string;
+      is_virtual?: boolean; // Se true, não renderiza linha de ambiente
       locals: {
         local_id: string;
         local_name: string;
@@ -413,47 +415,52 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                           {/* Ambientes e Locais */}
                           {isAreaExpanded && area.environments.map((env) => {
                             const envAvgScore = getEnvironmentAvgScore(env);
+                            const isVirtual = (env as any).is_virtual === true;
                             
                             return (
-                            <>
-                              {/* Linha do Ambiente */}
-                              <tr key={env.environment_id} className="border-b border-emerald-200 bg-emerald-100">
-                                <td className="sticky left-0 z-10 p-1.5 sm:p-3 pl-4 sm:pl-10 border-r border-emerald-200 bg-emerald-100">
-                                  <div className="flex items-center gap-1.5 sm:gap-2">
-                                    <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
-                                    <span className="text-[10px] sm:text-sm font-medium text-emerald-800 truncate">{env.environment_name}</span>
-                                  </div>
-                                </td>
-                                {/* Scores agregados do ambiente por senso */}
-                                {SENSOS.map((senso) => {
-                                  const envSensoScore = getEnvironmentSensoAvgScore(env, senso.key);
-                                  return (
-                                    <td key={senso.key} className="p-1.5 sm:p-2 text-center border-r border-emerald-200 last:border-r-0 bg-emerald-50">
-                                      {envSensoScore !== null ? (
-                                        <div className="flex justify-center">
-                                          <ScoreIndicator score={envSensoScore} />
-                                        </div>
-                                      ) : (
-                                        <span className="text-emerald-300 text-xs">—</span>
-                                      )}
-                                    </td>
-                                  );
-                                })}
-                                <td className="p-1.5 sm:p-2 text-center bg-emerald-50">
-                                  {envAvgScore !== null ? (
-                                    <div className="flex justify-center">
-                                      <ScoreIndicator score={envAvgScore} showPercent isGeneral />
+                            <React.Fragment key={env.environment_id}>
+                              {/* Linha do Ambiente - apenas se não for virtual */}
+                              {!isVirtual && (
+                                <tr key={env.environment_id} className="border-b border-emerald-200 bg-emerald-100">
+                                  <td className="sticky left-0 z-10 p-1.5 sm:p-3 pl-4 sm:pl-10 border-r border-emerald-200 bg-emerald-100">
+                                    <div className="flex items-center gap-1.5 sm:gap-2">
+                                      <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                                      <span className="text-[10px] sm:text-sm font-medium text-emerald-800 truncate">{env.environment_name}</span>
                                     </div>
-                                  ) : (
-                                    <span className="text-emerald-300 text-xs">—</span>
-                                  )}
-                                </td>
-                              </tr>
+                                  </td>
+                                  {/* Scores agregados do ambiente por senso */}
+                                  {SENSOS.map((senso) => {
+                                    const envSensoScore = getEnvironmentSensoAvgScore(env, senso.key);
+                                    return (
+                                      <td key={senso.key} className="p-1.5 sm:p-2 text-center border-r border-emerald-200 last:border-r-0 bg-emerald-50">
+                                        {envSensoScore !== null ? (
+                                          <div className="flex justify-center">
+                                            <ScoreIndicator score={envSensoScore} />
+                                          </div>
+                                        ) : (
+                                          <span className="text-emerald-300 text-xs">—</span>
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="p-1.5 sm:p-2 text-center bg-emerald-50">
+                                    {envAvgScore !== null ? (
+                                      <div className="flex justify-center">
+                                        <ScoreIndicator score={envAvgScore} showPercent isGeneral />
+                                      </div>
+                                    ) : (
+                                      <span className="text-emerald-300 text-xs">—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              )}
 
                               {/* Linhas dos Locais */}
                               {env.locals.map((local) => {
                                 const latestAudit = getLatestAudit(local.audits);
                                 const localScore = latestAudit?.score ?? null;
+                                // Ajustar o recuo baseado se o ambiente é virtual ou não
+                                const localIndent = isVirtual ? "pl-4 sm:pl-10" : "pl-6 sm:pl-16";
 
                                 return (
                                   <tr 
@@ -464,7 +471,7 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                     )}
                                     onClick={() => latestAudit && onAuditClick(latestAudit.id)}
                                   >
-                                    <td className="sticky left-0 z-10 p-1.5 sm:p-3 pl-6 sm:pl-16 border-r border-blue-100 bg-blue-50/50">
+                                    <td className={cn("sticky left-0 z-10 p-1.5 sm:p-3 border-r border-blue-100 bg-blue-50/50", localIndent)}>
                                       <div className="flex items-center gap-1.5 sm:gap-2">
                                         <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-600 flex-shrink-0" />
                                         <span className="text-[10px] sm:text-sm font-medium text-blue-800 truncate">{local.local_name}</span>
@@ -495,7 +502,7 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                   </tr>
                                 );
                               })}
-                            </>
+                            </React.Fragment>
                             );
                           })}
                         </>
