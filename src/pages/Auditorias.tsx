@@ -711,6 +711,7 @@ const Auditorias = () => {
         onOpenChange={setIsBoardModalOpen}
         companyData={selectedCompanyForBoard}
         onAuditClick={(auditId) => navigate(`/auditor/auditoria/${auditId}`)}
+        onDataRefresh={fetchData}
       />
 
       {/* Dialog Nova Auditoria */}
