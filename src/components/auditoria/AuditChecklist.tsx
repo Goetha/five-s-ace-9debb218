@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,9 @@ import { ChecklistItem } from "./ChecklistItem";
 import { EmptyAuditWarning } from "@/components/auditorias/EmptyAuditWarning";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Save, CloudOff, Database } from "lucide-react";
+import { Loader2, Save, CloudOff, Database, AlertTriangle, Camera, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
 import type { AuditItem } from "@/types/audit";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   isOfflineId,
   getFromStore,
@@ -33,6 +34,9 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
   const [isSaving, setIsSaving] = useState(false);
   const [locationName, setLocationName] = useState("");
   const [isDataFromCache, setIsDataFromCache] = useState(false);
+  const [showPendingDetails, setShowPendingDetails] = useState(false);
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Determine if we should use offline mode
   const shouldUseOfflineMode = isOfflineAudit || isOfflineId(auditId) || isOffline;
@@ -247,34 +251,52 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
     return !!item.comment && item.comment.trim().length > 0;
   };
 
-  // Get non-conforming items that are incomplete
+  // Get non-conforming items that are incomplete with details
   const getIncompleteNonConformities = () => {
     return items.filter(item => 
       item.answer === false && (!itemHasPhotos(item) || !itemHasComment(item))
-    );
+    ).map((item, idx) => ({
+      ...item,
+      index: items.findIndex(i => i.id === item.id),
+      missingPhoto: !itemHasPhotos(item),
+      missingComment: !itemHasComment(item)
+    }));
   };
 
   const incompleteNonConformities = getIncompleteNonConformities();
   const totalNonConformities = items.filter(item => item.answer === false).length;
 
+  // Scroll to and highlight a specific item
+  const scrollToItem = (itemId: string) => {
+    setHighlightedItemId(itemId);
+    const element = itemRefs.current[itemId];
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Remove highlight after 3 seconds
+      setTimeout(() => setHighlightedItemId(null), 3000);
+    }
+  };
+
   const handleComplete = async () => {
     const unanswered = items.filter(item => item.answer === null).length;
     if (unanswered > 0) {
-      toast({
-        title: "Auditoria incompleta",
-        description: `Ainda faltam ${unanswered} perguntas para responder.`,
-        variant: "destructive"
-      });
+      // Show pending details and scroll to first unanswered
+      setShowPendingDetails(true);
+      const firstUnanswered = items.find(item => item.answer === null);
+      if (firstUnanswered) {
+        setTimeout(() => scrollToItem(firstUnanswered.id), 100);
+      }
       return;
     }
 
     // Validate only non-conforming items need photo and comment
     if (incompleteNonConformities.length > 0) {
-      toast({
-        title: "Não conformidades incompletas",
-        description: `${incompleteNonConformities.length} item(ns) não conforme(s) precisam de foto e comentário.`,
-        variant: "destructive"
-      });
+      // Show pending details and scroll to first incomplete
+      setShowPendingDetails(true);
+      const firstIncomplete = incompleteNonConformities[0];
+      if (firstIncomplete) {
+        setTimeout(() => scrollToItem(firstIncomplete.id), 100);
+      }
       return;
     }
 
@@ -400,8 +422,88 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
             <Progress value={progress} className="h-2" />
           </div>
 
-          {/* Non-conformities pending indicator */}
-          {totalNonConformities > 0 && (
+          {/* Pending items alert - shows when user tries to complete without finishing */}
+          {(showPendingDetails && (progress < 100 || incompleteNonConformities.length > 0)) && (
+            <Collapsible open={showPendingDetails} onOpenChange={setShowPendingDetails}>
+              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 mt-3">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center justify-between w-full text-left">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
+                      <span className="text-sm font-medium text-destructive">
+                        {progress < 100 
+                          ? `${items.length - answered} pergunta(s) sem resposta`
+                          : `${incompleteNonConformities.length} não conformidade(s) incompleta(s)`
+                        }
+                      </span>
+                    </div>
+                    {showPendingDetails ? (
+                      <ChevronUp className="h-4 w-4 text-destructive" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-destructive" />
+                    )}
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-3 space-y-2">
+                    {/* Unanswered questions */}
+                    {progress < 100 && items.filter(i => i.answer === null).map((item, idx) => {
+                      const itemIndex = items.findIndex(i => i.id === item.id);
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => scrollToItem(item.id)}
+                          className="flex items-center gap-2 w-full text-left p-2 rounded hover:bg-destructive/10 transition-colors"
+                        >
+                          <Badge variant="outline" className="shrink-0 text-destructive border-destructive/30">
+                            #{itemIndex + 1}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground truncate flex-1">
+                            {item.question.slice(0, 50)}{item.question.length > 50 ? '...' : ''}
+                          </span>
+                          <Badge variant="secondary" className="shrink-0 text-xs">
+                            Sem resposta
+                          </Badge>
+                        </button>
+                      );
+                    })}
+                    {/* Incomplete non-conformities */}
+                    {progress >= 100 && incompleteNonConformities.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => scrollToItem(item.id)}
+                        className="flex items-center gap-2 w-full text-left p-2 rounded hover:bg-destructive/10 transition-colors"
+                      >
+                        <Badge variant="outline" className="shrink-0 text-destructive border-destructive/30">
+                          #{item.index + 1}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground truncate flex-1">
+                          {item.question.slice(0, 40)}{item.question.length > 40 ? '...' : ''}
+                        </span>
+                        <div className="flex gap-1 shrink-0">
+                          {item.missingPhoto && (
+                            <Badge variant="destructive" className="text-xs gap-1">
+                              <Camera className="h-3 w-3" />
+                              Foto
+                            </Badge>
+                          )}
+                          {item.missingComment && (
+                            <Badge variant="destructive" className="text-xs gap-1">
+                              <MessageSquare className="h-3 w-3" />
+                              Comentário
+                            </Badge>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          )}
+
+          {/* Non-conformities pending indicator (when not showing details) */}
+          {!showPendingDetails && totalNonConformities > 0 && (
             <div className="flex justify-between text-xs sm:text-sm pt-2 border-t">
               <span className="text-muted-foreground">Não conformidades</span>
               <span className={incompleteNonConformities.length > 0 ? "text-destructive font-medium" : "text-success font-medium"}>
@@ -417,12 +519,17 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
 
       <div className="space-y-2 sm:space-y-3">
         {items.map((item, index) => (
-          <ChecklistItem
-            key={item.id}
-            item={item}
-            index={index}
-            onAnswerChange={handleAnswerChange}
-          />
+          <div 
+            key={item.id} 
+            ref={(el) => { itemRefs.current[item.id] = el; }}
+            className={highlightedItemId === item.id ? 'ring-2 ring-destructive ring-offset-2 rounded-lg transition-all duration-300' : ''}
+          >
+            <ChecklistItem
+              item={item}
+              index={index}
+              onAnswerChange={handleAnswerChange}
+            />
+          </div>
         ))}
       </div>
 
@@ -443,7 +550,7 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
           </Button>
           <Button
             onClick={handleComplete}
-            disabled={isSaving || progress < 100}
+            disabled={isSaving}
             className="flex-1 text-xs sm:text-sm"
           >
             {isSaving ? (
