@@ -7,13 +7,15 @@ interface CompanyBoardModalProps {
   onOpenChange: (open: boolean) => void;
   companyData: AuditGroupedData | null;
   onAuditClick: (auditId: string) => void;
+  onDataRefresh?: () => void;
 }
 
 export function CompanyBoardModal({
   open,
   onOpenChange,
   companyData,
-  onAuditClick
+  onAuditClick,
+  onDataRefresh
 }: CompanyBoardModalProps) {
   // Don't render anything if not open OR if no company data
   if (!open) return null;
@@ -65,6 +67,7 @@ export function CompanyBoardModal({
           groupedAudits={[companyData]}
           onAuditClick={onAuditClick}
           hideCompanyHeader
+          onDataRefresh={onDataRefresh}
         />
       </div>
     </div>

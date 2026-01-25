@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Building2, ChevronDown, ChevronRight, MapPin, Layers, ChevronsRight, CheckCircle2, AlertTriangle, XCircle, Minus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { MultiAuditSelectionModal } from "./MultiAuditSelectionModal";
 
 // Interface para scores por senso
 export interface SensoScores {
@@ -46,6 +47,7 @@ interface AuditBoardViewProps {
   groupedAudits: AuditGroupedData[];
   onAuditClick: (auditId: string) => void;
   hideCompanyHeader?: boolean;
+  onDataRefresh?: () => void;
 }
 
 // Configuração dos 5 Sensos com cores mais suaves no header
@@ -152,7 +154,7 @@ const ScoreIndicator = ({ score, showPercent = false, isGeneral = false, isLocal
   );
 };
 
-export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader = false }: AuditBoardViewProps) {
+export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader = false, onDataRefresh }: AuditBoardViewProps) {
   const [expandedCompanies, setExpandedCompanies] = useState<string[]>(
     hideCompanyHeader ? groupedAudits.map(c => c.company_id) : []
   );
@@ -160,6 +162,17 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
     hideCompanyHeader ? groupedAudits.flatMap(c => c.areas.map(a => a.area_id)) : []
   );
   const [showSwipeHint, setShowSwipeHint] = useState(true);
+  
+  // Estado para o modal de seleção de múltiplas auditorias
+  const [multiAuditModal, setMultiAuditModal] = useState<{
+    open: boolean;
+    localName: string;
+    audits: AuditWithSensoScores[];
+  }>({
+    open: false,
+    localName: '',
+    audits: []
+  });
 
   // Esconder hint após alguns segundos ou após primeiro scroll
   useEffect(() => {
@@ -461,22 +474,44 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
                                 const localScore = latestAudit?.score ?? null;
                                 // Ajustar o recuo baseado se o ambiente é virtual ou não
                                 const localIndent = isVirtual ? "pl-4 sm:pl-10" : "pl-6 sm:pl-16";
+                                const hasMultipleAudits = local.audits.length > 1;
+
+                                const handleLocalClick = () => {
+                                  if (hasMultipleAudits) {
+                                    // Abrir modal de seleção
+                                    setMultiAuditModal({
+                                      open: true,
+                                      localName: local.local_name,
+                                      audits: local.audits
+                                    });
+                                  } else if (latestAudit) {
+                                    onAuditClick(latestAudit.id);
+                                  }
+                                };
 
                                 return (
                                   <tr 
                                     key={local.local_id} 
                                     className={cn(
                                       "border-b border-blue-100 bg-blue-50/50 hover:bg-blue-100/50 transition-colors",
-                                      latestAudit && "cursor-pointer"
+                                      (latestAudit || hasMultipleAudits) && "cursor-pointer"
                                     )}
-                                    onClick={() => latestAudit && onAuditClick(latestAudit.id)}
+                                    onClick={handleLocalClick}
                                   >
                                     <td className={cn("sticky left-0 z-10 p-1.5 sm:p-3 border-r border-blue-100 bg-blue-50/50", localIndent)}>
                                       <div className="flex items-center gap-1.5 sm:gap-2">
                                         <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-600 flex-shrink-0" />
                                         <span className="text-[10px] sm:text-sm font-medium text-blue-800 truncate">{local.local_name}</span>
                                         {local.audits.length > 0 && (
-                                          <Badge variant="outline" className="text-[8px] sm:text-[9px] bg-blue-50 text-blue-600 border-blue-200 flex-shrink-0 px-1">
+                                          <Badge 
+                                            variant="outline" 
+                                            className={cn(
+                                              "text-[8px] sm:text-[9px] flex-shrink-0 px-1",
+                                              hasMultipleAudits 
+                                                ? "bg-amber-50 text-amber-700 border-amber-300" 
+                                                : "bg-blue-50 text-blue-600 border-blue-200"
+                                            )}
+                                          >
                                             {local.audits.length}
                                           </Badge>
                                         )}
@@ -516,6 +551,16 @@ export function AuditBoardView({ groupedAudits, onAuditClick, hideCompanyHeader 
           </Card>
         );
       })}
+      
+      {/* Modal de seleção de múltiplas auditorias */}
+      <MultiAuditSelectionModal
+        open={multiAuditModal.open}
+        onOpenChange={(open) => setMultiAuditModal(prev => ({ ...prev, open }))}
+        localName={multiAuditModal.localName}
+        audits={multiAuditModal.audits}
+        onAuditClick={onAuditClick}
+        onAuditDeleted={onDataRefresh}
+      />
     </div>
   );
 }
