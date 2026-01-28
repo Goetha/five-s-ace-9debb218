@@ -5,14 +5,40 @@ import { getScoreLevelLabel, getScoreLevelColor, fetchImageAsBase64 } from './re
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-// Constants
+// Constants - optimized for fast generation with photos
 const PAGE_MARGIN = 15;
-const MAX_IMAGE_WIDTH = 55;
-const MAX_IMAGE_HEIGHT = 42;
+const MAX_IMAGE_WIDTH = 50;
+const MAX_IMAGE_HEIGHT = 38;
 const MAX_IMAGES_PER_ROW = 3;
-const MAX_PHOTOS_PER_ITEM = 4; // Limit photos per item to avoid infinite loading
-const MAX_NON_CONFORMITIES_COMPANY_REPORT = 15; // Limit non-conformities in company report
-const IMAGE_PROCESS_TIMEOUT = 3000; // 3 seconds timeout per image
+const MAX_PHOTOS_PER_ITEM = 2; // Show max 2 photos per NC for speed
+const MAX_NON_CONFORMITIES_COMPANY_REPORT = 20;
+
+// Pre-load images in parallel for fast PDF generation
+async function preloadImagesInParallel(urls: string[]): Promise<Map<string, string>> {
+  console.log(`[PDF] Pre-loading ${urls.length} images in parallel...`);
+  const startTime = Date.now();
+  
+  const results = await Promise.all(
+    urls.map(async (url) => {
+      try {
+        const base64 = await fetchImageAsBase64(url);
+        return { url, base64 };
+      } catch {
+        return { url, base64: null };
+      }
+    })
+  );
+  
+  const cache = new Map<string, string>();
+  for (const { url, base64 } of results) {
+    if (base64) {
+      cache.set(url, base64);
+    }
+  }
+  
+  console.log(`[PDF] Pre-loaded ${cache.size}/${urls.length} images in ${Date.now() - startTime}ms`);
+  return cache;
+}
 
 interface PDFHelpers {
   pdf: jsPDF;
@@ -1038,25 +1064,33 @@ export async function generateCompanyReportPDF(data: CompanyReportData): Promise
     helpers.yPos += 10;
   }
 
-  // Non-conformities section with photos - LIMITED to prevent timeout
+  // Non-conformities section with photos - pre-load images in parallel
   if (data.non_conformities.length > 0) {
     const ncCount = Math.min(data.non_conformities.length, MAX_NON_CONFORMITIES_COMPANY_REPORT);
     addSectionHeader(helpers, `NAO CONFORMIDADES (${ncCount} de ${data.non_conformities.length})`, '#EF4444');
 
     console.log(`[PDF] Processing ${ncCount} non-conformities...`);
     
-    // Limit non-conformities to prevent infinite loading
+    // Collect all photo URLs (limited per item) for parallel pre-loading
+    const allPhotoUrls: string[] = [];
+    for (let i = 0; i < ncCount; i++) {
+      const nc = data.non_conformities[i];
+      const photosToInclude = nc.photo_urls.slice(0, MAX_PHOTOS_PER_ITEM);
+      allPhotoUrls.push(...photosToInclude);
+    }
+    
+    // Pre-load all images in parallel (FAST!)
+    const imageCache = await preloadImagesInParallel(allPhotoUrls);
+    console.log(`[PDF] Image cache ready with ${imageCache.size} images`);
+    
+    // Render non-conformities with cached images
     for (let i = 0; i < ncCount; i++) {
       const nc = data.non_conformities[i];
       checkPageBreak(helpers, 50);
 
-      // Card background - calculate dynamic height based on content
-      const hasPhotos = nc.photo_urls.length > 0;
-      const photoRows = hasPhotos ? Math.ceil(nc.photo_urls.length / MAX_IMAGES_PER_ROW) : 0;
-      const cardHeight = 35 + (nc.comment ? 12 : 0) + (photoRows * (MAX_IMAGE_HEIGHT + 5));
-      
+      // Card background
       pdf.setFillColor('#FEF2F2');
-      pdf.roundedRect(PAGE_MARGIN, helpers.yPos - 2, pageWidth - 2 * PAGE_MARGIN, Math.min(cardHeight, 60), 2, 2, 'F');
+      pdf.roundedRect(PAGE_MARGIN, helpers.yPos - 2, pageWidth - 2 * PAGE_MARGIN, 55, 2, 2, 'F');
       
       // Number badge
       pdf.setFillColor('#EF4444');
@@ -1082,10 +1116,34 @@ export async function generateCompanyReportPDF(data: CompanyReportData): Promise
         helpers.yPos += 12;
       }
 
-      // Photos indicator (NO image loading for speed - images only in individual audit reports)
+      // Photos - render from cache (no waiting!)
       if (nc.photo_urls.length > 0) {
-        addText(helpers, `📷 ${nc.photo_urls.length} foto(s) de evidência disponível(is)`, PAGE_MARGIN + 18, helpers.yPos + 3, { fontSize: 8, color: '#3B82F6' });
-        helpers.yPos += 8;
+        const photosToShow = nc.photo_urls.slice(0, MAX_PHOTOS_PER_ITEM);
+        let imageX = PAGE_MARGIN + 18;
+        let imagesRendered = 0;
+        
+        for (const photoUrl of photosToShow) {
+          const base64 = imageCache.get(photoUrl);
+          if (base64) {
+            try {
+              pdf.addImage(base64, 'JPEG', imageX, helpers.yPos, MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT);
+              imageX += MAX_IMAGE_WIDTH + 3;
+              imagesRendered++;
+            } catch {
+              // Skip invalid images
+            }
+          }
+        }
+        
+        if (imagesRendered > 0) {
+          helpers.yPos += MAX_IMAGE_HEIGHT + 5;
+        }
+        
+        // Show indicator if more photos exist
+        if (nc.photo_urls.length > MAX_PHOTOS_PER_ITEM) {
+          addText(helpers, `... +${nc.photo_urls.length - MAX_PHOTOS_PER_ITEM} foto(s)`, PAGE_MARGIN + 18, helpers.yPos, { fontSize: 7, color: '#6B7280' });
+          helpers.yPos += 5;
+        }
       }
 
       helpers.yPos += 8;
