@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,36 +30,42 @@ const getSensoLabel = (senso: string[] | null | undefined): string => {
   return SENSO_LABELS[senso[0]] || senso[0];
 };
 
+// Parse photos from JSON string or use empty array
+const parsePhotos = (photoUrl: string | null): string[] => {
+  if (!photoUrl) return [];
+  try {
+    const parsed = JSON.parse(photoUrl);
+    return Array.isArray(parsed) ? parsed : [photoUrl];
+  } catch {
+    return [photoUrl];
+  }
+};
+
 export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProps) {
-  const [localAnswer, setLocalAnswer] = useState<boolean | null>(item.answer);
+  // Use item props directly for answer, comment and photos to stay in sync with parent
+  const localAnswer = item.answer;
+  const comment = item.comment || "";
+  const photoUrls = parsePhotos(item.photo_url);
+  
   const [showDetails, setShowDetails] = useState(item.answer !== null);
-  const [comment, setComment] = useState(item.comment || "");
-  
-  // Parse existing photos from JSON string or use empty array
-  const parsePhotos = (photoUrl: string | null): string[] => {
-    if (!photoUrl) return [];
-    try {
-      const parsed = JSON.parse(photoUrl);
-      return Array.isArray(parsed) ? parsed : [photoUrl];
-    } catch {
-      return [photoUrl];
-    }
-  };
-  
-  const [photoUrls, setPhotoUrls] = useState<string[]>(parsePhotos(item.photo_url));
   const [isUploading, setIsUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  
+  // Expand details section when answer is set
+  useEffect(() => {
+    if (item.answer !== null && !showDetails) {
+      setShowDetails(true);
+    }
+  }, [item.answer, showDetails]);
 
   const handleAnswer = (answer: boolean) => {
-    setLocalAnswer(answer);
     setShowDetails(true);
     onAnswerChange(item.id, answer, photoUrls.length > 0 ? photoUrls : undefined, comment);
   };
 
   const handleCommentChange = (value: string) => {
-    setComment(value);
     onAnswerChange(item.id, localAnswer!, photoUrls.length > 0 ? photoUrls : undefined, value);
   };
 
@@ -115,7 +121,6 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
         .getPublicUrl(filePath);
 
       const updatedPhotos = [...photoUrls, publicUrl];
-      setPhotoUrls(updatedPhotos);
       onAnswerChange(item.id, localAnswer!, updatedPhotos, comment);
 
       toast({
@@ -136,7 +141,6 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
 
   const handleRemovePhoto = (indexToRemove: number) => {
     const updatedPhotos = photoUrls.filter((_, index) => index !== indexToRemove);
-    setPhotoUrls(updatedPhotos);
     onAnswerChange(item.id, localAnswer!, updatedPhotos.length > 0 ? updatedPhotos : undefined, comment);
     
     toast({
