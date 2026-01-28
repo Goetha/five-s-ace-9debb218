@@ -615,11 +615,12 @@ export function getScoreLevelColor(level: string | null): string {
   }
 }
 
-// Image fetch timeout in milliseconds
-const IMAGE_TIMEOUT = 5000;
+// Image fetch timeout in milliseconds - keep short to prevent long waits
+const IMAGE_TIMEOUT = 3000;
 
 // Fetch image as base64 for embedding in PDF with timeout
 export async function fetchImageAsBase64(url: string): Promise<string | null> {
+  console.log('[PDF] Loading image:', url.substring(0, 50) + '...');
   try {
     // Create a promise that rejects after timeout
     const timeoutPromise = new Promise<null>((resolve) => {
