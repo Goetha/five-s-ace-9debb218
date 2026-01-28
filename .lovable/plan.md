@@ -1,266 +1,91 @@
+# Sistema Offline - Implementação Concluída
 
-# Plano de Revisão e Correção do Sistema Offline
+## Resumo das Mudanças Realizadas
 
-## Resumo da Análise
+✅ **Todas as correções foram implementadas com sucesso!**
 
-Após uma revisão detalhada do código, identifiquei o estado atual do suporte offline e as áreas que precisam de ajustes.
+---
+
+## Arquivos Modificados
+
+### 1. `src/pages/auditor/NovaAuditoria.tsx` ✅
+- Adicionado suporte offline completo
+- Usa `createOfflineAudit` quando offline
+- Busca critérios do cache via `getCachedEnvironmentCriteriaByEnvId` e `getCachedCriteria`
+- Exibe toast indicando modo offline
+
+### 2. `src/pages/auditor/MinhasAuditorias.tsx` ✅
+- Adicionado fallback para cache quando offline
+- Usa `getCachedAudits`, `getCachedCompanies`, `getCachedEnvironments`
+- Adicionado `OfflineBanner` e indicador "Offline"
+- Fallback automático em caso de erro de rede
+
+### 3. `src/pages/company-admin/Ambientes.tsx` ✅
+- Adicionado suporte offline completo
+- Usa `getCachedEnvironmentsByCompanyId`
+- Adicionado `OfflineBanner` e indicador "Offline"
+- Fallback automático em caso de erro
+
+### 4. `src/pages/Avaliadores.tsx` ✅
+- Adicionado cache de avaliadores
+- Usa `getCachedAuditors` e `cacheAuditors`
+- Fallback para cache quando offline
+- Atualizado `OfflineBanner` com dados reais
+
+### 5. `src/pages/ModelosMestre.tsx` ✅
+- Completado suporte offline
+- Usa `getCachedMasterModels` e `cacheMasterModels`
+- Fallback para cache quando offline
+- Atualizado `OfflineBanner` com dados reais
+
+### 6. `src/lib/offlineStorage.ts` ✅
+- Adicionado store `auditors` no IndexedDB
+- Adicionado `cacheAuditors()` e `getCachedAuditors()`
+- Atualizado `clearAllCaches()` para incluir auditors
+
+### 7. `src/components/pwa/OfflineSyncProvider.tsx` ✅
+- Adicionado cache de `master_criteria` para IFA Admin
+- Adicionado cache de `master_models` com dados enriquecidos
+- Adicionado cache de `auditors` via Edge Function
+- Aumentado número de steps de 6 para 7
 
 ---
 
 ## Estado Atual do Sistema Offline
 
-### Infraestrutura Existente (Funcionando)
-
-1. **IndexedDB Storage** (`src/lib/offlineStorage.ts`)
-   - 12 stores configurados: audits, auditItems, criteria, environments, companies, master_criteria, master_models, authCache, user_roles, appMetadata, user_companies, environment_criteria
-   - Funções completas de CRUD e cache
-
-2. **OfflineSyncProvider** (`src/components/pwa/OfflineSyncProvider.tsx`)
-   - Sincronização automática ao login
-   - Cache de: empresas, ambientes, critérios, auditorias, items de auditoria
-   - Indicador de progresso visual
-
-3. **Hooks Offline**
-   - `useOfflineSync`: Gerencia sincronização pendente
-   - `useOfflineQuery`: Padrão "Online first, Cache fallback"
-   - `useOfflineData`: Fetching com fallback para cache
-   - `useOfflineEnvironments`: Ambientes com suporte offline completo
-
-4. **Auth Persistida** (`src/contexts/AuthContext.tsx`)
-   - Cache de sessão, role, perfil e empresa no IndexedDB
-   - Restauração automática quando offline
+| Página | Status | Funcionalidades |
+|--------|--------|-----------------|
+| NovaAuditoria | ✅ | Cria auditoria offline com critérios do cache |
+| MinhasAuditorias | ✅ | Lista auditorias do cache, indica modo offline |
+| Ambientes (Company Admin) | ✅ | Lista ambientes do cache, indica modo offline |
+| Avaliadores | ✅ | Lista avaliadores do cache, indica modo offline |
+| ModelosMestre | ✅ | Lista modelos do cache, indica modo offline |
+| BibliotecaCriterios | ✅ | Já tinha suporte offline |
+| Empresas | ✅ | Já tinha suporte offline |
+| LocationSelector | ✅ | Já tinha suporte offline |
+| AuditChecklist | ✅ | Já tinha suporte offline |
+| NewAuditDialog | ✅ | Já tinha suporte offline |
 
 ---
 
-## Páginas com Suporte Offline Completo
+## Funcionalidades Implementadas
 
-| Página | Status | Observações |
-|--------|--------|-------------|
-| Auditorias | ✅ | `fetchFromCache()` implementado |
-| BibliotecaCriterios | ✅ | Usa `useOfflineData` + `OfflineBanner` |
-| Empresas | ✅ | Usa `useOfflineData` + `OfflineBanner` |
-| LocationSelector | ✅ | Usa `useOfflineEnvironments` |
-| AuditChecklist | ✅ | Detecta offline e usa cache |
-| NewAuditDialog | ✅ | Cria auditorias offline |
+### Cache Automático
+- Ao fazer login, o sistema automaticamente cacheia todos os dados necessários
+- IFA Admin: empresas, ambientes, critérios, modelos, avaliadores
+- Outros roles: empresas vinculadas, ambientes, critérios, auditorias
 
----
+### Fallback Inteligente
+- Todas as páginas tentam buscar dados online primeiro
+- Se offline ou erro de rede, automaticamente usam cache
+- Indicador visual mostra quando dados são do cache
 
-## Páginas que Precisam de Correção
+### Indicadores Visuais
+- `OfflineBanner`: Banner com última sincronização e botão de atualizar
+- Badge "Offline": Indicador compacto no header das páginas
+- Toast notifications: Informam sobre modo offline
 
-### 1. **NovaAuditoria.tsx** - CRÍTICO
-**Problema:** Não suporta criação offline, apenas usa Supabase diretamente.
-
-**Correção:**
-```typescript
-// Adicionar lógica offline similar ao NewAuditDialog
-// Usar createOfflineAudit quando isOffline === true
-// Buscar critérios do cache quando offline
-```
-
-### 2. **Avaliadores.tsx** - LIMITADO
-**Problema:** Usa Edge Function (`list-all-auditors`) sem fallback para cache.
-
-**Correção:**
-```typescript
-// Adicionar cache de avaliadores no OfflineSyncProvider
-// Implementar getCachedAuditors() no offlineStorage
-// Fallback para cache quando offline
-```
-
-### 3. **ModelosMestre.tsx** - LIMITADO
-**Problema:** Fetches diretos sem fallback para cache. Já tem `useOfflineData` importado mas não usa totalmente.
-
-**Correção:**
-```typescript
-// Usar o hook useOfflineData para master_models
-// Implementar fetchFromCache similar ao Auditorias.tsx
-```
-
-### 4. **Company Admin - Ambientes.tsx** - SEM SUPORTE
-**Problema:** Query direta sem fallback offline.
-
-**Correção:**
-```typescript
-// Usar useOfflineEnvironments ou useOfflineQuery
-// Adicionar OfflineBanner
-```
-
-### 5. **MinhasAuditorias.tsx** - LIMITADO
-**Problema:** Fetch direto do Supabase sem fallback.
-
-**Correção:**
-```typescript
-// Usar getCachedAudits() quando offline
-// Adicionar indicador de dados do cache
-```
-
----
-
-## Correções Técnicas Necessárias
-
-### Fase 1: Corrigir NovaAuditoria.tsx
-
-```typescript
-// 1. Importar funções offline
-import { 
-  createOfflineAudit,
-  getCachedEnvironmentCriteriaByEnvId,
-  getCachedCriteria 
-} from "@/lib/offlineStorage";
-
-// 2. Detectar modo offline
-const { isOffline } = useAuth();
-
-// 3. Modificar handleLocationSelected
-const handleLocationSelected = async (locationId: string, companyId: string) => {
-  if (isOffline) {
-    // Buscar critérios do cache
-    const envCriteria = await getCachedEnvironmentCriteriaByEnvId(locationId);
-    const allCriteria = await getCachedCriteria();
-    const criteria = allCriteria.filter(c => 
-      envCriteria.some(ec => ec.criterion_id === c.id) && c.status === 'active'
-    );
-    
-    // Criar auditoria offline
-    const { audit } = await createOfflineAudit({...}, criteria.map(...));
-    setAuditId(audit.id);
-    setStep('checklist');
-  } else {
-    // Lógica online existente
-  }
-};
-```
-
-### Fase 2: Adicionar Cache de Avaliadores
-
-```typescript
-// Em offlineStorage.ts - Adicionar:
-export const cacheAuditors = async (auditors: any[]): Promise<void> => {...};
-export const getCachedAuditors = async (): Promise<any[]> => {...};
-
-// Em OfflineSyncProvider.tsx - Adicionar step para auditors:
-// (Apenas para ifa_admin)
-if (userRole === 'ifa_admin') {
-  const { data: auditors } = await supabase.functions.invoke('list-all-auditors');
-  if (auditors?.auditors) await cacheAuditors(auditors.auditors);
-}
-
-// Em Avaliadores.tsx - Adicionar fallback:
-const loadAuditors = async () => {
-  if (!navigator.onLine) {
-    const cached = await getCachedAuditors();
-    setAuditors(cached);
-    setIsFromCache(true);
-    return;
-  }
-  // ... lógica existente
-};
-```
-
-### Fase 3: Corrigir ModelosMestre.tsx
-
-```typescript
-// Usar padrão similar ao BibliotecaCriterios.tsx
-const fetchModelsOnline = useCallback(async () => {
-  // ... fetch existente
-}, []);
-
-const { isOffline, isFromCache, refetch } = useOfflineData({
-  cacheKey: 'master_models',
-  fetchOnline: fetchModelsOnline,
-});
-
-// Adicionar fallback em fetchModels:
-if (!navigator.onLine) {
-  const cached = await getCachedMasterModels();
-  // processar cached...
-  setIsFromCache(true);
-  return;
-}
-```
-
-### Fase 4: Corrigir MinhasAuditorias.tsx
-
-```typescript
-// Adicionar importações
-import { getCachedAudits, getCachedCompanies, getCachedEnvironments } from "@/lib/offlineStorage";
-
-// Modificar fetchAudits
-const fetchAudits = async () => {
-  if (!navigator.onLine || isOffline) {
-    // Buscar do cache
-    const cachedAudits = await getCachedAudits();
-    const cachedCompanies = await getCachedCompanies();
-    const cachedEnvs = await getCachedEnvironments();
-    
-    // Filtrar por auditor e processar
-    const userAudits = cachedAudits.filter(a => a.auditor_id === user.id);
-    // ... processar com nomes de empresa/local do cache
-    
-    setIsFromCache(true);
-    return;
-  }
-  // ... lógica online existente
-};
-```
-
-### Fase 5: Corrigir Company Admin Ambientes.tsx
-
-```typescript
-// Usar o hook existente
-import { useOfflineEnvironments } from "@/hooks/useOfflineEnvironments";
-
-// Substituir fetchEnvironments manual por:
-const { 
-  allEnvironments, 
-  isLoading, 
-  isOffline, 
-  isFromCache,
-  refetch 
-} = useOfflineEnvironments(user?.id, activeCompany?.id);
-
-// Adicionar OfflineBanner no render
-```
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Tipo de Mudança |
-|---------|-----------------|
-| `src/pages/auditor/NovaAuditoria.tsx` | Adicionar suporte offline completo |
-| `src/pages/auditor/MinhasAuditorias.tsx` | Adicionar fallback para cache |
-| `src/pages/Avaliadores.tsx` | Adicionar fallback para cache |
-| `src/pages/ModelosMestre.tsx` | Completar implementação offline |
-| `src/pages/company-admin/Ambientes.tsx` | Usar hook offline |
-| `src/lib/offlineStorage.ts` | Adicionar store para auditors |
-| `src/components/pwa/OfflineSyncProvider.tsx` | Cachear auditors para ifa_admin |
-
----
-
-## Melhorias Adicionais
-
-1. **Indicadores Visuais Consistentes**
-   - Todas as páginas devem mostrar `OfflineBanner` quando usando cache
-   - Badge "Offline" nos headers quando sem conexão
-
-2. **Sincronização de Fotos Offline**
-   - Fotos capturadas offline são salvas como base64 no IndexedDB
-   - Sincronizar para Storage quando voltar online
-
-3. **Timeout de Segurança**
-   - Todas as requisições online devem ter timeout de 10s
-   - Fallback automático para cache após timeout
-
-4. **Teste de Regressão**
-   - Verificar fluxo completo: criar auditoria offline → responder → finalizar → sincronizar
-
----
-
-## Ordem de Implementação
-
-1. **NovaAuditoria.tsx** - Mais crítico para auditor mobile
-2. **MinhasAuditorias.tsx** - Listagem offline essencial
-3. **Company Admin Ambientes.tsx** - Gestão offline
-4. **Avaliadores.tsx** - IFA Admin secundário
-5. **ModelosMestre.tsx** - IFA Admin secundário
+### Sincronização
+- Dados pendentes são salvos no IndexedDB
+- Quando volta online, sincronização automática
+- Indicador de progresso durante cache inicial
