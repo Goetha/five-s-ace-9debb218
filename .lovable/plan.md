@@ -1,91 +1,49 @@
-# Sistema Offline - Implementação Concluída
 
-## Resumo das Mudanças Realizadas
+# Plano: Corrigir Carregamento de Fotos no Relatório PDF
 
-✅ **Todas as correções foram implementadas com sucesso!**
+## Problema Identificado
+As fotos não aparecem no PDF porque a função `fetchImageAsBase64` usa `Image` com `crossOrigin = 'anonymous'`, que é bloqueado por CORS ao acessar imagens do Supabase Storage.
 
----
+## Diagnóstico
+- **Dados OK**: As URLs das fotos estão corretas no banco de dados
+- **Bloqueio CORS**: O navegador bloqueia o canvas quando a imagem vem de domínio externo (Supabase Storage)
+- **Timeout**: O timeout de 2s pode estar atingindo antes da imagem carregar devido ao bloqueio
 
-## Arquivos Modificados
+## Solução Técnica
+Substituir o método `Image` + `canvas` por `fetch` + `FileReader` que não sofre bloqueio CORS:
 
-### 1. `src/pages/auditor/NovaAuditoria.tsx` ✅
-- Adicionado suporte offline completo
-- Usa `createOfflineAudit` quando offline
-- Busca critérios do cache via `getCachedEnvironmentCriteriaByEnvId` e `getCachedCriteria`
-- Exibe toast indicando modo offline
+### Alterações em `src/lib/reports/reportDataFormatter.ts`
 
-### 2. `src/pages/auditor/MinhasAuditorias.tsx` ✅
-- Adicionado fallback para cache quando offline
-- Usa `getCachedAudits`, `getCachedCompanies`, `getCachedEnvironments`
-- Adicionado `OfflineBanner` e indicador "Offline"
-- Fallback automático em caso de erro de rede
+```typescript
+// ANTES: Usa Image (bloqueado por CORS)
+const img = new Image();
+img.crossOrigin = 'anonymous';
+img.src = url;
 
-### 3. `src/pages/company-admin/Ambientes.tsx` ✅
-- Adicionado suporte offline completo
-- Usa `getCachedEnvironmentsByCompanyId`
-- Adicionado `OfflineBanner` e indicador "Offline"
-- Fallback automático em caso de erro
+// DEPOIS: Usa fetch + blob (funciona com Supabase Storage)
+const response = await fetch(url);
+const blob = await response.blob();
+const reader = new FileReader();
+reader.readAsDataURL(blob);
+```
 
-### 4. `src/pages/Avaliadores.tsx` ✅
-- Adicionado cache de avaliadores
-- Usa `getCachedAuditors` e `cacheAuditors`
-- Fallback para cache quando offline
-- Atualizado `OfflineBanner` com dados reais
+### Implementação Detalhada
 
-### 5. `src/pages/ModelosMestre.tsx` ✅
-- Completado suporte offline
-- Usa `getCachedMasterModels` e `cacheMasterModels`
-- Fallback para cache quando offline
-- Atualizado `OfflineBanner` com dados reais
+1. **Reescrever `fetchImageAsBase64`**:
+   - Usar `fetch()` para baixar a imagem como blob
+   - Converter blob para base64 usando `FileReader`
+   - Manter timeout de 3 segundos por segurança
+   - Adicionar compressão usando canvas após carregar o blob
 
-### 6. `src/lib/offlineStorage.ts` ✅
-- Adicionado store `auditors` no IndexedDB
-- Adicionado `cacheAuditors()` e `getCachedAuditors()`
-- Atualizado `clearAllCaches()` para incluir auditors
+2. **Otimizações**:
+   - Aumentar `IMAGE_TIMEOUT` para 3s (dar mais tempo para carregar)
+   - Reduzir tamanho máximo da imagem para 500px (PDF menor)
+   - Compressão JPEG 0.65 (boa qualidade, arquivo menor)
 
-### 7. `src/components/pwa/OfflineSyncProvider.tsx` ✅
-- Adicionado cache de `master_criteria` para IFA Admin
-- Adicionado cache de `master_models` com dados enriquecidos
-- Adicionado cache de `auditors` via Edge Function
-- Aumentado número de steps de 6 para 7
+## Resultado Esperado
+- PDF gerará em ~5-10 segundos (dependendo do número de fotos)
+- Todas as fotos das não conformidades aparecerão no relatório
+- Sem bloqueio CORS
 
----
-
-## Estado Atual do Sistema Offline
-
-| Página | Status | Funcionalidades |
-|--------|--------|-----------------|
-| NovaAuditoria | ✅ | Cria auditoria offline com critérios do cache |
-| MinhasAuditorias | ✅ | Lista auditorias do cache, indica modo offline |
-| Ambientes (Company Admin) | ✅ | Lista ambientes do cache, indica modo offline |
-| Avaliadores | ✅ | Lista avaliadores do cache, indica modo offline |
-| ModelosMestre | ✅ | Lista modelos do cache, indica modo offline |
-| BibliotecaCriterios | ✅ | Já tinha suporte offline |
-| Empresas | ✅ | Já tinha suporte offline |
-| LocationSelector | ✅ | Já tinha suporte offline |
-| AuditChecklist | ✅ | Já tinha suporte offline |
-| NewAuditDialog | ✅ | Já tinha suporte offline |
-
----
-
-## Funcionalidades Implementadas
-
-### Cache Automático
-- Ao fazer login, o sistema automaticamente cacheia todos os dados necessários
-- IFA Admin: empresas, ambientes, critérios, modelos, avaliadores
-- Outros roles: empresas vinculadas, ambientes, critérios, auditorias
-
-### Fallback Inteligente
-- Todas as páginas tentam buscar dados online primeiro
-- Se offline ou erro de rede, automaticamente usam cache
-- Indicador visual mostra quando dados são do cache
-
-### Indicadores Visuais
-- `OfflineBanner`: Banner com última sincronização e botão de atualizar
-- Badge "Offline": Indicador compacto no header das páginas
-- Toast notifications: Informam sobre modo offline
-
-### Sincronização
-- Dados pendentes são salvos no IndexedDB
-- Quando volta online, sincronização automática
-- Indicador de progresso durante cache inicial
+## Arquivos a Modificar
+- `src/lib/reports/reportDataFormatter.ts` - reescrever `fetchImageAsBase64`
