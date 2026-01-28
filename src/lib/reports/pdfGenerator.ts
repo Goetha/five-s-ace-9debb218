@@ -10,6 +10,8 @@ const PAGE_MARGIN = 15;
 const MAX_IMAGE_WIDTH = 55;
 const MAX_IMAGE_HEIGHT = 42;
 const MAX_IMAGES_PER_ROW = 3;
+const MAX_PHOTOS_PER_ITEM = 6; // Limit photos per item to avoid infinite loading
+const MAX_TOTAL_IMAGES = 50; // Maximum total images in report
 
 interface PDFHelpers {
   pdf: jsPDF;
@@ -784,8 +786,9 @@ export async function generateAuditPDF(data: AuditReportData): Promise<void> {
         let imageX = PAGE_MARGIN + 5;
         let imagesInRow = 0;
         
-        // Show ALL photos, not limited
-        for (const photoUrl of item.photo_urls) {
+        // Limit photos per item to prevent infinite loading
+        const photosToShow = item.photo_urls.slice(0, MAX_PHOTOS_PER_ITEM);
+        for (const photoUrl of photosToShow) {
           if (imagesInRow >= MAX_IMAGES_PER_ROW) {
             helpers.yPos += MAX_IMAGE_HEIGHT + 5;
             imageX = PAGE_MARGIN + 5;
@@ -798,6 +801,11 @@ export async function generateAuditPDF(data: AuditReportData): Promise<void> {
             imageX += MAX_IMAGE_WIDTH + 5;
             imagesInRow++;
           }
+        }
+        
+        if (item.photo_urls.length > MAX_PHOTOS_PER_ITEM) {
+          helpers.yPos += 5;
+          addText(helpers, `... e mais ${item.photo_urls.length - MAX_PHOTOS_PER_ITEM} foto(s)`, PAGE_MARGIN + 5, helpers.yPos, { fontSize: 7, color: '#6B7280' });
         }
         
         if (imagesInRow > 0) {
@@ -1079,8 +1087,9 @@ export async function generateCompanyReportPDF(data: CompanyReportData): Promise
         let imageX = PAGE_MARGIN + 18;
         let imagesInRow = 0;
         
-        // Show ALL photos
-        for (const photoUrl of nc.photo_urls) {
+        // Limit photos per item to prevent infinite loading
+        const photosToShow = nc.photo_urls.slice(0, MAX_PHOTOS_PER_ITEM);
+        for (const photoUrl of photosToShow) {
           if (imagesInRow >= MAX_IMAGES_PER_ROW) {
             helpers.yPos += MAX_IMAGE_HEIGHT + 5;
             imageX = PAGE_MARGIN + 18;
@@ -1093,6 +1102,11 @@ export async function generateCompanyReportPDF(data: CompanyReportData): Promise
             imageX += MAX_IMAGE_WIDTH;
             imagesInRow++;
           }
+        }
+        
+        if (nc.photo_urls.length > MAX_PHOTOS_PER_ITEM) {
+          helpers.yPos += 5;
+          addText(helpers, `... e mais ${nc.photo_urls.length - MAX_PHOTOS_PER_ITEM} foto(s)`, PAGE_MARGIN + 18, helpers.yPos, { fontSize: 7, color: '#6B7280' });
         }
         
         if (imagesInRow > 0) {
