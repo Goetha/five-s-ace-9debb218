@@ -615,19 +615,45 @@ export function getScoreLevelColor(level: string | null): string {
   }
 }
 
-// Fetch image as base64 for embedding in PDF
+// Image fetch timeout in milliseconds
+const IMAGE_TIMEOUT = 5000;
+
+// Fetch image as base64 for embedding in PDF with timeout
 export async function fetchImageAsBase64(url: string): Promise<string | null> {
   try {
-    // Try using an Image element for better CORS handling
-    return new Promise((resolve) => {
+    // Create a promise that rejects after timeout
+    const timeoutPromise = new Promise<null>((resolve) => {
+      setTimeout(() => {
+        console.warn('Image load timeout:', url);
+        resolve(null);
+      }, IMAGE_TIMEOUT);
+    });
+
+    // Create the image loading promise
+    const loadPromise = new Promise<string | null>((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       
       img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
+          // Limit image size to prevent memory issues
+          const maxSize = 800;
+          let width = img.naturalWidth;
+          let height = img.naturalHeight;
+          
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = (height / width) * maxSize;
+              width = maxSize;
+            } else {
+              width = (width / height) * maxSize;
+              height = maxSize;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
           
           const ctx = canvas.getContext('2d');
           if (!ctx) {
@@ -635,44 +661,27 @@ export async function fetchImageAsBase64(url: string): Promise<string | null> {
             return;
           }
           
-          ctx.drawImage(img, 0, 0);
-          const dataURL = canvas.toDataURL('image/jpeg', 0.8);
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataURL = canvas.toDataURL('image/jpeg', 0.7);
           resolve(dataURL);
         } catch {
-          // Canvas tainted by cross-origin data, try fetch as fallback
-          fetchImageViaFetch(url).then(resolve);
+          // Canvas tainted by cross-origin data
+          resolve(null);
         }
       };
       
       img.onerror = () => {
-        // If image fails to load, try fetch as fallback
-        fetchImageViaFetch(url).then(resolve);
+        resolve(null);
       };
       
       // Add cache-busting for external URLs
       const separator = url.includes('?') ? '&' : '?';
       img.src = url + separator + 't=' + Date.now();
     });
-  } catch {
-    return null;
-  }
-}
 
-// Fallback fetch method for images
-async function fetchImageViaFetch(url: string): Promise<string | null> {
-  try {
-    const response = await fetch(url, { mode: 'cors' });
-    if (!response.ok) return null;
-    
-    const blob = await response.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
+    // Race between timeout and actual load
+    return await Promise.race([loadPromise, timeoutPromise]);
   } catch {
-    console.warn('Failed to fetch image for PDF:', url);
     return null;
   }
 }
