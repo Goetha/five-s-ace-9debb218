@@ -615,19 +615,15 @@ export function getScoreLevelColor(level: string | null): string {
   }
 }
 
-// Image fetch timeout in milliseconds - keep short to prevent long waits
-const IMAGE_TIMEOUT = 3000;
+// Image fetch timeout in milliseconds - keep short for fast PDF generation
+const IMAGE_TIMEOUT = 2000; // 2 seconds max per image
 
 // Fetch image as base64 for embedding in PDF with timeout
 export async function fetchImageAsBase64(url: string): Promise<string | null> {
-  console.log('[PDF] Loading image:', url.substring(0, 50) + '...');
   try {
     // Create a promise that rejects after timeout
     const timeoutPromise = new Promise<null>((resolve) => {
-      setTimeout(() => {
-        console.warn('Image load timeout:', url);
-        resolve(null);
-      }, IMAGE_TIMEOUT);
+      setTimeout(() => resolve(null), IMAGE_TIMEOUT);
     });
 
     // Create the image loading promise
@@ -638,8 +634,8 @@ export async function fetchImageAsBase64(url: string): Promise<string | null> {
       img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
-          // Limit image size to prevent memory issues
-          const maxSize = 800;
+          // Smaller size for faster processing
+          const maxSize = 600;
           let width = img.naturalWidth;
           let height = img.naturalHeight;
           
