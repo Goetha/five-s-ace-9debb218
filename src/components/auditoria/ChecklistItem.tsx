@@ -254,34 +254,42 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
 
               {photoUrls.length > 0 && (
                 <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                  {photoUrls.map((url, index) => (
-                    <div key={index} className="relative group">
+                  {photoUrls.map((url, idx) => (
+                    <div key={idx} className="relative group">
                       <div 
                         className="w-full h-32 sm:h-40 rounded-lg border overflow-hidden cursor-pointer"
                         onClick={() => setPreviewImage(url)}
                       >
                         <img 
                           src={url} 
-                          alt={`Evidência ${index + 1}`} 
+                          alt={`Evidência ${idx + 1}`} 
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             console.error('Error loading image:', url);
                             e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999"%3EErro%3C/text%3E%3C/svg%3E';
                           }}
                         />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center pointer-events-none">
                           <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </div>
+                      {/* Remove button - always visible on mobile, hover on desktop */}
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemovePhoto(index);
-                        }}
-                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                         type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleRemovePhoto(idx);
+                        }}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleRemovePhoto(idx);
+                        }}
+                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-2 shadow-lg z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity touch-manipulation"
+                        aria-label={`Remover foto ${idx + 1}`}
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
                   ))}
