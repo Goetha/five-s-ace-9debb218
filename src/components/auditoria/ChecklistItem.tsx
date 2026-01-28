@@ -253,22 +253,12 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
               />
 
               {photoUrls.length > 0 && (
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="grid grid-cols-2 gap-4 overflow-visible">
                   {photoUrls.map((url, idx) => (
-                    <div key={idx} className="relative">
-                      {/* Remove button - positioned outside image container */}
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePhoto(idx)}
-                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-8 h-8 flex items-center justify-center shadow-lg z-20 active:scale-95 transition-transform"
-                        aria-label={`Remover foto ${idx + 1}`}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                      
-                      {/* Image container - separate from button */}
+                    <div key={idx} className="relative overflow-visible">
+                      {/* Image container */}
                       <div 
-                        className="w-full h-32 sm:h-40 rounded-lg border overflow-hidden cursor-pointer"
+                        className="w-full h-32 sm:h-40 rounded-lg border overflow-hidden cursor-pointer mt-3 mr-1"
                         onClick={() => setPreviewImage(url)}
                       >
                         <img 
@@ -280,8 +270,23 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
                             e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999"%3EErro%3C/text%3E%3C/svg%3E';
                           }}
                         />
-                        <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-all flex items-center justify-center pointer-events-none">
-                          <ZoomIn className="h-6 w-6 text-white opacity-0 hover:opacity-100 transition-opacity" />
+                      </div>
+                      
+                      {/* Remove button - positioned at top-right corner of relative container */}
+                      <div 
+                        className="absolute top-0 right-0 z-50"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Remove photo wrapper clicked:', idx);
+                          handleRemovePhoto(idx);
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <div className="bg-destructive text-destructive-foreground rounded-full w-8 h-8 flex items-center justify-center shadow-lg cursor-pointer active:scale-90 transition-transform">
+                          <X className="h-4 w-4 pointer-events-none" />
                         </div>
                       </div>
                     </div>
