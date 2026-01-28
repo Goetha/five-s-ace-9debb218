@@ -615,69 +615,68 @@ export function getScoreLevelColor(level: string | null): string {
   }
 }
 
-// Image fetch timeout in milliseconds - keep short for fast PDF generation
-const IMAGE_TIMEOUT = 2000; // 2 seconds max per image
+// Image fetch timeout in milliseconds
+const IMAGE_TIMEOUT = 3000; // 3 seconds max per image
 
-// Fetch image as base64 for embedding in PDF with timeout
+// Fetch image as base64 for embedding in PDF - uses fetch to avoid CORS issues
 export async function fetchImageAsBase64(url: string): Promise<string | null> {
   try {
-    // Create a promise that rejects after timeout
-    const timeoutPromise = new Promise<null>((resolve) => {
-      setTimeout(() => resolve(null), IMAGE_TIMEOUT);
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), IMAGE_TIMEOUT);
 
-    // Create the image loading promise
-    const loadPromise = new Promise<string | null>((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      img.onload = () => {
-        try {
-          const canvas = document.createElement('canvas');
-          // Smaller size for faster processing
-          const maxSize = 600;
-          let width = img.naturalWidth;
-          let height = img.naturalHeight;
-          
-          if (width > maxSize || height > maxSize) {
-            if (width > height) {
-              height = (height / width) * maxSize;
-              width = maxSize;
-            } else {
-              width = (width / height) * maxSize;
-              height = maxSize;
+    const response = await fetch(url, { 
+      signal: controller.signal,
+      mode: 'cors'
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) return null;
+
+    const blob = await response.blob();
+    
+    // Convert blob to base64 and compress using canvas
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const maxSize = 500;
+            let width = img.naturalWidth;
+            let height = img.naturalHeight;
+            
+            if (width > maxSize || height > maxSize) {
+              if (width > height) {
+                height = (height / width) * maxSize;
+                width = maxSize;
+              } else {
+                width = (width / height) * maxSize;
+                height = maxSize;
+              }
             }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              resolve(reader.result as string);
+              return;
+            }
+            
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.65));
+          } catch {
+            resolve(reader.result as string);
           }
-          
-          canvas.width = width;
-          canvas.height = height;
-          
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            resolve(null);
-            return;
-          }
-          
-          ctx.drawImage(img, 0, 0, width, height);
-          const dataURL = canvas.toDataURL('image/jpeg', 0.7);
-          resolve(dataURL);
-        } catch {
-          // Canvas tainted by cross-origin data
-          resolve(null);
-        }
+        };
+        img.onerror = () => resolve(reader.result as string);
+        img.src = reader.result as string;
       };
-      
-      img.onerror = () => {
-        resolve(null);
-      };
-      
-      // Add cache-busting for external URLs
-      const separator = url.includes('?') ? '&' : '?';
-      img.src = url + separator + 't=' + Date.now();
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
     });
-
-    // Race between timeout and actual load
-    return await Promise.race([loadPromise, timeoutPromise]);
   } catch {
     return null;
   }
