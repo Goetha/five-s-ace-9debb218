@@ -616,16 +616,41 @@ export function getScoreLevelColor(level: string | null): string {
 }
 
 // Image fetch timeout in milliseconds
-const IMAGE_TIMEOUT = 4000; // 4 seconds max per image
+const IMAGE_TIMEOUT = 5000; // 5 seconds max per fetch
+const IMAGE_LOAD_TIMEOUT = 3000; // 3 seconds max for Image element loading
 
-// Helper to load image via Image element (for canvas compression)
+// Helper to load image via Image element (for canvas compression) - WITH TIMEOUT
 function loadImageViaElement(url: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
+    
+    // Timeout para evitar travamento infinito
+    const timeout = setTimeout(() => {
+      console.warn(`[Image] Timeout loading image element`);
+      resolve(null);
+    }, IMAGE_LOAD_TIMEOUT);
+    
     img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    img.onload = () => {
+      clearTimeout(timeout);
+      resolve(img);
+    };
+    img.onerror = () => {
+      clearTimeout(timeout);
+      console.warn(`[Image] Error loading image element`);
+      resolve(null);
+    };
     img.src = url;
+  });
+}
+
+// Fallback: converter blob para base64 sem compressão
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
   });
 }
 
@@ -661,13 +686,15 @@ function compressImage(img: HTMLImageElement): string | null {
 }
 
 // Fetch image as base64 for embedding in PDF
-// Strategy: fetch blob -> create object URL -> load in Image -> compress with canvas
+// Strategy: fetch blob -> try canvas compression -> fallback to direct base64
 export async function fetchImageAsBase64(url: string): Promise<string | null> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), IMAGE_TIMEOUT);
 
-    // Try fetch first (works with most CORS-enabled storage)
+    console.log(`[Image] Fetching: ${url.substring(0, 60)}...`);
+
+    // Fetch image as blob
     const response = await fetch(url, { 
       signal: controller.signal
     });
@@ -679,24 +706,30 @@ export async function fetchImageAsBase64(url: string): Promise<string | null> {
     }
 
     const blob = await response.blob();
+    console.log(`[Image] Blob received: ${blob.size} bytes, type: ${blob.type}`);
     
     // Create temporary object URL
     const objectUrl = URL.createObjectURL(blob);
     
     try {
-      // Load image from object URL (same-origin, avoids CORS canvas issues)
+      // Try to load image from object URL for canvas compression
       const img = await loadImageViaElement(objectUrl);
-      if (!img) {
-        console.warn(`[Image] Failed to load image element for ${url}`);
-        return null;
+      
+      if (img) {
+        // Compress using canvas
+        const base64 = compressImage(img);
+        if (base64) {
+          console.log(`[Image] Successfully compressed: ${url.substring(0, 50)}...`);
+          return base64;
+        }
       }
       
-      // Compress using canvas
-      const base64 = compressImage(img);
-      if (base64) {
-        console.log(`[Image] Successfully loaded: ${url.substring(0, 50)}...`);
-      }
-      return base64;
+      // FALLBACK: Se canvas falhou, converte blob direto para base64
+      console.log(`[Image] Canvas failed, using direct base64 fallback`);
+      const directBase64 = await blobToBase64(blob);
+      console.log(`[Image] Fallback succeeded: ${url.substring(0, 50)}...`);
+      return directBase64;
+      
     } finally {
       // Clean up object URL
       URL.revokeObjectURL(objectUrl);
