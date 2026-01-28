@@ -616,68 +616,93 @@ export function getScoreLevelColor(level: string | null): string {
 }
 
 // Image fetch timeout in milliseconds
-const IMAGE_TIMEOUT = 3000; // 3 seconds max per image
+const IMAGE_TIMEOUT = 4000; // 4 seconds max per image
 
-// Fetch image as base64 for embedding in PDF - uses fetch to avoid CORS issues
+// Helper to load image via Image element (for canvas compression)
+function loadImageViaElement(url: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+// Compress image using canvas
+function compressImage(img: HTMLImageElement): string | null {
+  try {
+    const canvas = document.createElement('canvas');
+    const maxSize = 500;
+    let width = img.naturalWidth;
+    let height = img.naturalHeight;
+    
+    if (width > maxSize || height > maxSize) {
+      if (width > height) {
+        height = (height / width) * maxSize;
+        width = maxSize;
+      } else {
+        width = (width / height) * maxSize;
+        height = maxSize;
+      }
+    }
+    
+    canvas.width = width;
+    canvas.height = height;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', 0.65);
+  } catch {
+    return null;
+  }
+}
+
+// Fetch image as base64 for embedding in PDF
+// Strategy: fetch blob -> create object URL -> load in Image -> compress with canvas
 export async function fetchImageAsBase64(url: string): Promise<string | null> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), IMAGE_TIMEOUT);
 
+    // Try fetch first (works with most CORS-enabled storage)
     const response = await fetch(url, { 
-      signal: controller.signal,
-      mode: 'cors'
+      signal: controller.signal
     });
     clearTimeout(timeoutId);
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.warn(`[Image] Fetch failed for ${url}: ${response.status}`);
+      return null;
+    }
 
     const blob = await response.blob();
     
-    // Convert blob to base64 and compress using canvas
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const img = new Image();
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            const maxSize = 500;
-            let width = img.naturalWidth;
-            let height = img.naturalHeight;
-            
-            if (width > maxSize || height > maxSize) {
-              if (width > height) {
-                height = (height / width) * maxSize;
-                width = maxSize;
-              } else {
-                width = (width / height) * maxSize;
-                height = maxSize;
-              }
-            }
-            
-            canvas.width = width;
-            canvas.height = height;
-            
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-              resolve(reader.result as string);
-              return;
-            }
-            
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', 0.65));
-          } catch {
-            resolve(reader.result as string);
-          }
-        };
-        img.onerror = () => resolve(reader.result as string);
-        img.src = reader.result as string;
-      };
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
+    // Create temporary object URL
+    const objectUrl = URL.createObjectURL(blob);
+    
+    try {
+      // Load image from object URL (same-origin, avoids CORS canvas issues)
+      const img = await loadImageViaElement(objectUrl);
+      if (!img) {
+        console.warn(`[Image] Failed to load image element for ${url}`);
+        return null;
+      }
+      
+      // Compress using canvas
+      const base64 = compressImage(img);
+      if (base64) {
+        console.log(`[Image] Successfully loaded: ${url.substring(0, 50)}...`);
+      }
+      return base64;
+    } finally {
+      // Clean up object URL
+      URL.revokeObjectURL(objectUrl);
+    }
+  } catch (error) {
+    console.warn(`[Image] Error loading ${url}:`, error);
     return null;
   }
 }
