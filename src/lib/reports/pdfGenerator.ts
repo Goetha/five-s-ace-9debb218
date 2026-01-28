@@ -1082,40 +1082,10 @@ export async function generateCompanyReportPDF(data: CompanyReportData): Promise
         helpers.yPos += 12;
       }
 
-      // Photos - show ALL photos
+      // Photos indicator (NO image loading for speed - images only in individual audit reports)
       if (nc.photo_urls.length > 0) {
-        helpers.yPos += 3;
-        addText(helpers, `Evidencias (${nc.photo_urls.length} foto${nc.photo_urls.length > 1 ? 's' : ''}):`, PAGE_MARGIN + 18, helpers.yPos, { fontSize: 8, color: '#6B7280' });
-        helpers.yPos += 5;
-        
-        let imageX = PAGE_MARGIN + 18;
-        let imagesInRow = 0;
-        
-        // Limit photos per item to prevent infinite loading
-        const photosToShow = nc.photo_urls.slice(0, MAX_PHOTOS_PER_ITEM);
-        for (const photoUrl of photosToShow) {
-          if (imagesInRow >= MAX_IMAGES_PER_ROW) {
-            helpers.yPos += MAX_IMAGE_HEIGHT + 5;
-            imageX = PAGE_MARGIN + 18;
-            imagesInRow = 0;
-            checkPageBreak(helpers, MAX_IMAGE_HEIGHT + 10);
-          }
-          
-          const success = await addEmbeddedImage(helpers, photoUrl, imageX, MAX_IMAGE_WIDTH - 5);
-          if (success) {
-            imageX += MAX_IMAGE_WIDTH;
-            imagesInRow++;
-          }
-        }
-        
-        if (nc.photo_urls.length > MAX_PHOTOS_PER_ITEM) {
-          helpers.yPos += 5;
-          addText(helpers, `... e mais ${nc.photo_urls.length - MAX_PHOTOS_PER_ITEM} foto(s)`, PAGE_MARGIN + 18, helpers.yPos, { fontSize: 7, color: '#6B7280' });
-        }
-        
-        if (imagesInRow > 0) {
-          helpers.yPos += MAX_IMAGE_HEIGHT + 5;
-        }
+        addText(helpers, `📷 ${nc.photo_urls.length} foto(s) de evidência disponível(is)`, PAGE_MARGIN + 18, helpers.yPos + 3, { fontSize: 8, color: '#3B82F6' });
+        helpers.yPos += 8;
       }
 
       helpers.yPos += 8;
