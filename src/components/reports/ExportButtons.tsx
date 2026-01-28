@@ -109,10 +109,23 @@ export function ExportCompanyButton({ companyId, companyName, variant = 'outline
     setIsLoading(true);
     setLoadingType(type);
 
+    // Global timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      setIsLoading(false);
+      setLoadingType(null);
+      toast({
+        title: 'Tempo esgotado',
+        description: 'A geração do relatório demorou muito. Tente novamente.',
+        variant: 'destructive',
+      });
+    }, 60000); // 60 seconds max
+
     try {
+      console.log('[Export] Starting company report export:', type);
       const data = await fetchCompanyReportData(companyId);
       
       if (!data) {
+        clearTimeout(timeoutId);
         toast({
           title: 'Erro ao gerar relatório',
           description: 'Não foi possível carregar os dados da empresa.',
@@ -122,6 +135,7 @@ export function ExportCompanyButton({ companyId, companyName, variant = 'outline
       }
 
       if (data.total_audits === 0) {
+        clearTimeout(timeoutId);
         toast({
           title: 'Sem dados',
           description: 'Esta empresa não possui auditorias concluídas.',
@@ -129,6 +143,8 @@ export function ExportCompanyButton({ companyId, companyName, variant = 'outline
         });
         return;
       }
+
+      console.log('[Export] Data loaded, generating', type, '- audits:', data.total_audits, 'nc:', data.non_conformities.length);
 
       if (type === 'pdf') {
         await generateCompanyReportPDF(data);
@@ -143,6 +159,8 @@ export function ExportCompanyButton({ companyId, companyName, variant = 'outline
           description: 'O download foi iniciado.',
         });
       }
+      
+      console.log('[Export] Export complete');
     } catch (error) {
       console.error('Error generating report:', error);
       toast({
@@ -151,6 +169,7 @@ export function ExportCompanyButton({ companyId, companyName, variant = 'outline
         variant: 'destructive',
       });
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
       setLoadingType(null);
     }

@@ -10,8 +10,9 @@ const PAGE_MARGIN = 15;
 const MAX_IMAGE_WIDTH = 55;
 const MAX_IMAGE_HEIGHT = 42;
 const MAX_IMAGES_PER_ROW = 3;
-const MAX_PHOTOS_PER_ITEM = 6; // Limit photos per item to avoid infinite loading
-const MAX_TOTAL_IMAGES = 50; // Maximum total images in report
+const MAX_PHOTOS_PER_ITEM = 4; // Limit photos per item to avoid infinite loading
+const MAX_NON_CONFORMITIES_COMPANY_REPORT = 15; // Limit non-conformities in company report
+const IMAGE_PROCESS_TIMEOUT = 3000; // 3 seconds timeout per image
 
 interface PDFHelpers {
   pdf: jsPDF;
@@ -1037,12 +1038,15 @@ export async function generateCompanyReportPDF(data: CompanyReportData): Promise
     helpers.yPos += 10;
   }
 
-  // Non-conformities section with photos - show ALL non-conformities
+  // Non-conformities section with photos - LIMITED to prevent timeout
   if (data.non_conformities.length > 0) {
-    addSectionHeader(helpers, `NAO CONFORMIDADES (${data.non_conformities.length})`, '#EF4444');
+    const ncCount = Math.min(data.non_conformities.length, MAX_NON_CONFORMITIES_COMPANY_REPORT);
+    addSectionHeader(helpers, `NAO CONFORMIDADES (${ncCount} de ${data.non_conformities.length})`, '#EF4444');
 
-    // Show ALL non-conformities, not limited
-    for (let i = 0; i < data.non_conformities.length; i++) {
+    console.log(`[PDF] Processing ${ncCount} non-conformities...`);
+    
+    // Limit non-conformities to prevent infinite loading
+    for (let i = 0; i < ncCount; i++) {
       const nc = data.non_conformities[i];
       checkPageBreak(helpers, 50);
 
@@ -1116,6 +1120,15 @@ export async function generateCompanyReportPDF(data: CompanyReportData): Promise
 
       helpers.yPos += 8;
     }
+    
+    // Show message if there are more non-conformities
+    if (data.non_conformities.length > MAX_NON_CONFORMITIES_COMPANY_REPORT) {
+      helpers.yPos += 5;
+      addText(helpers, `... e mais ${data.non_conformities.length - MAX_NON_CONFORMITIES_COMPANY_REPORT} não conformidades registradas`, PAGE_MARGIN, helpers.yPos, { fontSize: 9, color: '#6B7280' });
+      helpers.yPos += 10;
+    }
+    
+    console.log('[PDF] Non-conformities section complete');
   }
 
   // Footer on last page
