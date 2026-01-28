@@ -5,11 +5,17 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Loader2, Plus, Search, WifiOff } from "lucide-react";
 import type { Audit } from "@/types/audit";
 import { AuditorCompanyCard } from "@/components/auditorias/AuditorCompanyCard";
 import { NewAuditDialog } from "@/components/auditorias/NewAuditDialog";
 import { Input } from "@/components/ui/input";
+import { OfflineBanner } from "@/components/pwa/OfflineBanner";
+import {
+  getCachedAudits,
+  getCachedCompanies,
+  getCachedEnvironments,
+} from "@/lib/offlineStorage";
 
 interface AuditWithLocation extends Audit {
   location_name: string;
@@ -23,10 +29,12 @@ interface CompanyGroup {
 }
 
 export default function MinhasAuditorias() {
-  const { user } = useAuth();
+  const { user, isOffline } = useAuth();
   const { toast } = useToast();
   const [audits, setAudits] = useState<AuditWithLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFromCache, setIsFromCache] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'in_progress' | 'completed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -39,7 +47,46 @@ export default function MinhasAuditorias() {
   const fetchAudits = async () => {
     if (!user) return;
 
+    setIsLoading(true);
+    setIsFromCache(false);
+
     try {
+      // OFFLINE MODE: Fetch from cache
+      if (isOffline || !navigator.onLine) {
+        console.log('📴 Loading audits from cache...');
+        
+        const cachedAudits = await getCachedAudits();
+        const cachedCompanies = await getCachedCompanies();
+        const cachedEnvs = await getCachedEnvironments();
+        
+        // Filter audits by current user
+        const userAudits = cachedAudits.filter(a => a.auditor_id === user.id);
+        
+        // Map with location and company names
+        const auditsWithLocation: AuditWithLocation[] = userAudits.map((audit: any) => {
+          const env = cachedEnvs.find(e => e.id === audit.location_id);
+          const company = cachedCompanies.find(c => c.id === audit.company_id);
+          return {
+            ...audit,
+            status: audit.status as 'in_progress' | 'completed',
+            score_level: audit.score_level as 'low' | 'medium' | 'high' | null,
+            location_name: audit._locationName || env?.name || 'Local',
+            company_name: audit._companyName || company?.name || 'Empresa'
+          };
+        });
+
+        // Sort by created_at descending
+        auditsWithLocation.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+
+        setAudits(auditsWithLocation);
+        setIsFromCache(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // ONLINE MODE: Fetch from Supabase
       const { data, error } = await supabase
         .from('audits')
         .select(`
@@ -62,13 +109,44 @@ export default function MinhasAuditorias() {
       }));
 
       setAudits(auditsWithLocation);
+      setLastSyncAt(new Date().toISOString());
     } catch (error) {
       console.error('Error fetching audits:', error);
-      toast({
-        title: "Erro ao carregar auditorias",
-        description: "Tente novamente mais tarde.",
-        variant: "destructive"
-      });
+      
+      // Fallback to cache on error
+      try {
+        console.log('📴 Falling back to cache after error...');
+        const cachedAudits = await getCachedAudits();
+        const cachedCompanies = await getCachedCompanies();
+        const cachedEnvs = await getCachedEnvironments();
+        
+        const userAudits = cachedAudits.filter(a => a.auditor_id === user.id);
+        const auditsWithLocation: AuditWithLocation[] = userAudits.map((audit: any) => {
+          const env = cachedEnvs.find(e => e.id === audit.location_id);
+          const company = cachedCompanies.find(c => c.id === audit.company_id);
+          return {
+            ...audit,
+            status: audit.status as 'in_progress' | 'completed',
+            score_level: audit.score_level as 'low' | 'medium' | 'high' | null,
+            location_name: audit._locationName || env?.name || 'Local',
+            company_name: audit._companyName || company?.name || 'Empresa'
+          };
+        });
+        
+        auditsWithLocation.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        
+        setAudits(auditsWithLocation);
+        setIsFromCache(true);
+      } catch (cacheError) {
+        console.error('Error loading from cache:', cacheError);
+        toast({
+          title: "Erro ao carregar auditorias",
+          description: "Tente novamente mais tarde.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -113,10 +191,27 @@ export default function MinhasAuditorias() {
   return (
     <CompanyAdminLayout breadcrumbs={[{ label: "Auditorias" }]}>
       <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
+        {/* Offline Banner */}
+        <OfflineBanner
+          isOffline={isOffline || !navigator.onLine}
+          isFromCache={isFromCache}
+          lastSyncAt={lastSyncAt}
+          onRefresh={fetchAudits}
+          isRefreshing={isLoading}
+        />
+
         {/* Header */}
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Auditorias</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Gerencie suas avaliações 5S por empresa</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold">Auditorias</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Gerencie suas avaliações 5S por empresa</p>
+          </div>
+          {isFromCache && (
+            <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
+              <WifiOff className="h-3 w-3" />
+              <span>Offline</span>
+            </div>
+          )}
         </div>
 
         {/* Filtros e Busca */}

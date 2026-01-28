@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Filter, Loader2 } from "lucide-react";
+import { Plus, Search, Filter, Loader2, WifiOff } from "lucide-react";
 import { AuditorStatsCards } from "@/components/avaliadores/AuditorStatsCards";
 import { AuditorCard } from "@/components/avaliadores/AuditorCard";
 import { BulkActionsBar } from "@/components/avaliadores/BulkActionsBar";
@@ -14,6 +14,7 @@ import { Auditor } from "@/types/auditor";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { OfflineBanner } from "@/components/pwa/OfflineBanner";
+import { getCachedAuditors, cacheAuditors } from "@/lib/offlineStorage";
 import {
   Select,
   SelectContent,
@@ -28,6 +29,8 @@ const Avaliadores = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [isFromCache, setIsFromCache] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [selectedAuditor, setSelectedAuditor] = useState<Auditor | null>(null);
   const [selectedAuditorIds, setSelectedAuditorIds] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -47,21 +50,61 @@ const Avaliadores = () => {
 
   const loadAuditors = async () => {
     setLoading(true);
+    setIsFromCache(false);
+    
     try {
+      // OFFLINE MODE: Fetch from cache
+      if (!navigator.onLine) {
+        console.log('📴 Loading auditors from cache...');
+        const cached = await getCachedAuditors();
+        if (cached.length > 0) {
+          setAuditors(cached);
+          setIsFromCache(true);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // ONLINE MODE: Fetch from edge function
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No session');
 
       const { data, error } = await supabase.functions.invoke('list-all-auditors');
 
       if (error) throw error;
-      setAuditors(data.auditors || []);
+      
+      const auditorsList = data.auditors || [];
+      setAuditors(auditorsList);
+      setLastSyncAt(new Date().toISOString());
+      
+      // Cache for offline use
+      if (auditorsList.length > 0) {
+        await cacheAuditors(auditorsList);
+      }
     } catch (error) {
       console.error('Error loading auditors:', error);
-      toast({
-        title: "Erro ao carregar avaliadores",
-        description: "Não foi possível carregar a lista de avaliadores.",
-        variant: "destructive",
-      });
+      
+      // Fallback to cache on error
+      try {
+        console.log('📴 Falling back to auditors cache...');
+        const cached = await getCachedAuditors();
+        if (cached.length > 0) {
+          setAuditors(cached);
+          setIsFromCache(true);
+        } else {
+          toast({
+            title: "Erro ao carregar avaliadores",
+            description: "Não foi possível carregar a lista de avaliadores.",
+            variant: "destructive",
+          });
+        }
+      } catch (cacheError) {
+        toast({
+          title: "Erro ao carregar avaliadores",
+          description: "Não foi possível carregar a lista de avaliadores.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -155,8 +198,8 @@ const Avaliadores = () => {
         {/* Offline Banner */}
         <OfflineBanner 
           isOffline={!navigator.onLine}
-          isFromCache={false}
-          lastSyncAt={null}
+          isFromCache={isFromCache}
+          lastSyncAt={lastSyncAt}
           onRefresh={loadAuditors}
           isRefreshing={loading}
         />
@@ -171,10 +214,18 @@ const Avaliadores = () => {
               Gerencie auditores e suas empresas vinculadas
             </p>
           </div>
-          <Button onClick={() => setNewModalOpen(true)} disabled={!navigator.onLine}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Avaliador
-          </Button>
+          <div className="flex items-center gap-3">
+            {isFromCache && (
+              <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
+                <WifiOff className="h-3 w-3" />
+                <span>Offline</span>
+              </div>
+            )}
+            <Button onClick={() => setNewModalOpen(true)} disabled={!navigator.onLine}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Avaliador
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}

@@ -3,7 +3,7 @@ import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Package } from "lucide-react";
+import { Search, Plus, Package, WifiOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Breadcrumb,
@@ -24,13 +24,15 @@ import { StatsCardsSkeleton4, ModelCardsSkeleton, SearchBarSkeleton } from "@/co
 import { useToast } from "@/hooks/use-toast";
 import { MasterModel, ModelFilters } from "@/types/model";
 import { Card, CardContent } from "@/components/ui/card";
-import { useOfflineData } from "@/hooks/useOfflineData";
 import { OfflineBanner } from "@/components/pwa/OfflineBanner";
+import { getCachedMasterModels, cacheMasterModels, getCachedMasterCriteria } from "@/lib/offlineStorage";
 
 const ModelosMestre = () => {
   const { toast } = useToast();
   const [models, setModels] = useState<MasterModel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFromCache, setIsFromCache] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [filters, setFilters] = useState<ModelFilters>({
     search: "",
     status: "Todos",
@@ -41,11 +43,40 @@ const ModelosMestre = () => {
   const [linkOpen, setLinkOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<MasterModel | null>(null);
 
-  // Load models from Supabase
+  // Load models from Supabase or cache
   const fetchModels = async () => {
+    setLoading(true);
+    setIsFromCache(false);
+    
     try {
-      setLoading(true);
-      
+      // OFFLINE MODE: Fetch from cache
+      if (!navigator.onLine) {
+        console.log('📴 Loading models from cache...');
+        const cachedModels = await getCachedMasterModels();
+        
+        if (cachedModels.length > 0) {
+          // Transform cached data
+          const transformedModels: MasterModel[] = cachedModels.map((model: any) => ({
+            id: model.id,
+            name: model.name,
+            description: model.description || "",
+            status: model.status as "active" | "inactive",
+            total_criteria: model.total_criteria || 0,
+            criteria_by_senso: model.criteria_by_senso || { "1S": 0, "2S": 0, "3S": 0, "4S": 0, "5S": 0 },
+            companies_using: model.companies_using || 0,
+            created_at: model.created_at,
+            updated_at: model.updated_at,
+            criteria_ids: model.criteria_ids || [],
+          }));
+          
+          setModels(transformedModels);
+          setIsFromCache(true);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // ONLINE MODE: Fetch from Supabase
       // Fetch models
       const { data: modelsData, error: modelsError } = await supabase
         .from("master_models")
@@ -131,13 +162,46 @@ const ModelosMestre = () => {
       }
 
       setModels(transformedModels);
+      setLastSyncAt(new Date().toISOString());
+      
+      // Cache for offline use
+      await cacheMasterModels(transformedModels);
     } catch (error: any) {
       console.error("Error fetching models:", error);
-      toast({
-        title: "Erro ao carregar modelos",
-        description: error.message || "Ocorreu um erro ao buscar os modelos.",
-        variant: "destructive",
-      });
+      
+      // Fallback to cache on error
+      try {
+        console.log('📴 Falling back to models cache...');
+        const cachedModels = await getCachedMasterModels();
+        if (cachedModels.length > 0) {
+          const transformedModels: MasterModel[] = cachedModels.map((model: any) => ({
+            id: model.id,
+            name: model.name,
+            description: model.description || "",
+            status: model.status as "active" | "inactive",
+            total_criteria: model.total_criteria || 0,
+            criteria_by_senso: model.criteria_by_senso || { "1S": 0, "2S": 0, "3S": 0, "4S": 0, "5S": 0 },
+            companies_using: model.companies_using || 0,
+            created_at: model.created_at,
+            updated_at: model.updated_at,
+            criteria_ids: model.criteria_ids || [],
+          }));
+          setModels(transformedModels);
+          setIsFromCache(true);
+        } else {
+          toast({
+            title: "Erro ao carregar modelos",
+            description: error.message || "Ocorreu um erro ao buscar os modelos.",
+            variant: "destructive",
+          });
+        }
+      } catch (cacheError) {
+        toast({
+          title: "Erro ao carregar modelos",
+          description: error.message || "Ocorreu um erro ao buscar os modelos.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -437,8 +501,8 @@ const ModelosMestre = () => {
         {/* Offline Banner */}
         <OfflineBanner 
           isOffline={!navigator.onLine}
-          isFromCache={false}
-          lastSyncAt={null}
+          isFromCache={isFromCache}
+          lastSyncAt={lastSyncAt}
           onRefresh={fetchModels}
           isRefreshing={loading}
         />
@@ -459,13 +523,21 @@ const ModelosMestre = () => {
         </Breadcrumb>
 
         {/* Header */}
-        <div className="animate-element animate-delay-100">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Modelos Mestre de Avaliação
-          </h1>
-          <p className="text-muted-foreground">
-            Crie templates de avaliação 5S para suas empresas clientes
-          </p>
+        <div className="animate-element animate-delay-100 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              Modelos Mestre de Avaliação
+            </h1>
+            <p className="text-muted-foreground">
+              Crie templates de avaliação 5S para suas empresas clientes
+            </p>
+          </div>
+          {isFromCache && (
+            <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
+              <WifiOff className="h-3 w-3" />
+              <span>Offline</span>
+            </div>
+          )}
         </div>
 
         {/* Stats Cards */}

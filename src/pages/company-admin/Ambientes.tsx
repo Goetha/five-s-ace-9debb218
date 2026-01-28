@@ -3,7 +3,7 @@ import { CompanyAdminLayout } from "@/components/company-admin/CompanyAdminLayou
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Layers, MapPin, Plus, CheckCircle } from "lucide-react";
+import { Layers, MapPin, Plus, CheckCircle, WifiOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { EnvironmentCard } from "@/components/company-admin/environments/EnvironmentCard";
 import { CompanyCard } from "@/components/company-admin/environments/CompanyCard";
@@ -13,6 +13,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { Environment } from "@/types/environment";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { OfflineBanner } from "@/components/pwa/OfflineBanner";
+import { getCachedEnvironmentsByCompanyId } from "@/lib/offlineStorage";
 
 export default function Ambientes() {
   const [allEnvironments, setAllEnvironments] = useState<Environment[]>([]);
@@ -21,8 +23,11 @@ export default function Ambientes() {
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingEnvironment, setEditingEnvironment] = useState<Environment | null>(null);
   const [parentIdForNew, setParentIdForNew] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFromCache, setIsFromCache] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   
-  const { user, linkedCompanies, activeCompanyId } = useAuth();
+  const { user, linkedCompanies, activeCompanyId, isOffline } = useAuth();
   const activeCompany = linkedCompanies.find(c => c.id === activeCompanyId);
   const { toast } = useToast();
 
@@ -33,10 +38,40 @@ export default function Ambientes() {
   }, [user, activeCompany]);
 
   const fetchEnvironments = async () => {
+    setIsLoading(true);
+    setIsFromCache(false);
+    
     try {
       const companyId = activeCompany?.id;
-      if (!companyId) return;
+      if (!companyId) {
+        setIsLoading(false);
+        return;
+      }
 
+      // OFFLINE MODE: Fetch from cache
+      if (isOffline || !navigator.onLine) {
+        console.log('📴 Loading environments from cache...');
+        const cachedEnvs = await getCachedEnvironmentsByCompanyId(companyId);
+        
+        const mappedEnvironments: Environment[] = cachedEnvs.map((env) => ({
+          id: env.id,
+          company_id: env.company_id,
+          name: env.name,
+          icon: 'building',
+          parent_id: env.parent_id,
+          status: env.status as 'active' | 'inactive',
+          audits_count: 0,
+          description: env.description || undefined,
+          created_at: env.created_at,
+        }));
+        
+        setAllEnvironments(mappedEnvironments);
+        setIsFromCache(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // ONLINE MODE: Fetch from Supabase
       const { data, error } = await supabase
         .from('environments')
         .select('*')
@@ -58,13 +93,40 @@ export default function Ambientes() {
       }));
 
       setAllEnvironments(mappedEnvironments);
-    } catch (error) {
+      setLastSyncAt(new Date().toISOString());
+    } catch (error: any) {
       console.error('Error fetching environments:', error);
-      toast({
-        title: 'Erro ao carregar ambientes',
-        description: error.message,
-        variant: 'destructive',
-      });
+      
+      // Fallback to cache on error
+      try {
+        const companyId = activeCompany?.id;
+        if (companyId) {
+          console.log('📴 Falling back to cache after error...');
+          const cachedEnvs = await getCachedEnvironmentsByCompanyId(companyId);
+          const mappedEnvironments: Environment[] = cachedEnvs.map((env) => ({
+            id: env.id,
+            company_id: env.company_id,
+            name: env.name,
+            icon: 'building',
+            parent_id: env.parent_id,
+            status: env.status as 'active' | 'inactive',
+            audits_count: 0,
+            description: env.description || undefined,
+            created_at: env.created_at,
+          }));
+          setAllEnvironments(mappedEnvironments);
+          setIsFromCache(true);
+        }
+      } catch (cacheError) {
+        console.error('Error loading from cache:', cacheError);
+        toast({
+          title: 'Erro ao carregar ambientes',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -95,6 +157,15 @@ export default function Ambientes() {
   return (
     <CompanyAdminLayout breadcrumbs={[{ label: "Dashboard" }, { label: "Setores" }]}>
       <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
+        {/* Offline Banner */}
+        <OfflineBanner
+          isOffline={isOffline || !navigator.onLine}
+          isFromCache={isFromCache}
+          lastSyncAt={lastSyncAt}
+          onRefresh={fetchEnvironments}
+          isRefreshing={isLoading}
+        />
+
         <div className="hidden sm:block mb-6">
           <Breadcrumb>
             <BreadcrumbList>
@@ -110,11 +181,19 @@ export default function Ambientes() {
         </div>
 
         {/* Header */}
-        <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold">Setores e Locais</h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Gerencie a estrutura hierárquica da sua empresa
-          </p>
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold">Setores e Locais</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">
+              Gerencie a estrutura hierárquica da sua empresa
+            </p>
+          </div>
+          {isFromCache && (
+            <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
+              <WifiOff className="h-3 w-3" />
+              <span>Offline</span>
+            </div>
+          )}
         </div>
 
         {/* Stats Cards */}

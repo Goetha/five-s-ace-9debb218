@@ -11,6 +11,9 @@ import {
   cacheUserCompanies,
   cacheEnvironmentCriteria,
   cacheAuditItems,
+  cacheMasterCriteria,
+  cacheMasterModels,
+  cacheAuditors,
   setLastSyncTime,
   getLastSyncTime,
   initDB,
@@ -73,7 +76,7 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
 
     try {
       let companyIds: string[] = [];
-      const totalSteps = 6;
+      const totalSteps = 7; // Added one more step for IFA admin data
       let currentStep = 0;
 
       // Step 1: Fetch companies
@@ -257,8 +260,68 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
         console.warn('⚠️ No companies found to cache');
       }
 
-      // Step 5: Finalize
-      setCacheProgress({ step: 'Finalizando...', current: ++currentStep, total: totalSteps });
+      // Step 5: Cache IFA Admin specific data
+      setCacheProgress({ step: 'Sincronizando dados adicionais...', current: ++currentStep, total: totalSteps });
+      
+      if (userRole === 'ifa_admin') {
+        try {
+          // Cache master criteria
+          const { data: masterCriteria } = await supabase
+            .from('master_criteria')
+            .select('*');
+          if (masterCriteria) {
+            await cacheMasterCriteria(masterCriteria);
+            console.log(`✅ Cached ${masterCriteria.length} master_criteria`);
+          }
+
+          // Cache master models with criteria counts
+          const { data: masterModels } = await supabase
+            .from('master_models')
+            .select('*');
+          
+          if (masterModels) {
+            const { data: modelCriteria } = await supabase
+              .from('master_model_criteria')
+              .select('model_id, criterion_id');
+            
+            const { data: companyModels } = await supabase
+              .from('company_models')
+              .select('model_id, status')
+              .eq('status', 'active');
+            
+            const enrichedModels = masterModels.map(model => {
+              const criteriaIds = (modelCriteria || [])
+                .filter(mc => mc.model_id === model.id)
+                .map(mc => mc.criterion_id);
+              const companiesUsing = (companyModels || []).filter(cm => cm.model_id === model.id).length;
+              return {
+                ...model,
+                total_criteria: criteriaIds.length,
+                companies_using: companiesUsing,
+                criteria_ids: criteriaIds,
+              };
+            });
+            
+            await cacheMasterModels(enrichedModels);
+            console.log(`✅ Cached ${masterModels.length} master_models`);
+          }
+
+          // Cache auditors
+          try {
+            const { data: auditorsData } = await supabase.functions.invoke('list-all-auditors');
+            if (auditorsData?.auditors) {
+              await cacheAuditors(auditorsData.auditors);
+              console.log(`✅ Cached ${auditorsData.auditors.length} auditors`);
+            }
+          } catch (auditorError) {
+            console.warn('⚠️ Could not cache auditors:', auditorError);
+          }
+        } catch (ifaError) {
+          console.error('❌ Error caching IFA admin data:', ifaError);
+        }
+      }
+
+      // Step 6: Finalize
 
       await setLastSyncTime();
       const syncTime = new Date().toISOString();

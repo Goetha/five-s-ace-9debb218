@@ -8,11 +8,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import {
+  createOfflineAudit,
+  getCachedEnvironmentCriteriaByEnvId,
+  getCachedCriteria,
+  getCachedEnvironments,
+  getCachedCompanies,
+} from "@/lib/offlineStorage";
 
 type Step = 'select' | 'checklist' | 'result';
 
 export default function NovaAuditoria() {
-  const { companyInfo, user } = useAuth();
+  const { companyInfo, user, isOffline } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('select');
@@ -25,7 +32,63 @@ export default function NovaAuditoria() {
     
     setIsCreating(true);
     try {
-      // Create audit record
+      // OFFLINE MODE: Create audit from cache
+      if (isOffline || !navigator.onLine) {
+        console.log('📴 Creating audit offline...');
+        
+        // Fetch criteria from cache
+        const envCriteria = await getCachedEnvironmentCriteriaByEnvId(locationId);
+        const allCriteria = await getCachedCriteria();
+        
+        // Filter active criteria linked to this location
+        const activeCriteria = allCriteria.filter(c => 
+          envCriteria.some(ec => ec.criterion_id === c.id) && c.status === 'active'
+        );
+
+        if (activeCriteria.length === 0) {
+          throw new Error('Nenhum critério ativo vinculado a este local (cache)');
+        }
+
+        // Get location and company names from cache for display
+        const cachedEnvs = await getCachedEnvironments();
+        const cachedCompanies = await getCachedCompanies();
+        const location = cachedEnvs.find(e => e.id === locationId);
+        const company = cachedCompanies.find(c => c.id === companyId);
+
+        // Create offline audit
+        const { audit } = await createOfflineAudit(
+          {
+            company_id: companyId,
+            location_id: locationId,
+            auditor_id: user.id,
+            status: 'in_progress',
+            started_at: new Date().toISOString(),
+            total_questions: activeCriteria.length,
+            total_yes: 0,
+            total_no: 0,
+            score: null,
+            _locationName: location?.name || 'Local',
+            _companyName: company?.name || 'Empresa',
+          },
+          activeCriteria.map(criterion => ({
+            criterion_id: criterion.id,
+            question: criterion.description || criterion.name,
+            senso: criterion.senso,
+          }))
+        );
+
+        setSelectedLocation(locationId);
+        setAuditId(audit.id);
+        setStep('checklist');
+
+        toast({
+          title: "Auditoria iniciada (Offline)",
+          description: "Os dados serão sincronizados quando você voltar online."
+        });
+        return;
+      }
+
+      // ONLINE MODE: Create audit via Supabase
       const { data: audit, error } = await supabase
         .from('audits')
         .insert({
@@ -44,7 +107,7 @@ export default function NovaAuditoria() {
         .from('environment_criteria')
         .select(`
           criterion_id,
-          company_criteria!inner(id, name, description, status)
+          company_criteria!inner(id, name, description, status, senso)
         `)
         .eq('environment_id', locationId);
 
@@ -84,7 +147,7 @@ export default function NovaAuditoria() {
       console.error('Error creating audit:', error);
       toast({
         title: "Erro ao iniciar auditoria",
-        description: "Tente novamente mais tarde.",
+        description: error instanceof Error ? error.message : "Tente novamente mais tarde.",
         variant: "destructive"
       });
     } finally {

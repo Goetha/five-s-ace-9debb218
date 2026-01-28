@@ -114,6 +114,11 @@ export const initDB = (): Promise<IDBDatabase> => {
         ecStore.createIndex('environment_id', 'environment_id', { unique: false });
         ecStore.createIndex('criterion_id', 'criterion_id', { unique: false });
       }
+
+      // NEW: Cache for auditors (IFA Admin only)
+      if (!database.objectStoreNames.contains('auditors')) {
+        database.createObjectStore('auditors', { keyPath: 'id' });
+      }
     };
   });
 };
@@ -335,13 +340,36 @@ export const getLastSyncTime = async (): Promise<string | null> => {
 
 // Clear all cached data (but keep pending sync)
 export const clearAllCaches = async (): Promise<void> => {
-  const stores = ['audits', 'auditItems', 'criteria', 'environments', 'companies', 'master_criteria', 'master_models', 'user_companies', 'environment_criteria'];
+  const stores = ['audits', 'auditItems', 'criteria', 'environments', 'companies', 'master_criteria', 'master_models', 'user_companies', 'environment_criteria', 'auditors'];
   for (const store of stores) {
     try {
       await clearStore(store);
     } catch (e) {
       console.error(`Error clearing store ${store}:`, e);
     }
+  }
+};
+
+// =====================
+// AUDITORS CACHE (IFA Admin)
+// =====================
+export const cacheAuditors = async (auditors: any[]): Promise<void> => {
+  // Clear existing auditors first
+  try {
+    await clearStore('auditors');
+  } catch (e) {
+    // Store might not exist yet
+  }
+  for (const auditor of auditors) {
+    await addToStore('auditors', auditor);
+  }
+};
+
+export const getCachedAuditors = async (): Promise<any[]> => {
+  try {
+    return await getAllFromStore('auditors');
+  } catch (e) {
+    return [];
   }
 };
 
