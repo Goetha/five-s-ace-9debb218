@@ -7,9 +7,9 @@ import { ptBR } from 'date-fns/locale';
 
 // Constants
 const PAGE_MARGIN = 15;
-const MAX_IMAGE_WIDTH = 60;
-const MAX_IMAGE_HEIGHT = 45;
-const MAX_IMAGES_PER_PAGE = 3;
+const MAX_IMAGE_WIDTH = 55;
+const MAX_IMAGE_HEIGHT = 42;
+const MAX_IMAGES_PER_ROW = 3;
 
 interface PDFHelpers {
   pdf: jsPDF;
@@ -775,17 +775,18 @@ export async function generateAuditPDF(data: AuditReportData): Promise<void> {
 
       helpers.yPos += 5;
 
-      // Photos
+      // Photos - show ALL photos, not just limited
       if (item.photo_urls.length > 0) {
         checkPageBreak(helpers, MAX_IMAGE_HEIGHT + 15);
-        addText(helpers, 'Evidencias fotograficas:', PAGE_MARGIN + 5, helpers.yPos, { fontSize: 8, color: '#6B7280' });
+        addText(helpers, `Evidencias fotograficas (${item.photo_urls.length}):`, PAGE_MARGIN + 5, helpers.yPos, { fontSize: 8, color: '#6B7280' });
         helpers.yPos += 5;
 
         let imageX = PAGE_MARGIN + 5;
         let imagesInRow = 0;
         
-        for (const photoUrl of item.photo_urls.slice(0, MAX_IMAGES_PER_PAGE)) {
-          if (imagesInRow >= 3) {
+        // Show ALL photos, not limited
+        for (const photoUrl of item.photo_urls) {
+          if (imagesInRow >= MAX_IMAGES_PER_ROW) {
             helpers.yPos += MAX_IMAGE_HEIGHT + 5;
             imageX = PAGE_MARGIN + 5;
             imagesInRow = 0;
@@ -1028,18 +1029,22 @@ export async function generateCompanyReportPDF(data: CompanyReportData): Promise
     helpers.yPos += 10;
   }
 
-  // Non-conformities section with photos
+  // Non-conformities section with photos - show ALL non-conformities
   if (data.non_conformities.length > 0) {
-    addSectionHeader(helpers, `PRINCIPAIS NAO CONFORMIDADES (${Math.min(data.non_conformities.length, 10)})`, '#EF4444');
+    addSectionHeader(helpers, `NAO CONFORMIDADES (${data.non_conformities.length})`, '#EF4444');
 
-    for (let i = 0; i < Math.min(data.non_conformities.length, 10); i++) {
+    // Show ALL non-conformities, not limited
+    for (let i = 0; i < data.non_conformities.length; i++) {
       const nc = data.non_conformities[i];
       checkPageBreak(helpers, 50);
 
-      // Card background
+      // Card background - calculate dynamic height based on content
+      const hasPhotos = nc.photo_urls.length > 0;
+      const photoRows = hasPhotos ? Math.ceil(nc.photo_urls.length / MAX_IMAGES_PER_ROW) : 0;
+      const cardHeight = 35 + (nc.comment ? 12 : 0) + (photoRows * (MAX_IMAGE_HEIGHT + 5));
+      
       pdf.setFillColor('#FEF2F2');
-      const cardHeight = 30 + (nc.comment ? 10 : 0) + (nc.photo_urls.length > 0 ? MAX_IMAGE_HEIGHT + 10 : 0);
-      pdf.roundedRect(PAGE_MARGIN, helpers.yPos - 2, pageWidth - 2 * PAGE_MARGIN, cardHeight, 2, 2, 'F');
+      pdf.roundedRect(PAGE_MARGIN, helpers.yPos - 2, pageWidth - 2 * PAGE_MARGIN, Math.min(cardHeight, 60), 2, 2, 'F');
       
       // Number badge
       pdf.setFillColor('#EF4444');
@@ -1065,27 +1070,37 @@ export async function generateCompanyReportPDF(data: CompanyReportData): Promise
         helpers.yPos += 12;
       }
 
-      // Photos
+      // Photos - show ALL photos
       if (nc.photo_urls.length > 0) {
         helpers.yPos += 3;
-        let imageX = PAGE_MARGIN + 18;
+        addText(helpers, `Evidencias (${nc.photo_urls.length} foto${nc.photo_urls.length > 1 ? 's' : ''}):`, PAGE_MARGIN + 18, helpers.yPos, { fontSize: 8, color: '#6B7280' });
+        helpers.yPos += 5;
         
-        for (const photoUrl of nc.photo_urls.slice(0, 2)) {
-          const success = await addEmbeddedImage(helpers, photoUrl, imageX, MAX_IMAGE_WIDTH - 10);
+        let imageX = PAGE_MARGIN + 18;
+        let imagesInRow = 0;
+        
+        // Show ALL photos
+        for (const photoUrl of nc.photo_urls) {
+          if (imagesInRow >= MAX_IMAGES_PER_ROW) {
+            helpers.yPos += MAX_IMAGE_HEIGHT + 5;
+            imageX = PAGE_MARGIN + 18;
+            imagesInRow = 0;
+            checkPageBreak(helpers, MAX_IMAGE_HEIGHT + 10);
+          }
+          
+          const success = await addEmbeddedImage(helpers, photoUrl, imageX, MAX_IMAGE_WIDTH - 5);
           if (success) {
             imageX += MAX_IMAGE_WIDTH;
+            imagesInRow++;
           }
         }
         
-        helpers.yPos += MAX_IMAGE_HEIGHT + 5;
+        if (imagesInRow > 0) {
+          helpers.yPos += MAX_IMAGE_HEIGHT + 5;
+        }
       }
 
       helpers.yPos += 8;
-    }
-
-    if (data.non_conformities.length > 10) {
-      addText(helpers, `... e mais ${data.non_conformities.length - 10} nao conformidades registradas`, PAGE_MARGIN, helpers.yPos, { fontSize: 8, color: '#6B7280' });
-      helpers.yPos += 10;
     }
   }
 
