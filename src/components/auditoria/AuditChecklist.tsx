@@ -171,7 +171,8 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
         ? { 
             ...item, 
             answer, 
-            photo_url: photoUrls && photoUrls.length > 0 ? JSON.stringify(photoUrls) : item.photo_url,
+            // Fix: properly handle photo removal - if photoUrls is undefined or empty, clear the photo_url
+            photo_url: photoUrls && photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
             comment: comment !== undefined ? comment : item.comment
           }
         : item
