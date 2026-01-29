@@ -338,6 +338,16 @@ export const getLastSyncTime = async (): Promise<string | null> => {
   });
 };
 
+// Check if cache has been populated (quick check)
+export const hasCachedData = async (): Promise<boolean> => {
+  try {
+    const companies = await getAllFromStore<any>('companies');
+    return companies.length > 0;
+  } catch {
+    return false;
+  }
+};
+
 // Clear all cached data (but keep pending sync)
 export const clearAllCaches = async (): Promise<void> => {
   const stores = ['audits', 'auditItems', 'criteria', 'environments', 'companies', 'master_criteria', 'master_models', 'user_companies', 'environment_criteria', 'auditors'];
