@@ -1,74 +1,185 @@
 
-# Plano: Corrigir Carregamento Inconsistente de Fotos no PDF
+# Plano: Auditorias 100% Funcionais Offline
 
-## Problema Identificado
-Pela análise do código e dados:
-- **Dados OK**: Todas as não conformidades têm `photo_url` no banco de dados
-- **Problema**: Algumas imagens carregam e outras não porque `loadImageViaElement` **não tem timeout**
-- Se o `Image.onload` nunca disparar, a promise fica pendente para sempre, fazendo com que algumas fotos não apareçam
+## Problemas Identificados
 
-## Causa Raiz
+Após análise detalhada do código, identifiquei **5 problemas críticos** que impedem o funcionamento offline completo:
+
+### 1. **Upload de Fotos (Crítico)**
+O `ChecklistItem.tsx` tenta fazer upload para o Supabase Storage diretamente (linha 109):
 ```typescript
-// PROBLEMA: loadImageViaElement não tem timeout!
-function loadImageViaElement(url: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(img);  // ← Pode nunca disparar!
-    img.onerror = () => resolve(null);
-    img.src = url;
-  });
-}
+await supabase.storage.from('audit-photos').upload(...)
 ```
+Isso **falha imediatamente offline** porque requer conexão com o servidor.
+
+### 2. **AuditResult não funciona offline**
+O `AuditResult.tsx` busca dados do Supabase diretamente (linha 37-44):
+```typescript
+const { data, error } = await supabase.from('audits').select(...)
+```
+Se offline, o resultado da auditoria não aparece.
+
+### 3. **Salvamento de observações offline**
+O `handleSave` no `AuditResult.tsx` só funciona online (linha 73-79).
+
+### 4. **NovaAuditoria não passa flag isOfflineAudit**
+O `AuditChecklist` recebe `isOfflineAudit` como prop mas `NovaAuditoria.tsx` não a passa quando cria auditoria offline.
+
+### 5. **Sincronização incompleta de audit_items**
+O `useOfflineSync.ts` não sincroniza corretamente as respostas dos itens e fotos quando volta online.
+
+---
 
 ## Solução Técnica
 
-### 1. Adicionar timeout ao loadImageViaElement
-```typescript
-function loadImageViaElement(url: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    
-    // Timeout de 3 segundos para carregamento da imagem
-    const timeout = setTimeout(() => {
-      console.warn(`[Image] Timeout loading image element`);
-      resolve(null);
-    }, 3000);
-    
-    img.onload = () => {
-      clearTimeout(timeout);
-      resolve(img);
-    };
-    img.onerror = () => {
-      clearTimeout(timeout);
-      resolve(null);
-    };
-    img.src = url;
-  });
-}
-```
+### Fase 1: Armazenamento de Fotos Local (Base64 no IndexedDB)
 
-### 2. Adicionar fallback para retornar base64 direto do blob
-Se a compressão via canvas falhar, retornar o base64 direto do blob via FileReader:
+**Arquivo: `src/lib/offlineStorage.ts`**
+- Adicionar store `offlinePhotos` para armazenar fotos como Base64
+- Criar funções: `saveOfflinePhoto()`, `getOfflinePhoto()`, `deleteOfflinePhoto()`
+- Fotos são convertidas para Base64 e armazenadas localmente
+- Gerar URL temporário formato: `offline://photo_${timestamp}`
 
-```typescript
-// Fallback: converter blob para base64 sem compressão
-async function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-```
+**Arquivo: `src/components/auditoria/ChecklistItem.tsx`**
+- Detectar modo offline antes de tentar upload
+- Converter foto para Base64 usando FileReader
+- Salvar no IndexedDB com `saveOfflinePhoto()`
+- Usar URL offline como referência no `photo_url`
 
-### 3. Melhorar logging para debug
-Adicionar logs mais detalhados em cada etapa para facilitar debug futuro
+### Fase 2: AuditResult Offline
+
+**Arquivo: `src/components/auditoria/AuditResult.tsx`**
+- Adicionar lógica para buscar do cache quando offline
+- Usar `getFromStore('audits', auditId)` como fallback
+- Salvar observações no cache local quando offline
+- Adicionar flag visual "Modo Offline"
+
+### Fase 3: Corrigir Props e Fluxo
+
+**Arquivo: `src/pages/auditor/NovaAuditoria.tsx`**
+- Passar `isOfflineAudit={isOfflineId(auditId)}` para `AuditChecklist`
+- Garantir que `AuditResult` também receba flag offline
+
+### Fase 4: Sincronização Completa ao Voltar Online
+
+**Arquivo: `src/hooks/useOfflineSync.ts`**
+Melhorar sincronização para incluir:
+
+1. **Upload de fotos pendentes**:
+   - Buscar todas as fotos com URL `offline://`
+   - Fazer upload para Supabase Storage
+   - Substituir URLs locais por URLs reais
+
+2. **Sincronizar audit_items**:
+   - Atualizar cada item com resposta, comentário e nova URL da foto
+
+3. **Ordem correta de sincronização**:
+   - Primeiro: criar auditoria → obter ID real
+   - Segundo: fazer upload das fotos → obter URLs reais
+   - Terceiro: criar audit_items com URLs corretas
+   - Quarto: completar auditoria se necessário
+
+---
 
 ## Arquivos a Modificar
-- `src/lib/reports/reportDataFormatter.ts`
+
+| Arquivo | Modificação |
+|---------|-------------|
+| `src/lib/offlineStorage.ts` | Adicionar store e funções para fotos offline |
+| `src/components/auditoria/ChecklistItem.tsx` | Upload de fotos offline com Base64 |
+| `src/components/auditoria/AuditResult.tsx` | Buscar do cache quando offline |
+| `src/pages/auditor/NovaAuditoria.tsx` | Passar flag isOfflineAudit |
+| `src/hooks/useOfflineSync.ts` | Sincronização completa de fotos e itens |
+
+---
+
+## Fluxo de Funcionamento
+
+```
+                    OFFLINE
+                    
+┌─────────────────────────────────────────────────────┐
+│  1. Usuário tira foto                               │
+│  2. Foto → Base64 → IndexedDB (offlinePhotos)       │
+│  3. URL: "offline://photo_123456"                   │
+│  4. audit_item.photo_url = ["offline://photo_123"]  │
+│  5. Tudo salvo localmente ✓                         │
+└─────────────────────────────────────────────────────┘
+                      │
+                      ▼
+                 VOLTA ONLINE
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────┐
+│  1. Sync: criar audit → ID real                     │
+│  2. Para cada foto offline://:                      │
+│     - Buscar Base64 do IndexedDB                    │
+│     - Upload para Supabase Storage                  │
+│     - Obter URL pública                             │
+│  3. Criar audit_items com URLs reais                │
+│  4. Limpar dados offline                            │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## Detalhes Técnicos
+
+### Nova Estrutura IndexedDB
+
+```typescript
+// offlinePhotos store
+interface OfflinePhoto {
+  id: string;          // "offline://photo_123456"
+  auditItemId: string; // ID do item relacionado
+  base64: string;      // "data:image/jpeg;base64,..."
+  fileName: string;    // "photo_123456.jpg"
+  createdAt: string;
+}
+```
+
+### Lógica de Upload Offline
+
+```typescript
+// ChecklistItem.tsx - Modificação
+if (isOffline || !navigator.onLine) {
+  // Converter para Base64
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64 = e.target?.result as string;
+    const photoId = `offline://photo_${Date.now()}`;
+    
+    // Salvar no IndexedDB
+    await saveOfflinePhoto({
+      id: photoId,
+      auditItemId: item.id,
+      base64,
+      fileName: file.name,
+      createdAt: new Date().toISOString()
+    });
+    
+    // Atualizar estado com URL offline
+    const updatedPhotos = [...photoUrls, photoId];
+    onAnswerChange(item.id, localAnswer!, updatedPhotos, comment);
+  };
+  reader.readAsDataURL(file);
+  return;
+}
+```
+
+---
 
 ## Resultado Esperado
-- **100% das fotos** devem aparecer no PDF (desde que existam no storage)
-- Fallback garante que mesmo se canvas falhar, a foto aparece
-- Timeout previne travamento infinito
+
+Após implementação:
+- ✅ Criar nova auditoria offline
+- ✅ Responder perguntas offline
+- ✅ Tirar e anexar fotos offline (salvas localmente como Base64)
+- ✅ Ver resultado da auditoria offline
+- ✅ Salvar rascunho offline
+- ✅ Finalizar auditoria offline
+- ✅ Sincronização automática quando voltar online
+- ✅ Upload de fotos para o servidor quando online
+- ✅ Substituição de URLs locais por URLs reais
+
+O usuário poderá fazer auditorias completas em ambientes sem Wi-Fi (galpões, fábricas, etc.) e os dados serão sincronizados automaticamente ao reconectar.
