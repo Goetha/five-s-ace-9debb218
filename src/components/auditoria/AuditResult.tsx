@@ -5,21 +5,30 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { ScoreLevelIndicator, getScoreLevel } from "@/components/modelos/ScoreLevelIndicator";
 import { ExportAuditButton } from "@/components/reports/ExportButtons";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Check, Eye, Loader2, X } from "lucide-react";
+import { Calendar, Check, Eye, Loader2, X, WifiOff } from "lucide-react";
 import type { Audit } from "@/types/audit";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  getFromStore,
+  addToStore,
+  isOfflineId,
+  completeOfflineAudit,
+  getCachedEnvironments,
+} from "@/lib/offlineStorage";
 
 interface AuditResultProps {
   auditId: string;
   onNewAudit: () => void;
   onViewDetails: () => void;
+  isOfflineAudit?: boolean;
 }
 
-export function AuditResult({ auditId, onNewAudit, onViewDetails }: AuditResultProps) {
+export function AuditResult({ auditId, onNewAudit, onViewDetails, isOfflineAudit: propIsOffline }: AuditResultProps) {
   const { toast } = useToast();
   const [audit, setAudit] = useState<Audit | null>(null);
   const [locationName, setLocationName] = useState("");
@@ -27,6 +36,11 @@ export function AuditResult({ auditId, onNewAudit, onViewDetails }: AuditResultP
   const [observations, setObservations] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+
+  // Determine if this is an offline audit
+  const isOfflineAuditId = isOfflineId(auditId);
+  const effectiveIsOffline = propIsOffline || isOfflineAuditId || !navigator.onLine;
 
   useEffect(() => {
     fetchAuditResult();
@@ -34,27 +48,56 @@ export function AuditResult({ auditId, onNewAudit, onViewDetails }: AuditResultP
 
   const fetchAuditResult = async () => {
     try {
-      const { data, error } = await supabase
-        .from('audits')
-        .select(`
-          *,
-          environments!audits_location_id_fkey(name)
-        `)
-        .eq('id', auditId)
-        .single();
+      // If offline or offline audit ID, fetch from cache
+      if (!navigator.onLine || isOfflineAuditId) {
+        console.log('📴 Fetching audit result from cache...');
+        setIsOffline(true);
+        
+        const cachedAudit = await getFromStore<any>('audits', auditId);
+        if (cachedAudit) {
+          setAudit({
+            ...cachedAudit,
+            status: cachedAudit.status as 'in_progress' | 'completed',
+            score_level: cachedAudit.score_level as 'low' | 'medium' | 'high' | null
+          });
+          
+          // Get location name from cache or use stored name
+          if (cachedAudit._locationName) {
+            setLocationName(cachedAudit._locationName);
+          } else {
+            const cachedEnvs = await getCachedEnvironments();
+            const location = cachedEnvs.find(e => e.id === cachedAudit.location_id);
+            setLocationName(location?.name || 'Local');
+          }
+          
+          setObservations(cachedAudit.observations || "");
+          setNextAuditDate(cachedAudit.next_audit_date || "");
+        } else {
+          throw new Error('Auditoria não encontrada no cache');
+        }
+      } else {
+        // Online mode: fetch from Supabase
+        const { data, error } = await supabase
+          .from('audits')
+          .select(`
+            *,
+            environments!audits_location_id_fkey(name)
+          `)
+          .eq('id', auditId)
+          .single();
 
-      if (error) throw error;
-      
-      // Type cast to ensure TypeScript compatibility
-      const auditData = data as any;
-      setAudit({
-        ...auditData,
-        status: auditData.status as 'in_progress' | 'completed',
-        score_level: auditData.score_level as 'low' | 'medium' | 'high' | null
-      });
-      setLocationName(data.environments.name);
-      setObservations(data.observations || "");
-      setNextAuditDate(data.next_audit_date || "");
+        if (error) throw error;
+        
+        const auditData = data as any;
+        setAudit({
+          ...auditData,
+          status: auditData.status as 'in_progress' | 'completed',
+          score_level: auditData.score_level as 'low' | 'medium' | 'high' | null
+        });
+        setLocationName(data.environments.name);
+        setObservations(data.observations || "");
+        setNextAuditDate(data.next_audit_date || "");
+      }
     } catch (error) {
       console.error('Error fetching audit result:', error);
       toast({
@@ -70,22 +113,54 @@ export function AuditResult({ auditId, onNewAudit, onViewDetails }: AuditResultP
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('audits')
-        .update({
-          next_audit_date: nextAuditDate || null,
-          observations: observations || null
-        })
-        .eq('id', auditId);
+      // If offline or offline audit, save to cache
+      if (!navigator.onLine || isOfflineAuditId) {
+        console.log('📴 Saving audit result offline...');
+        
+        // Update the cached audit with observations
+        const cachedAudit = await getFromStore<any>('audits', auditId);
+        if (cachedAudit) {
+          const updatedAudit = {
+            ...cachedAudit,
+            observations: observations || null,
+            next_audit_date: nextAuditDate || null,
+          };
+          await addToStore('audits', updatedAudit);
+          
+          // If this is an offline audit that needs completion data saved
+          if (isOfflineAuditId) {
+            await completeOfflineAudit(auditId, {
+              observations: observations || undefined,
+              next_audit_date: nextAuditDate || undefined,
+            });
+          }
+        }
 
-      if (error) throw error;
+        toast({
+          title: "Dados salvos (Offline)",
+          description: "As informações serão sincronizadas quando você voltar online."
+        });
 
-      toast({
-        title: "Dados salvos",
-        description: "As informações foram atualizadas."
-      });
+        onViewDetails();
+      } else {
+        // Online mode: save to Supabase
+        const { error } = await supabase
+          .from('audits')
+          .update({
+            next_audit_date: nextAuditDate || null,
+            observations: observations || null
+          })
+          .eq('id', auditId);
 
-      onViewDetails();
+        if (error) throw error;
+
+        toast({
+          title: "Dados salvos",
+          description: "As informações foram atualizadas."
+        });
+
+        onViewDetails();
+      }
     } catch (error) {
       console.error('Error saving audit data:', error);
       toast({
@@ -113,6 +188,16 @@ export function AuditResult({ auditId, onNewAudit, onViewDetails }: AuditResultP
   return (
     <Card className="p-6">
       <div className="space-y-6">
+        {/* Offline indicator */}
+        {effectiveIsOffline && (
+          <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <WifiOff className="h-4 w-4 text-amber-600" />
+            <span className="text-sm text-amber-700 dark:text-amber-400">
+              Modo Offline - Os dados serão sincronizados quando você voltar online
+            </span>
+          </div>
+        )}
+
         <div className="text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 text-green-600 mb-2">
             <Check className="h-8 w-8" />
@@ -129,7 +214,10 @@ export function AuditResult({ auditId, onNewAudit, onViewDetails }: AuditResultP
             <div>
               <p className="text-muted-foreground">Data</p>
               <p className="font-medium">
-                {format(new Date(audit.completed_at!), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                {audit.completed_at 
+                  ? format(new Date(audit.completed_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                  : format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                }
               </p>
             </div>
           </div>
@@ -190,7 +278,10 @@ export function AuditResult({ auditId, onNewAudit, onViewDetails }: AuditResultP
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          <ExportAuditButton auditId={auditId} variant="outline" />
+          {/* Only show export button when online */}
+          {!effectiveIsOffline && (
+            <ExportAuditButton auditId={auditId} variant="outline" />
+          )}
           <Button
             variant="outline"
             onClick={onNewAudit}

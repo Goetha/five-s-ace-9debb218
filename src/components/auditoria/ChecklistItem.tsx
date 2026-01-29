@@ -4,16 +4,24 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
-import { Camera, Check, X, Upload, Loader2, ZoomIn } from "lucide-react";
+import { Camera, Check, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { AuditItem } from "@/types/audit";
+import {
+  saveOfflinePhoto,
+  getOfflinePhotoDataUrl,
+  generateOfflinePhotoId,
+  fileToBase64,
+  isOfflinePhotoUrl,
+} from "@/lib/offlineStorage";
 
 interface ChecklistItemProps {
   item: AuditItem;
   index: number;
   onAnswerChange: (itemId: string, answer: boolean, photoUrls?: string[], comment?: string) => void;
+  isOfflineAudit?: boolean;
 }
 
 const SENSO_LABELS: Record<string, string> = {
@@ -26,7 +34,6 @@ const SENSO_LABELS: Record<string, string> = {
 
 const getSensoLabel = (senso: string[] | null | undefined): string => {
   if (!senso || senso.length === 0) return 'Critério';
-  // Return the first senso's label
   return SENSO_LABELS[senso[0]] || senso[0];
 };
 
@@ -41,8 +48,7 @@ const parsePhotos = (photoUrl: string | null): string[] => {
   }
 };
 
-export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProps) {
-  // Use item props directly for answer, comment and photos to stay in sync with parent
+export function ChecklistItem({ item, index, onAnswerChange, isOfflineAudit = false }: ChecklistItemProps) {
   const localAnswer = item.answer;
   const comment = item.comment || "";
   const photoUrls = parsePhotos(item.photo_url);
@@ -50,9 +56,29 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
   const [showDetails, setShowDetails] = useState(item.answer !== null);
   const [isUploading, setIsUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [offlinePhotoCache, setOfflinePhotoCache] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
+  // Load offline photo data URLs for display
+  useEffect(() => {
+    const loadOfflinePhotos = async () => {
+      const newCache: Record<string, string> = {};
+      for (const url of photoUrls) {
+        if (isOfflinePhotoUrl(url) && !offlinePhotoCache[url]) {
+          const dataUrl = await getOfflinePhotoDataUrl(url);
+          if (dataUrl) {
+            newCache[url] = dataUrl;
+          }
+        }
+      }
+      if (Object.keys(newCache).length > 0) {
+        setOfflinePhotoCache(prev => ({ ...prev, ...newCache }));
+      }
+    };
+    loadOfflinePhotos();
+  }, [photoUrls]);
+
   // Expand details section when answer is set
   useEffect(() => {
     if (item.answer !== null && !showDetails) {
@@ -77,7 +103,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validar tipo de arquivo
+    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast({
         title: "Arquivo inválido",
@@ -87,7 +113,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
       return;
     }
 
-    // Validar tamanho (máximo 5MB)
+    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "Arquivo muito grande",
@@ -100,33 +126,63 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
     setIsUploading(true);
 
     try {
-      // Gerar nome único para o arquivo
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${item.id}_${Date.now()}.${fileExt}`;
-      const filePath = `audit-items/${fileName}`;
+      // Check if we're offline or if this is an offline audit
+      const isOffline = !navigator.onLine || isOfflineAudit;
 
-      // Upload para Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('audit-photos')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
+      if (isOffline) {
+        // OFFLINE MODE: Save photo as Base64 in IndexedDB
+        console.log('📴 Saving photo offline...');
+        
+        const base64 = await fileToBase64(file);
+        const photoId = generateOfflinePhotoId();
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const fileName = `${item.id}_${Date.now()}.${fileExt}`;
+        
+        await saveOfflinePhoto({
+          id: photoId,
+          auditItemId: item.id,
+          base64,
+          fileName,
+          createdAt: new Date().toISOString(),
         });
+        
+        // Cache the data URL for display
+        setOfflinePhotoCache(prev => ({ ...prev, [photoId]: base64 }));
+        
+        const updatedPhotos = [...photoUrls, photoId];
+        onAnswerChange(item.id, localAnswer!, updatedPhotos, comment);
 
-      if (uploadError) throw uploadError;
+        toast({
+          title: "Foto salva (Offline)",
+          description: `${updatedPhotos.length} foto(s) registrada(s). Será enviada quando online.`,
+        });
+      } else {
+        // ONLINE MODE: Upload to Supabase Storage
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${item.id}_${Date.now()}.${fileExt}`;
+        const filePath = `audit-items/${fileName}`;
 
-      // Obter URL pública
-      const { data: { publicUrl } } = supabase.storage
-        .from('audit-photos')
-        .getPublicUrl(filePath);
+        const { error: uploadError } = await supabase.storage
+          .from('audit-photos')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
 
-      const updatedPhotos = [...photoUrls, publicUrl];
-      onAnswerChange(item.id, localAnswer!, updatedPhotos, comment);
+        if (uploadError) throw uploadError;
 
-      toast({
-        title: "Foto adicionada",
-        description: `${updatedPhotos.length} foto(s) registrada(s).`,
-      });
+        const { data: { publicUrl } } = supabase.storage
+          .from('audit-photos')
+          .getPublicUrl(filePath);
+
+        const updatedPhotos = [...photoUrls, publicUrl];
+        onAnswerChange(item.id, localAnswer!, updatedPhotos, comment);
+
+        toast({
+          title: "Foto adicionada",
+          description: `${updatedPhotos.length} foto(s) registrada(s).`,
+        });
+      }
     } catch (error) {
       console.error('Error uploading photo:', error);
       toast({
@@ -136,6 +192,10 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
       });
     } finally {
       setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -147,6 +207,14 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
       title: "Foto removida",
       description: `${updatedPhotos.length} foto(s) restante(s).`,
     });
+  };
+
+  // Get the display URL for a photo (handles offline photos)
+  const getDisplayUrl = (url: string): string => {
+    if (isOfflinePhotoUrl(url)) {
+      return offlinePhotoCache[url] || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999"%3ECarregando...%3C/text%3E%3C/svg%3E';
+    }
+    return url;
   };
 
   // Validation logic: only required for non-conforming (Não) answers
@@ -256,13 +324,20 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
                 <div className="grid grid-cols-2 gap-4 overflow-visible">
                   {photoUrls.map((url, idx) => (
                     <div key={idx} className="relative overflow-visible">
+                      {/* Offline indicator badge */}
+                      {isOfflinePhotoUrl(url) && (
+                        <div className="absolute top-1 left-1 z-40 bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                          📴 Offline
+                        </div>
+                      )}
+                      
                       {/* Image container */}
                       <div 
                         className="w-full h-32 sm:h-40 rounded-lg border overflow-hidden cursor-pointer mt-3 mr-1"
-                        onClick={() => setPreviewImage(url)}
+                        onClick={() => setPreviewImage(getDisplayUrl(url))}
                       >
                         <img 
-                          src={url} 
+                          src={getDisplayUrl(url)} 
                           alt={`Evidência ${idx + 1}`} 
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -272,13 +347,12 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
                         />
                       </div>
                       
-                      {/* Remove button - positioned at top-right corner of relative container */}
+                      {/* Remove button */}
                       <div 
                         className="absolute top-0 right-0 z-50"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          console.log('Remove photo wrapper clicked:', idx);
                           handleRemovePhoto(idx);
                         }}
                         role="button"
@@ -307,7 +381,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
                 {isUploading ? (
                   <>
                     <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-2 animate-spin" />
-                    Enviando...
+                    {!navigator.onLine || isOfflineAudit ? 'Salvando...' : 'Enviando...'}
                   </>
                 ) : (
                   <>
@@ -321,7 +395,7 @@ export function ChecklistItem({ item, index, onAnswerChange }: ChecklistItemProp
         )}
       </div>
 
-      {/* Modal de Preview da Foto */}
+      {/* Photo Preview Modal */}
       <Dialog open={previewImage !== null} onOpenChange={() => setPreviewImage(null)}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-0" aria-describedby={undefined}>
           <VisuallyHidden.Root>

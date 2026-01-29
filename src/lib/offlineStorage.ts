@@ -1,7 +1,7 @@
 // IndexedDB service for offline storage and sync
 
 const DB_NAME = '5s-manager-offline';
-const DB_VERSION = 3; // Incremented version for new stores (user_companies, environment_criteria)
+const DB_VERSION = 4; // Incremented version for offlinePhotos store
 
 interface PendingSync {
   id: string;
@@ -118,6 +118,12 @@ export const initDB = (): Promise<IDBDatabase> => {
       // NEW: Cache for auditors (IFA Admin only)
       if (!database.objectStoreNames.contains('auditors')) {
         database.createObjectStore('auditors', { keyPath: 'id' });
+      }
+
+      // NEW: Store for offline photos (Base64)
+      if (!database.objectStoreNames.contains('offlinePhotos')) {
+        const photosStore = database.createObjectStore('offlinePhotos', { keyPath: 'id' });
+        photosStore.createIndex('auditItemId', 'auditItemId', { unique: false });
       }
     };
   });
@@ -651,4 +657,78 @@ export const getRealIdFromOffline = async (offlineId: string): Promise<string | 
     request.onsuccess = () => resolve(request.result?.value?.realId || null);
     request.onerror = () => reject(request.error);
   });
+};
+
+// =====================
+// OFFLINE PHOTOS FUNCTIONS
+// =====================
+
+export interface OfflinePhoto {
+  id: string;          // "offline://photo_123456"
+  auditItemId: string; // ID of the related audit item
+  base64: string;      // "data:image/jpeg;base64,..."
+  fileName: string;    // "photo_123456.jpg"
+  createdAt: string;
+}
+
+// Check if a URL is an offline photo
+export const isOfflinePhotoUrl = (url: string): boolean => {
+  return url.startsWith('offline://photo_');
+};
+
+// Save a photo as Base64 for offline use
+export const saveOfflinePhoto = async (photo: OfflinePhoto): Promise<void> => {
+  await addToStore('offlinePhotos', photo);
+  console.log(`📷 Offline photo saved: ${photo.id}`);
+};
+
+// Get an offline photo by its ID
+export const getOfflinePhoto = async (photoId: string): Promise<OfflinePhoto | undefined> => {
+  return getFromStore<OfflinePhoto>('offlinePhotos', photoId);
+};
+
+// Get all offline photos for an audit item
+export const getOfflinePhotosByAuditItemId = async (auditItemId: string): Promise<OfflinePhoto[]> => {
+  const allPhotos = await getAllFromStore<OfflinePhoto>('offlinePhotos');
+  return allPhotos.filter(p => p.auditItemId === auditItemId);
+};
+
+// Get all offline photos
+export const getAllOfflinePhotos = async (): Promise<OfflinePhoto[]> => {
+  return getAllFromStore<OfflinePhoto>('offlinePhotos');
+};
+
+// Delete an offline photo
+export const deleteOfflinePhoto = async (photoId: string): Promise<void> => {
+  await deleteFromStore('offlinePhotos', photoId);
+  console.log(`🗑️ Offline photo deleted: ${photoId}`);
+};
+
+// Delete all offline photos for an audit item
+export const deleteOfflinePhotosByAuditItemId = async (auditItemId: string): Promise<void> => {
+  const photos = await getOfflinePhotosByAuditItemId(auditItemId);
+  for (const photo of photos) {
+    await deleteFromStore('offlinePhotos', photo.id);
+  }
+};
+
+// Get the Base64 data URL for displaying an offline photo
+export const getOfflinePhotoDataUrl = async (photoId: string): Promise<string | null> => {
+  const photo = await getOfflinePhoto(photoId);
+  return photo?.base64 || null;
+};
+
+// Convert a File to Base64
+export const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+// Generate an offline photo ID
+export const generateOfflinePhotoId = (): string => {
+  return `offline://photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
