@@ -129,19 +129,30 @@ export const initDB = (): Promise<IDBDatabase> => {
   });
 };
 
-// Generic add to store
+// Generic add to store with improved error handling
 export const addToStore = async <T extends { id: string }>(
   storeName: string,
   data: T
 ): Promise<void> => {
-  const database = await initDB();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
-    const request = store.put(data);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+  try {
+    const database = await initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction(storeName, 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const request = store.put(data);
+      request.onsuccess = () => {
+        console.log(`[offlineStorage] ✅ Saved to ${storeName}:`, data.id);
+        resolve();
+      };
+      request.onerror = () => {
+        console.error(`[offlineStorage] ❌ Failed to save to ${storeName}:`, data.id, request.error);
+        reject(request.error);
+      };
+    });
+  } catch (err) {
+    console.error(`[offlineStorage] ❌ addToStore error for ${storeName}:`, err);
+    throw err;
+  }
 };
 
 // Generic get from store

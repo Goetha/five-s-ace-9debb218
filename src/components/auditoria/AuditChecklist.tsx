@@ -167,12 +167,13 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
     }
   };
 
-  const handleAnswerChange = async (itemId: string, answer: boolean, photoUrls?: string[], comment?: string) => {
+  // FIXED: Accept answer as boolean | null to allow photos/comments before answering
+  const handleAnswerChange = async (itemId: string, answer: boolean | null, photoUrls?: string[], comment?: string) => {
     const updatedItems = items.map(item =>
       item.id === itemId
         ? { 
             ...item, 
-            answer, 
+            answer,  // Can be null, true, or false
             // Fix: properly handle photo removal - if photoUrls is undefined or empty, clear the photo_url
             photo_url: photoUrls && photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
             comment: comment !== undefined ? comment : item.comment
@@ -181,13 +182,21 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
     );
     setItems(updatedItems);
 
-    // If offline mode, save to IndexedDB immediately
+    // FIXED: ALWAYS save to IndexedDB immediately in offline mode (even if answer is null)
     if (shouldUseOfflineMode) {
       const updatedItem = updatedItems.find(i => i.id === itemId);
       if (updatedItem) {
         try {
-          await addToStore('auditItems', updatedItem);
-          console.log(`[AuditChecklist] ✅ Item ${itemId} saved to cache`, { answer, hasPhotos: !!photoUrls?.length });
+          // Ensure DB is initialized before saving
+          await initDB();
+          // Ensure item has audit_id set correctly
+          const itemToSave = { ...updatedItem, audit_id: auditId };
+          await addToStore('auditItems', itemToSave);
+          console.log(`[AuditChecklist] ✅ Item ${itemId} saved to cache`, { 
+            answer, 
+            hasPhotos: !!photoUrls?.length,
+            hasComment: !!comment?.length 
+          });
         } catch (err) {
           console.error(`[AuditChecklist] ❌ Failed to save item ${itemId}:`, err);
         }
@@ -212,24 +221,54 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
       });
       
       if (shouldUseOfflineMode) {
-        // Ensure DB is initialized before saving
-        await initDB();
-        console.log('[AuditChecklist] ✅ IndexedDB initialized');
+        // CRITICAL: Initialize DB first and verify it works
+        try {
+          await initDB();
+          console.log('[AuditChecklist] ✅ IndexedDB initialized successfully');
+        } catch (dbError) {
+          console.error('[AuditChecklist] ❌ Failed to init IndexedDB:', dbError);
+          throw new Error('Não foi possível acessar o armazenamento offline');
+        }
         
-        // Save to IndexedDB
+        // FIXED: First ensure the audit record exists in cache
+        let auditData = await getFromStore<any>('audits', auditId);
+        if (!auditData) {
+          console.log('[AuditChecklist] ⚠️ Audit not found in cache, creating new entry');
+          auditData = {
+            id: auditId,
+            status: 'in_progress',
+            total_questions: items.length,
+            total_yes: 0,
+            total_no: 0,
+            started_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            _isOffline: true,
+          };
+        }
+        
+        // Update counts
+        auditData.total_questions = items.length;
+        auditData.total_yes = items.filter(i => i.answer === true).length;
+        auditData.total_no = items.filter(i => i.answer === false).length;
+        auditData.updated_at = new Date().toISOString();
+        
+        // Save the audit record first
+        await addToStore('audits', auditData);
+        console.log('[AuditChecklist] ✅ Audit record saved/updated');
+        
+        // Save all items with correct audit_id
         let savedCount = 0;
         const errors: string[] = [];
         
         for (const item of items) {
           try {
-            // Ensure item has required structure
+            // CRITICAL: Ensure every item has the correct audit_id
             const itemToSave = {
               ...item,
-              audit_id: auditId, // Ensure audit_id is set
+              audit_id: auditId,
             };
             await addToStore('auditItems', itemToSave);
             savedCount++;
-            console.log(`[AuditChecklist] ✅ Saved item ${item.id}`);
           } catch (itemError) {
             console.error('[AuditChecklist] ❌ Error saving item:', item.id, itemError);
             errors.push(item.id);
@@ -237,47 +276,16 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
         }
         console.log(`[AuditChecklist] ✅ Saved ${savedCount}/${items.length} items to IndexedDB`);
         
-        // Also update the audit record in cache
-        try {
-          const auditData = await getFromStore<any>('audits', auditId);
-          if (auditData) {
-            const updatedAudit = {
-              ...auditData,
-              total_questions: items.length,
-              total_yes: items.filter(i => i.answer === true).length,
-              total_no: items.filter(i => i.answer === false).length,
-              updated_at: new Date().toISOString(),
-            };
-            await addToStore('audits', updatedAudit);
-            console.log('[AuditChecklist] ✅ Audit record updated in cache');
-          } else {
-            console.warn('[AuditChecklist] ⚠️ Audit not found in cache, creating new entry');
-            // Create audit entry if it doesn't exist
-            const newAuditEntry = {
-              id: auditId,
-              status: 'in_progress',
-              total_questions: items.length,
-              total_yes: items.filter(i => i.answer === true).length,
-              total_no: items.filter(i => i.answer === false).length,
-              updated_at: new Date().toISOString(),
-              _isOffline: true,
-            };
-            await addToStore('audits', newAuditEntry);
-          }
-        } catch (auditError) {
-          console.error('[AuditChecklist] ❌ Error updating audit record:', auditError);
-        }
-        
         if (errors.length > 0) {
           toast({
-            title: "Rascunho parcialmente salvo",
+            title: "⚠️ Rascunho parcialmente salvo",
             description: `${savedCount} de ${items.length} itens salvos. Alguns itens falharam.`,
             variant: "destructive"
           });
         } else {
           toast({
-            title: "Rascunho salvo offline",
-            description: `${savedCount} itens salvos. Será sincronizado quando você voltar online.`
+            title: "✅ Rascunho salvo offline",
+            description: `${savedCount} itens salvos localmente. Será sincronizado quando online.`
           });
         }
       } else {
@@ -385,54 +393,66 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
       });
       
       if (shouldUseOfflineMode) {
-        // Complete offline audit
-        // First save all items to ensure they're up-to-date
+        // CRITICAL: Initialize DB first
+        try {
+          await initDB();
+        } catch (dbError) {
+          console.error('[AuditChecklist] ❌ Failed to init IndexedDB:', dbError);
+          throw new Error('Não foi possível acessar o armazenamento offline');
+        }
+        
+        // Complete offline audit - First save all items with correct audit_id
         console.log('[AuditChecklist] 💾 Saving all items before completing...');
         for (const item of items) {
-          await addToStore('auditItems', item);
+          const itemToSave = { ...item, audit_id: auditId };
+          await addToStore('auditItems', itemToSave);
         }
         console.log('[AuditChecklist] ✅ All items saved');
         
-        // Calculate scores locally (don't rely on completeOfflineAudit to re-fetch)
+        // Calculate scores locally
         const totalQuestions = items.length;
         const totalYes = items.filter(item => item.answer === true).length;
         const totalNo = items.filter(item => item.answer === false).length;
         const score = Math.round((totalYes / totalQuestions) * 100);
         const scoreLevel = score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low';
         
-        // Get and update the audit directly
-        const auditData = await getFromStore<any>('audits', auditId);
-        if (auditData) {
-          const completedAudit = {
-            ...auditData,
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-            total_questions: totalQuestions,
-            total_yes: totalYes,
-            total_no: totalNo,
-            score,
-            score_level: scoreLevel,
+        // FIXED: Get or create the audit record
+        let auditData = await getFromStore<any>('audits', auditId);
+        if (!auditData) {
+          console.warn('[AuditChecklist] ⚠️ Audit not found in cache, creating entry');
+          auditData = {
+            id: auditId,
+            status: 'in_progress',
+            _isOffline: true,
           };
-          await addToStore('audits', completedAudit);
-          
-          // Add to pending sync
-          await addPendingSync('update', 'offline_audit_complete', {
-            auditId,
-            total_questions: totalQuestions,
-            total_yes: totalYes,
-            total_no: totalNo,
-            score,
-            score_level: scoreLevel,
-          });
-          
-          console.log('[AuditChecklist] ✅ Audit completed offline:', { score, scoreLevel });
-        } else {
-          console.error('[AuditChecklist] ❌ Audit not found in cache:', auditId);
-          throw new Error('Auditoria não encontrada no cache');
         }
         
+        const completedAudit = {
+          ...auditData,
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          total_questions: totalQuestions,
+          total_yes: totalYes,
+          total_no: totalNo,
+          score,
+          score_level: scoreLevel,
+        };
+        await addToStore('audits', completedAudit);
+        
+        // Add to pending sync
+        await addPendingSync('update', 'offline_audit_complete', {
+          auditId,
+          total_questions: totalQuestions,
+          total_yes: totalYes,
+          total_no: totalNo,
+          score,
+          score_level: scoreLevel,
+        });
+        
+        console.log('[AuditChecklist] ✅ Audit completed offline:', { score, scoreLevel });
+        
         toast({
-          title: "Auditoria finalizada offline",
+          title: "✅ Auditoria finalizada offline",
           description: `Pontuação: ${score}%. Será sincronizada quando você voltar online.`
         });
         

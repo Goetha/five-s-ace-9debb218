@@ -159,7 +159,7 @@ export function useOfflineSync() {
         try {
           // Handle offline audit creation
           if (item.type === 'create' && item.table === 'offline_audit') {
-            const { audit, items } = item.data;
+            const { audit, items: itemsDefs } = item.data;
             
             // Create the audit on server
             const { data: createdAudit, error: auditError } = await supabase
@@ -183,28 +183,36 @@ export function useOfflineSync() {
               continue;
             }
 
-            // Get the offline audit items to sync their responses and photos
+            // FIXED: Better matching - try to find the offline audit by multiple criteria
             const offlineAudits = await getOfflineAudits();
-            const matchingOfflineAudit = offlineAudits.find(
+            let matchingOfflineAudit = offlineAudits.find(
               a => a.company_id === audit.company_id && 
                    a.location_id === audit.location_id &&
                    a.auditor_id === audit.auditor_id
             );
 
-            let offlineAuditId: string | null = null;
-            if (matchingOfflineAudit) {
-              offlineAuditId = matchingOfflineAudit.id;
+            // If multiple matches, try to find the most recent one
+            if (!matchingOfflineAudit && offlineAudits.length > 0) {
+              // Sort by started_at descending and find matching criteria
+              const sorted = offlineAudits
+                .filter(a => a.company_id === audit.company_id && a.location_id === audit.location_id)
+                .sort((a, b) => new Date(b.started_at || 0).getTime() - new Date(a.started_at || 0).getTime());
+              matchingOfflineAudit = sorted[0];
             }
+
+            let offlineAuditId: string | null = matchingOfflineAudit?.id || null;
+            console.log('[useOfflineSync] Found matching offline audit:', offlineAuditId);
 
             // Get offline items with answers
             let offlineItems: any[] = [];
             if (offlineAuditId) {
               offlineItems = await getCachedAuditItemsByAuditId(offlineAuditId);
+              console.log(`[useOfflineSync] Found ${offlineItems.length} cached items for audit ${offlineAuditId}`);
             }
 
             // Create audit items with synced photos
             const auditItems = [];
-            for (const itemDef of items) {
+            for (const itemDef of itemsDefs) {
               // Find the matching offline item to get answer, photos, comment
               const offlineItem = offlineItems.find(oi => oi.criterion_id === itemDef.criterion_id);
               
