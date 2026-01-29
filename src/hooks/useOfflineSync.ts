@@ -17,6 +17,10 @@ import {
   mapOfflineToRealId,
   getCachedAuditItemsByAuditId,
   isOfflineId,
+  getAllOfflinePhotos,
+  getOfflinePhoto,
+  deleteOfflinePhoto,
+  isOfflinePhotoUrl,
 } from '@/lib/offlineStorage';
 import { useToast } from '@/hooks/use-toast';
 
@@ -65,10 +69,78 @@ export function useOfflineSync() {
   const updatePendingCount = async () => {
     try {
       const pending = await getPendingSync();
-      setStatus(prev => ({ ...prev, pendingCount: pending.length }));
+      const offlinePhotos = await getAllOfflinePhotos();
+      setStatus(prev => ({ ...prev, pendingCount: pending.length + offlinePhotos.length }));
     } catch (error) {
       console.error('Error getting pending count:', error);
     }
+  };
+
+  // Upload an offline photo to Supabase Storage
+  const uploadOfflinePhoto = async (photoId: string, auditItemId: string): Promise<string | null> => {
+    try {
+      const photo = await getOfflinePhoto(photoId);
+      if (!photo) {
+        console.warn(`Photo not found in cache: ${photoId}`);
+        return null;
+      }
+
+      // Convert base64 to blob
+      const base64Response = await fetch(photo.base64);
+      const blob = await base64Response.blob();
+
+      // Generate file path
+      const fileExt = photo.fileName.split('.').pop() || 'jpg';
+      const fileName = `${auditItemId}_synced_${Date.now()}.${fileExt}`;
+      const filePath = `audit-items/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('audit-photos')
+        .upload(filePath, blob, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Error uploading photo:', uploadError);
+        return null;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('audit-photos')
+        .getPublicUrl(filePath);
+
+      // Delete from IndexedDB after successful upload
+      await deleteOfflinePhoto(photoId);
+      
+      console.log(`✅ Photo synced: ${photoId} → ${publicUrl}`);
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading offline photo:', error);
+      return null;
+    }
+  };
+
+  // Replace offline photo URLs with real URLs in an array
+  const replaceOfflinePhotoUrls = async (photoUrls: string[], auditItemId: string): Promise<string[]> => {
+    const newUrls: string[] = [];
+    
+    for (const url of photoUrls) {
+      if (isOfflinePhotoUrl(url)) {
+        const realUrl = await uploadOfflinePhoto(url, auditItemId);
+        if (realUrl) {
+          newUrls.push(realUrl);
+        }
+        // If upload failed, we skip the photo (it will be lost)
+      } else {
+        // Keep existing online URLs
+        newUrls.push(url);
+      }
+    }
+    
+    return newUrls;
   };
 
   // Sync pending changes to server
@@ -81,6 +153,7 @@ export function useOfflineSync() {
       const pendingItems = await getPendingSync();
       let syncedCount = 0;
       let errorCount = 0;
+      let photosSyncedCount = 0;
 
       for (const item of pendingItems) {
         try {
@@ -110,13 +183,66 @@ export function useOfflineSync() {
               continue;
             }
 
-            // Create audit items
-            const auditItems = items.map((i: any) => ({
-              audit_id: createdAudit.id,
-              criterion_id: i.criterion_id,
-              question: i.question,
-              answer: null,
-            }));
+            // Get the offline audit items to sync their responses and photos
+            const offlineAudits = await getOfflineAudits();
+            const matchingOfflineAudit = offlineAudits.find(
+              a => a.company_id === audit.company_id && 
+                   a.location_id === audit.location_id &&
+                   a.auditor_id === audit.auditor_id
+            );
+
+            let offlineAuditId: string | null = null;
+            if (matchingOfflineAudit) {
+              offlineAuditId = matchingOfflineAudit.id;
+            }
+
+            // Get offline items with answers
+            let offlineItems: any[] = [];
+            if (offlineAuditId) {
+              offlineItems = await getCachedAuditItemsByAuditId(offlineAuditId);
+            }
+
+            // Create audit items with synced photos
+            const auditItems = [];
+            for (const itemDef of items) {
+              // Find the matching offline item to get answer, photos, comment
+              const offlineItem = offlineItems.find(oi => oi.criterion_id === itemDef.criterion_id);
+              
+              let photoUrl: string | null = null;
+              if (offlineItem?.photo_url) {
+                try {
+                  const photoUrls = JSON.parse(offlineItem.photo_url);
+                  if (Array.isArray(photoUrls) && photoUrls.length > 0) {
+                    // Upload offline photos and replace URLs
+                    const realUrls = await replaceOfflinePhotoUrls(photoUrls, offlineItem.id);
+                    if (realUrls.length > 0) {
+                      photoUrl = JSON.stringify(realUrls);
+                      photosSyncedCount += realUrls.length;
+                    }
+                  }
+                } catch (e) {
+                  // Not JSON, might be a single URL
+                  if (isOfflinePhotoUrl(offlineItem.photo_url)) {
+                    const realUrl = await uploadOfflinePhoto(offlineItem.photo_url, offlineItem.id);
+                    if (realUrl) {
+                      photoUrl = JSON.stringify([realUrl]);
+                      photosSyncedCount++;
+                    }
+                  } else {
+                    photoUrl = offlineItem.photo_url;
+                  }
+                }
+              }
+
+              auditItems.push({
+                audit_id: createdAudit.id,
+                criterion_id: itemDef.criterion_id,
+                question: itemDef.question,
+                answer: offlineItem?.answer ?? null,
+                photo_url: photoUrl,
+                comment: offlineItem?.comment ?? null,
+              });
+            }
 
             const { error: itemsError } = await supabase
               .from('audit_items')
@@ -128,18 +254,32 @@ export function useOfflineSync() {
               continue;
             }
 
-            // Map offline ID to real ID
-            // Note: We need to find the offline audit ID from pending sync data
-            const offlineAudits = await getOfflineAudits();
-            const matchingOfflineAudit = offlineAudits.find(
-              a => a.company_id === audit.company_id && 
-                   a.location_id === audit.location_id &&
-                   a.auditor_id === audit.auditor_id
-            );
+            // If the offline audit was completed, update the created audit
+            if (matchingOfflineAudit && matchingOfflineAudit.status === 'completed') {
+              const { error: completeError } = await supabase
+                .from('audits')
+                .update({
+                  status: 'completed',
+                  completed_at: matchingOfflineAudit.completed_at,
+                  total_questions: matchingOfflineAudit.total_questions,
+                  total_yes: matchingOfflineAudit.total_yes,
+                  total_no: matchingOfflineAudit.total_no,
+                  score: matchingOfflineAudit.score,
+                  score_level: matchingOfflineAudit.score_level,
+                  observations: matchingOfflineAudit.observations,
+                  next_audit_date: matchingOfflineAudit.next_audit_date,
+                })
+                .eq('id', createdAudit.id);
 
-            if (matchingOfflineAudit) {
-              await mapOfflineToRealId(matchingOfflineAudit.id, createdAudit.id, 'audit');
-              await removeOfflineAudit(matchingOfflineAudit.id);
+              if (completeError) {
+                console.error('Error completing audit:', completeError);
+              }
+            }
+
+            // Map offline ID to real ID
+            if (offlineAuditId) {
+              await mapOfflineToRealId(offlineAuditId, createdAudit.id, 'audit');
+              await removeOfflineAudit(offlineAuditId);
             }
 
             await removePendingSync(item.id);
@@ -147,18 +287,14 @@ export function useOfflineSync() {
             continue;
           }
 
-          // Handle offline audit item updates
+          // Handle offline audit item updates (skip - handled with audit sync)
           if (item.type === 'update' && item.table === 'offline_audit_item') {
-            // These will be handled when the audit is synced
-            // For now, skip them as the audit sync handles all items
             await removePendingSync(item.id);
             continue;
           }
 
-          // Handle offline audit completion
+          // Handle offline audit completion (skip if already handled)
           if (item.type === 'update' && item.table === 'offline_audit_complete') {
-            // This should sync the completion data
-            // First, we need to find the real audit ID
             const { auditId, ...updateData } = item.data;
             
             if (isOfflineId(auditId)) {
@@ -243,10 +379,18 @@ export function useOfflineSync() {
 
       await updatePendingCount();
       
-      if (syncedCount > 0) {
+      if (syncedCount > 0 || photosSyncedCount > 0) {
+        const message = [];
+        if (syncedCount > 0) {
+          message.push(`${syncedCount} ${syncedCount === 1 ? 'auditoria sincronizada' : 'auditorias sincronizadas'}`);
+        }
+        if (photosSyncedCount > 0) {
+          message.push(`${photosSyncedCount} ${photosSyncedCount === 1 ? 'foto enviada' : 'fotos enviadas'}`);
+        }
+        
         toast({
           title: "Sincronização concluída",
-          description: `${syncedCount} ${syncedCount === 1 ? 'item sincronizado' : 'itens sincronizados'} com sucesso.`,
+          description: message.join(', ') + '.',
         });
       }
 

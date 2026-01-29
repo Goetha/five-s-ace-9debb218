@@ -14,6 +14,7 @@ import {
   getCachedCriteria,
   getCachedEnvironments,
   getCachedCompanies,
+  isOfflineId,
 } from "@/lib/offlineStorage";
 
 type Step = 'select' | 'checklist' | 'result';
@@ -26,6 +27,7 @@ export default function NovaAuditoria() {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [auditId, setAuditId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isOfflineAudit, setIsOfflineAudit] = useState(false);
 
   const handleLocationSelected = async (locationId: string, companyId: string) => {
     if (!user) return;
@@ -79,6 +81,7 @@ export default function NovaAuditoria() {
 
         setSelectedLocation(locationId);
         setAuditId(audit.id);
+        setIsOfflineAudit(true); // Mark this as an offline audit
         setStep('checklist');
 
         toast({
@@ -163,11 +166,17 @@ export default function NovaAuditoria() {
     setStep('select');
     setSelectedLocation(null);
     setAuditId(null);
+    setIsOfflineAudit(false);
   };
 
   const handleViewDetails = () => {
     if (auditId) {
-      navigate(`/auditor/auditoria/${auditId}`);
+      // For offline audits, stay on a simple view or go back
+      if (isOfflineId(auditId)) {
+        navigate('/auditor/minhas-auditorias');
+      } else {
+        navigate(`/auditor/auditoria/${auditId}`);
+      }
     }
   };
 
@@ -195,6 +204,7 @@ export default function NovaAuditoria() {
           <AuditChecklist 
             auditId={auditId} 
             onCompleted={handleAuditCompleted}
+            isOfflineAudit={isOfflineAudit}
           />
         )}
 
@@ -203,6 +213,7 @@ export default function NovaAuditoria() {
             auditId={auditId}
             onNewAudit={handleNewAudit}
             onViewDetails={handleViewDetails}
+            isOfflineAudit={isOfflineAudit}
           />
         )}
       </div>

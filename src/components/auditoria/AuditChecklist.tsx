@@ -529,6 +529,7 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
               item={item}
               index={index}
               onAnswerChange={handleAnswerChange}
+              isOfflineAudit={shouldUseOfflineMode}
             />
           </div>
         ))}
