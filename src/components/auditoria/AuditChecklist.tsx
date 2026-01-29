@@ -18,6 +18,7 @@ import {
   addToStore,
   completeOfflineAudit,
   getAllFromStore,
+  addPendingSync,
 } from "@/lib/offlineStorage";
 
 interface AuditChecklistProps {
@@ -179,11 +180,16 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
     );
     setItems(updatedItems);
 
-    // If offline audit, save to IndexedDB immediately
-    if (isOfflineAudit || isOfflineId(auditId)) {
+    // If offline mode, save to IndexedDB immediately
+    if (shouldUseOfflineMode) {
       const updatedItem = updatedItems.find(i => i.id === itemId);
       if (updatedItem) {
-        await addToStore('auditItems', updatedItem);
+        try {
+          await addToStore('auditItems', updatedItem);
+          console.log(`[AuditChecklist] ✅ Item ${itemId} saved to cache`, { answer, hasPhotos: !!photoUrls?.length });
+        } catch (err) {
+          console.error(`[AuditChecklist] ❌ Failed to save item ${itemId}:`, err);
+        }
       }
     }
   };
@@ -196,14 +202,43 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
   const handleSaveDraft = async () => {
     setIsSaving(true);
     try {
-      if (isOfflineAudit || isOfflineId(auditId) || isOffline) {
+      console.log('[AuditChecklist] 💾 Saving draft...', { 
+        auditId, 
+        isOfflineAudit, 
+        isOffline, 
+        shouldUseOfflineMode,
+        itemsCount: items.length 
+      });
+      
+      if (shouldUseOfflineMode) {
         // Save to IndexedDB
+        let savedCount = 0;
         for (const item of items) {
-          await addToStore('auditItems', item);
+          try {
+            await addToStore('auditItems', item);
+            savedCount++;
+          } catch (itemError) {
+            console.error('[AuditChecklist] ❌ Error saving item:', item.id, itemError);
+          }
         }
+        console.log(`[AuditChecklist] ✅ Saved ${savedCount}/${items.length} items to IndexedDB`);
+        
+        // Also update the audit record in cache
+        const auditData = await getFromStore<any>('audits', auditId);
+        if (auditData) {
+          const answeredCount = items.filter(i => i.answer !== null).length;
+          await addToStore('audits', {
+            ...auditData,
+            total_questions: items.length,
+            total_yes: items.filter(i => i.answer === true).length,
+            total_no: items.filter(i => i.answer === false).length,
+          });
+          console.log('[AuditChecklist] ✅ Audit record updated in cache');
+        }
+        
         toast({
           title: "Rascunho salvo offline",
-          description: "Será sincronizado quando você voltar online."
+          description: `${savedCount} itens salvos. Será sincronizado quando você voltar online.`
         });
       } else {
         // Save to server
@@ -225,10 +260,10 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
         });
       }
     } catch (error) {
-      console.error('Error saving draft:', error);
+      console.error('[AuditChecklist] ❌ Error saving draft:', error);
       toast({
         title: "Erro ao salvar",
-        description: "Tente novamente.",
+        description: error instanceof Error ? error.message : "Tente novamente.",
         variant: "destructive"
       });
     } finally {
@@ -303,19 +338,62 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
 
     setIsSaving(true);
     try {
-      if (isOfflineAudit || isOfflineId(auditId) || isOffline) {
+      console.log('[AuditChecklist] 🏁 Completing audit...', { 
+        auditId, 
+        shouldUseOfflineMode,
+        itemsCount: items.length 
+      });
+      
+      if (shouldUseOfflineMode) {
         // Complete offline audit
-        // First save all items
+        // First save all items to ensure they're up-to-date
+        console.log('[AuditChecklist] 💾 Saving all items before completing...');
         for (const item of items) {
           await addToStore('auditItems', item);
         }
+        console.log('[AuditChecklist] ✅ All items saved');
         
-        // Then complete the audit
-        await completeOfflineAudit(auditId, {});
+        // Calculate scores locally (don't rely on completeOfflineAudit to re-fetch)
+        const totalQuestions = items.length;
+        const totalYes = items.filter(item => item.answer === true).length;
+        const totalNo = items.filter(item => item.answer === false).length;
+        const score = Math.round((totalYes / totalQuestions) * 100);
+        const scoreLevel = score >= 80 ? 'high' : score >= 50 ? 'medium' : 'low';
+        
+        // Get and update the audit directly
+        const auditData = await getFromStore<any>('audits', auditId);
+        if (auditData) {
+          const completedAudit = {
+            ...auditData,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            total_questions: totalQuestions,
+            total_yes: totalYes,
+            total_no: totalNo,
+            score,
+            score_level: scoreLevel,
+          };
+          await addToStore('audits', completedAudit);
+          
+          // Add to pending sync
+          await addPendingSync('update', 'offline_audit_complete', {
+            auditId,
+            total_questions: totalQuestions,
+            total_yes: totalYes,
+            total_no: totalNo,
+            score,
+            score_level: scoreLevel,
+          });
+          
+          console.log('[AuditChecklist] ✅ Audit completed offline:', { score, scoreLevel });
+        } else {
+          console.error('[AuditChecklist] ❌ Audit not found in cache:', auditId);
+          throw new Error('Auditoria não encontrada no cache');
+        }
         
         toast({
           title: "Auditoria finalizada offline",
-          description: "Será sincronizada quando você voltar online."
+          description: `Pontuação: ${score}%. Será sincronizada quando você voltar online.`
         });
         
         onCompleted();
@@ -332,16 +410,16 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
             .eq('id', item.id);
         }
 
-      // Calculate scores - using 0-100 scale (percentage)
-      const totalQuestions = items.length;
-      const totalYes = items.filter(item => item.answer === true).length;
-      const totalNo = items.filter(item => item.answer === false).length;
-      const score = Math.round((totalYes / totalQuestions) * 100);
-      
-      let scoreLevel: 'low' | 'medium' | 'high';
-      if (score >= 80) scoreLevel = 'high';      // >= 80% = Excelente
-      else if (score >= 50) scoreLevel = 'medium'; // 50-79% = Atenção
-      else scoreLevel = 'low';                     // < 50% = Crítico
+        // Calculate scores - using 0-100 scale (percentage)
+        const totalQuestions = items.length;
+        const totalYes = items.filter(item => item.answer === true).length;
+        const totalNo = items.filter(item => item.answer === false).length;
+        const score = Math.round((totalYes / totalQuestions) * 100);
+        
+        let scoreLevel: 'low' | 'medium' | 'high';
+        if (score >= 80) scoreLevel = 'high';
+        else if (score >= 50) scoreLevel = 'medium';
+        else scoreLevel = 'low';
 
         // Update audit
         await supabase
@@ -365,10 +443,10 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
         onCompleted();
       }
     } catch (error) {
-      console.error('Error completing audit:', error);
+      console.error('[AuditChecklist] ❌ Error completing audit:', error);
       toast({
         title: "Erro ao finalizar auditoria",
-        description: "Tente novamente.",
+        description: error instanceof Error ? error.message : "Tente novamente.",
         variant: "destructive"
       });
     } finally {
