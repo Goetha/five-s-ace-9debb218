@@ -19,6 +19,7 @@ import {
   completeOfflineAudit,
   getAllFromStore,
   addPendingSync,
+  initDB,
 } from "@/lib/offlineStorage";
 
 interface AuditChecklistProps {
@@ -211,35 +212,74 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
       });
       
       if (shouldUseOfflineMode) {
+        // Ensure DB is initialized before saving
+        await initDB();
+        console.log('[AuditChecklist] ✅ IndexedDB initialized');
+        
         // Save to IndexedDB
         let savedCount = 0;
+        const errors: string[] = [];
+        
         for (const item of items) {
           try {
-            await addToStore('auditItems', item);
+            // Ensure item has required structure
+            const itemToSave = {
+              ...item,
+              audit_id: auditId, // Ensure audit_id is set
+            };
+            await addToStore('auditItems', itemToSave);
             savedCount++;
+            console.log(`[AuditChecklist] ✅ Saved item ${item.id}`);
           } catch (itemError) {
             console.error('[AuditChecklist] ❌ Error saving item:', item.id, itemError);
+            errors.push(item.id);
           }
         }
         console.log(`[AuditChecklist] ✅ Saved ${savedCount}/${items.length} items to IndexedDB`);
         
         // Also update the audit record in cache
-        const auditData = await getFromStore<any>('audits', auditId);
-        if (auditData) {
-          const answeredCount = items.filter(i => i.answer !== null).length;
-          await addToStore('audits', {
-            ...auditData,
-            total_questions: items.length,
-            total_yes: items.filter(i => i.answer === true).length,
-            total_no: items.filter(i => i.answer === false).length,
-          });
-          console.log('[AuditChecklist] ✅ Audit record updated in cache');
+        try {
+          const auditData = await getFromStore<any>('audits', auditId);
+          if (auditData) {
+            const updatedAudit = {
+              ...auditData,
+              total_questions: items.length,
+              total_yes: items.filter(i => i.answer === true).length,
+              total_no: items.filter(i => i.answer === false).length,
+              updated_at: new Date().toISOString(),
+            };
+            await addToStore('audits', updatedAudit);
+            console.log('[AuditChecklist] ✅ Audit record updated in cache');
+          } else {
+            console.warn('[AuditChecklist] ⚠️ Audit not found in cache, creating new entry');
+            // Create audit entry if it doesn't exist
+            const newAuditEntry = {
+              id: auditId,
+              status: 'in_progress',
+              total_questions: items.length,
+              total_yes: items.filter(i => i.answer === true).length,
+              total_no: items.filter(i => i.answer === false).length,
+              updated_at: new Date().toISOString(),
+              _isOffline: true,
+            };
+            await addToStore('audits', newAuditEntry);
+          }
+        } catch (auditError) {
+          console.error('[AuditChecklist] ❌ Error updating audit record:', auditError);
         }
         
-        toast({
-          title: "Rascunho salvo offline",
-          description: `${savedCount} itens salvos. Será sincronizado quando você voltar online.`
-        });
+        if (errors.length > 0) {
+          toast({
+            title: "Rascunho parcialmente salvo",
+            description: `${savedCount} de ${items.length} itens salvos. Alguns itens falharam.`,
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Rascunho salvo offline",
+            description: `${savedCount} itens salvos. Será sincronizado quando você voltar online.`
+          });
+        }
       } else {
         // Save to server
         for (const item of items) {
@@ -263,7 +303,7 @@ export function AuditChecklist({ auditId, isOfflineAudit = false, onCompleted }:
       console.error('[AuditChecklist] ❌ Error saving draft:', error);
       toast({
         title: "Erro ao salvar",
-        description: error instanceof Error ? error.message : "Tente novamente.",
+        description: error instanceof Error ? error.message : "Erro ao acessar armazenamento local. Tente novamente.",
         variant: "destructive"
       });
     } finally {
