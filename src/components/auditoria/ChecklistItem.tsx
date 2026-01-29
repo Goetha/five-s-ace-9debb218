@@ -325,7 +325,6 @@ export function ChecklistItem({ item, index, onAnswerChange, isOfflineAudit = fa
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 onChange={handleFileChange}
                 className="hidden"
               />
