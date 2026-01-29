@@ -20,7 +20,8 @@ import {
 interface ChecklistItemProps {
   item: AuditItem;
   index: number;
-  onAnswerChange: (itemId: string, answer: boolean, photoUrls?: string[], comment?: string) => void;
+  // FIXED: Accept answer as boolean | null to allow photos before answering
+  onAnswerChange: (itemId: string, answer: boolean | null, photoUrls?: string[], comment?: string) => void;
   isOfflineAudit?: boolean;
 }
 
@@ -92,7 +93,8 @@ export function ChecklistItem({ item, index, onAnswerChange, isOfflineAudit = fa
   };
 
   const handleCommentChange = (value: string) => {
-    onAnswerChange(item.id, localAnswer!, photoUrls.length > 0 ? photoUrls : undefined, value);
+    // FIXED: Use localAnswer as-is (may be null) to allow comment changes before answering
+    onAnswerChange(item.id, localAnswer ?? null, photoUrls.length > 0 ? photoUrls : undefined, value);
   };
 
   const handlePhotoClick = () => {
@@ -158,9 +160,9 @@ export function ChecklistItem({ item, index, onAnswerChange, isOfflineAudit = fa
         
         const updatedPhotos = [...photoUrls, photoId];
         
-        // Use current answer or default to null (allow adding photos before answering)
-        const currentAnswer = localAnswer !== undefined ? localAnswer : null;
-        onAnswerChange(item.id, currentAnswer as boolean, updatedPhotos, comment);
+        // FIXED: Use localAnswer as-is (can be null, true, or false)
+        // No more forcing cast to boolean - parent handles null properly
+        onAnswerChange(item.id, localAnswer ?? null, updatedPhotos, comment);
 
         toast({
           title: "✅ Foto salva (Offline)",
@@ -186,7 +188,8 @@ export function ChecklistItem({ item, index, onAnswerChange, isOfflineAudit = fa
           .getPublicUrl(filePath);
 
         const updatedPhotos = [...photoUrls, publicUrl];
-        onAnswerChange(item.id, localAnswer!, updatedPhotos, comment);
+        // FIXED: Use localAnswer as-is (can be null online too)
+        onAnswerChange(item.id, localAnswer ?? null, updatedPhotos, comment);
 
         toast({
           title: "Foto adicionada",
@@ -211,7 +214,8 @@ export function ChecklistItem({ item, index, onAnswerChange, isOfflineAudit = fa
 
   const handleRemovePhoto = (indexToRemove: number) => {
     const updatedPhotos = photoUrls.filter((_, index) => index !== indexToRemove);
-    onAnswerChange(item.id, localAnswer!, updatedPhotos.length > 0 ? updatedPhotos : undefined, comment);
+    // FIXED: Use localAnswer as-is to allow removal before answering
+    onAnswerChange(item.id, localAnswer ?? null, updatedPhotos.length > 0 ? updatedPhotos : undefined, comment);
     
     toast({
       title: "Foto removida",
