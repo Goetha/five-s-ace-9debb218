@@ -351,13 +351,14 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
     }
   }, [user, isCaching, userRole]);
 
-  // Cache data when user logs in
+  // Cache data when user logs in - start quickly
   useEffect(() => {
     if (user && userRole && navigator.onLine && !isCaching && !hasCachedRef.current) {
       console.log('🔄 Starting cache timer - role:', userRole);
+      // Reduced delay to 500ms to ensure cache happens before user navigates
       const timer = setTimeout(() => {
         cacheAllDataForOffline();
-      }, 2000);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [user, userRole, cacheAllDataForOffline]);

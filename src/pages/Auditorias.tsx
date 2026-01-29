@@ -22,6 +22,7 @@ import {
   getCachedCriteria,
   getCachedAuditItems,
   isOfflineId,
+  getLastSyncTime,
 } from "@/lib/offlineStorage";
 
 interface Company {
@@ -131,7 +132,7 @@ const Auditorias = () => {
 
   // Fetch data from cache when offline
   const fetchFromCache = useCallback(async () => {
-    console.log('[Auditorias] Fetching from cache...');
+    console.log('[Auditorias] 📴 Fetching from cache...');
     try {
       const [cachedCompanies, cachedAudits, cachedEnvs, cachedCriteria, cachedAuditItems] = await Promise.all([
         getCachedCompanies(),
@@ -141,7 +142,7 @@ const Auditorias = () => {
         getCachedAuditItems(),
       ]);
 
-      console.log('[Auditorias] Cache data:', {
+      console.log('[Auditorias] 📴 Cache data found:', {
         companies: cachedCompanies.length,
         audits: cachedAudits.length,
         environments: cachedEnvs.length,
@@ -149,14 +150,24 @@ const Auditorias = () => {
         auditItems: cachedAuditItems.length,
       });
 
+      // Accept cache even if some data is empty - we can still show partial data
+      // Only fail if we have ZERO companies (nothing to show)
+      if (cachedCompanies.length === 0) {
+        console.warn('[Auditorias] ⚠️ No companies in cache - cache empty');
+        return false;
+      }
+
       // Filter active companies
       const activeCompanies = cachedCompanies.filter(c => c.status === 'active');
-      setCompanies(activeCompanies.map(c => ({ id: c.id, name: c.name })));
+      
+      // If all companies are inactive, use all cached companies
+      const companiesToShow = activeCompanies.length > 0 ? activeCompanies : cachedCompanies;
+      setCompanies(companiesToShow.map(c => ({ id: c.id, name: c.name })));
 
       // Process audits from cache similarly to online processing
       processAuditsData(
         cachedAudits,
-        activeCompanies,
+        companiesToShow,
         cachedEnvs,
         cachedCriteria,
         cachedAuditItems,
@@ -164,9 +175,10 @@ const Auditorias = () => {
       );
 
       setIsFromCache(true);
+      console.log('[Auditorias] ✅ Successfully loaded from cache');
       return true;
     } catch (error) {
-      console.error('[Auditorias] Cache fetch error:', error);
+      console.error('[Auditorias] ❌ Cache fetch error:', error);
       return false;
     }
   }, []);
@@ -429,14 +441,19 @@ const Auditorias = () => {
 
     // Check if offline - use cache
     if (!navigator.onLine || isOffline) {
-      console.log('[Auditorias] Offline detected, fetching from cache...');
+      console.log('[Auditorias] 📴 Offline detected, fetching from cache...');
       const cacheSuccess = await fetchFromCache();
       if (cacheSuccess) {
         setIsLoading(false);
         return;
       }
-      // If cache failed, show error
-      setLoadError('Sem conexão e sem dados em cache');
+      // If cache failed, check if we ever synced
+      const lastSync = await getLastSyncTime();
+      if (lastSync) {
+        setLoadError('Sem conexão. Os dados em cache podem ter expirado. Conecte-se à internet para sincronizar.');
+      } else {
+        setLoadError('Você está offline e nunca sincronizou os dados. Conecte-se à internet para carregar os dados pela primeira vez.');
+      }
       setIsLoading(false);
       return;
     }
@@ -648,10 +665,15 @@ const Auditorias = () => {
                 <AlertCircle className="h-10 w-10 text-destructive mx-auto" />
                 <p className="text-destructive font-medium">Erro ao carregar dados</p>
                 <p className="text-sm text-muted-foreground">{loadError}</p>
-                <Button onClick={fetchData} variant="outline" className="gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  Tentar novamente
-                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Os dados serão sincronizados automaticamente quando você estiver online.
+                </p>
+                {!isOffline && navigator.onLine && (
+                  <Button onClick={fetchData} variant="outline" className="gap-2">
+                    <RefreshCw className="h-4 w-4" />
+                    Tentar novamente
+                  </Button>
+                )}
               </div>
             </Card>
           ) : groupedAudits.length === 0 ? (
