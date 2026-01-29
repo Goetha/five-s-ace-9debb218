@@ -127,13 +127,18 @@ export function ChecklistItem({ item, index, onAnswerChange, isOfflineAudit = fa
 
     try {
       // Check if we're offline or if this is an offline audit
-      const isOffline = !navigator.onLine || isOfflineAudit;
+      // IMPORTANT: Always check navigator.onLine first, then the isOfflineAudit prop
+      const currentlyOffline = !navigator.onLine || isOfflineAudit;
+      
+      console.log('📷 Photo upload - Online status:', navigator.onLine, 'isOfflineAudit:', isOfflineAudit, 'Will use offline mode:', currentlyOffline);
 
-      if (isOffline) {
+      if (currentlyOffline) {
         // OFFLINE MODE: Save photo as Base64 in IndexedDB
-        console.log('📴 Saving photo offline...');
+        console.log('📴 Saving photo offline to IndexedDB...');
         
         const base64 = await fileToBase64(file);
+        console.log('📷 Base64 conversion complete, size:', Math.round(base64.length / 1024), 'KB');
+        
         const photoId = generateOfflinePhotoId();
         const fileExt = file.name.split('.').pop() || 'jpg';
         const fileName = `${item.id}_${Date.now()}.${fileExt}`;
@@ -146,14 +151,19 @@ export function ChecklistItem({ item, index, onAnswerChange, isOfflineAudit = fa
           createdAt: new Date().toISOString(),
         });
         
+        console.log('📷 Photo saved to IndexedDB with ID:', photoId);
+        
         // Cache the data URL for display
         setOfflinePhotoCache(prev => ({ ...prev, [photoId]: base64 }));
         
         const updatedPhotos = [...photoUrls, photoId];
-        onAnswerChange(item.id, localAnswer!, updatedPhotos, comment);
+        
+        // Use current answer or default to null (allow adding photos before answering)
+        const currentAnswer = localAnswer !== undefined ? localAnswer : null;
+        onAnswerChange(item.id, currentAnswer as boolean, updatedPhotos, comment);
 
         toast({
-          title: "Foto salva (Offline)",
+          title: "✅ Foto salva (Offline)",
           description: `${updatedPhotos.length} foto(s) registrada(s). Será enviada quando online.`,
         });
       } else {
