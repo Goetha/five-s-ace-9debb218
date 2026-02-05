@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Loader2, Plus, X, CheckCircle2, Pencil } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Search, Loader2, Plus, X, CheckCircle2, Pencil, WifiOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -544,6 +545,20 @@ function NewCriterionDialog({ isOpen, onClose, companyId, onCreated }: NewCriter
   const [description, setDescription] = useState('');
   const [senso, setSenso] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [isOfflineMode, setIsOfflineMode] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOfflineMode(false);
+    const handleOffline = () => setIsOfflineMode(true);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -571,6 +586,39 @@ function NewCriterionDialog({ isOpen, onClose, companyId, onCreated }: NewCriter
 
     setSaving(true);
     try {
+      // Check if offline
+      const isOffline = !navigator.onLine;
+      
+      if (isOffline) {
+        // OFFLINE MODE: Save locally
+        const { createOfflineCriterion } = await import('@/lib/offlineStorage');
+        
+        const offlineCriterion = await createOfflineCriterion({
+          company_id: companyId,
+          name: name.trim(),
+          description: description.trim() || null,
+          senso: senso.length > 0 ? senso : null,
+          scoring_type: 'conform-non-conform',
+          origin: 'custom',
+          status: 'active',
+          tags: null,
+        });
+
+        toast.success('Critério salvo localmente!', {
+          description: 'Será sincronizado quando você voltar online.'
+        });
+        
+        onCreated({
+          id: offlineCriterion.id,
+          name: offlineCriterion.name,
+          description: offlineCriterion.description,
+          senso: offlineCriterion.senso,
+          scoring_type: offlineCriterion.scoring_type,
+        });
+        return;
+      }
+
+      // ONLINE MODE: Save to Supabase
       const { data: newCriterion, error } = await supabase
         .from('company_criteria')
         .insert({
@@ -601,7 +649,15 @@ function NewCriterionDialog({ isOpen, onClose, companyId, onCreated }: NewCriter
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md w-[95vw] sm:w-full">
         <DialogHeader>
-          <DialogTitle>Novo Critério</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Novo Critério
+            {isOfflineMode && (
+              <Badge variant="outline" className="text-amber-500 border-amber-500">
+                <WifiOff className="w-3 h-3 mr-1" />
+                Offline
+              </Badge>
+            )}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">

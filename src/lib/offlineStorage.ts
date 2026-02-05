@@ -743,3 +743,77 @@ export const fileToBase64 = (file: File): Promise<string> => {
 export const generateOfflinePhotoId = (): string => {
   return `offline://photo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
+
+// ============================================
+// OFFLINE CRITERIA MANAGEMENT
+// ============================================
+
+export interface OfflineCriterion {
+  id: string;
+  company_id: string;
+  name: string;
+  description: string | null;
+  senso: string[] | null;
+  scoring_type: string;
+  origin: 'custom' | 'master' | 'ifa';
+  status: 'active';
+  master_criterion_id?: string | null;
+  tags?: string[] | null;
+  _isOffline: true;
+  _linkedEnvironmentId?: string;
+  created_at?: string;
+}
+
+// Create offline criterion
+export const createOfflineCriterion = async (
+  criterionData: Omit<OfflineCriterion, 'id' | '_isOffline'>,
+  linkedEnvironmentId?: string
+): Promise<OfflineCriterion> => {
+  await initDB();
+  
+  const id = generateOfflineId();
+  
+  const criterion: OfflineCriterion = {
+    ...criterionData,
+    id,
+    _isOffline: true,
+    _linkedEnvironmentId: linkedEnvironmentId,
+    created_at: new Date().toISOString(),
+  };
+  
+  // Save to local cache
+  await addToStore('criteria', criterion);
+  console.log('[offlineStorage] ✅ Offline criterion saved:', criterion.id, criterion.name);
+  
+  // Add pendingSync for future synchronization
+  await addPendingSync('create', 'offline_criterion', {
+    criterion: {
+      company_id: criterionData.company_id,
+      name: criterionData.name,
+      description: criterionData.description,
+      senso: criterionData.senso,
+      scoring_type: criterionData.scoring_type,
+      origin: criterionData.origin,
+      master_criterion_id: criterionData.master_criterion_id,
+      tags: criterionData.tags,
+    },
+    linkedEnvironmentId,
+    offlineId: id,
+  });
+  
+  return criterion;
+};
+
+// Get all offline criteria
+export const getOfflineCriteria = async (): Promise<OfflineCriterion[]> => {
+  await initDB();
+  const allCriteria = await getAllFromStore<any>('criteria');
+  return allCriteria.filter(c => c._isOffline === true);
+};
+
+// Delete offline criterion from cache
+export const deleteOfflineCriterion = async (id: string): Promise<void> => {
+  await initDB();
+  await deleteFromStore('criteria', id);
+  console.log('[offlineStorage] ✅ Offline criterion deleted:', id);
+};

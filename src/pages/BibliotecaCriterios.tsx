@@ -193,7 +193,19 @@ const BibliotecaCriterios = () => {
   // Handle new criterion save
   const handleSaveCriterion = async (newCriterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">, companyId: string) => {
     try {
+      // Check if offline
+      const isOfflineMode = !navigator.onLine;
+      
       if (editCriterion) {
+        if (isOfflineMode) {
+          toast({
+            title: "Não disponível offline",
+            description: "A edição de critérios só está disponível online.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         // Update existing criterion in company_criteria
         const { error } = await supabase
           .from("company_criteria")
@@ -218,6 +230,33 @@ const BibliotecaCriterios = () => {
         setEditCriterion(null);
       } else if (companyId) {
         // Create new criterion for specific company
+        if (isOfflineMode) {
+          // OFFLINE MODE: Save locally
+          const { createOfflineCriterion } = await import('@/lib/offlineStorage');
+          
+          await createOfflineCriterion({
+            company_id: companyId,
+            name: newCriterion.name,
+            description: null,
+            senso: newCriterion.senso,
+            scoring_type: newCriterion.scoreType,
+            origin: 'custom',
+            status: 'active',
+            tags: newCriterion.tags || null,
+          });
+
+          toast({
+            title: "✓ Critério salvo localmente!",
+            description: `${newCriterion.name} será sincronizado quando você voltar online.`,
+            duration: 3000,
+          });
+
+          setSelectedIds([]);
+          setCurrentPage(1);
+          return;
+        }
+        
+        // ONLINE MODE: Save to Supabase
         const { error } = await supabase
           .from("company_criteria")
           .insert({
@@ -250,6 +289,15 @@ const BibliotecaCriterios = () => {
         setCurrentPage(1);
       } else {
         // Create global criterion in master_criteria (all companies)
+        if (isOfflineMode) {
+          toast({
+            title: "Não disponível offline",
+            description: "Critérios globais só podem ser criados online.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         const { error } = await supabase
           .from("master_criteria")
           .insert({

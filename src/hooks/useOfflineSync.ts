@@ -21,6 +21,8 @@ import {
   getOfflinePhoto,
   deleteOfflinePhoto,
   isOfflinePhotoUrl,
+  getOfflineCriteria,
+  deleteOfflineCriterion,
 } from '@/lib/offlineStorage';
 import { useToast } from '@/hooks/use-toast';
 
@@ -330,6 +332,62 @@ export function useOfflineSync() {
             } else {
               errorCount++;
             }
+            continue;
+          }
+
+          // Handle offline criterion creation
+          if (item.type === 'create' && item.table === 'offline_criterion') {
+            const { criterion, linkedEnvironmentId, offlineId } = item.data;
+            
+            // Create criterion on server
+            const { data: createdCriterion, error: criterionError } = await supabase
+              .from('company_criteria')
+              .insert({
+                company_id: criterion.company_id,
+                name: criterion.name,
+                description: criterion.description,
+                senso: criterion.senso,
+                scoring_type: criterion.scoring_type,
+                origin: criterion.origin,
+                master_criterion_id: criterion.master_criterion_id || null,
+                tags: criterion.tags || null,
+                status: 'active'
+              })
+              .select()
+              .single();
+
+            if (criterionError) {
+              console.error('[useOfflineSync] Error creating criterion:', criterionError);
+              errorCount++;
+              continue;
+            }
+
+            console.log('[useOfflineSync] ✅ Criterion synced:', createdCriterion.id, createdCriterion.name);
+
+            // If linked to an environment, create the link
+            if (linkedEnvironmentId) {
+              const { error: linkError } = await supabase
+                .from('environment_criteria')
+                .insert({
+                  environment_id: linkedEnvironmentId,
+                  criterion_id: createdCriterion.id
+                });
+              
+              if (linkError) {
+                console.error('[useOfflineSync] Error linking criterion to environment:', linkError);
+                // Don't fail the whole sync, criterion was created successfully
+              } else {
+                console.log('[useOfflineSync] ✅ Criterion linked to environment:', linkedEnvironmentId);
+              }
+            }
+
+            // Remove offline criterion from cache
+            if (offlineId) {
+              await deleteOfflineCriterion(offlineId);
+            }
+
+            await removePendingSync(item.id);
+            syncedCount++;
             continue;
           }
 
