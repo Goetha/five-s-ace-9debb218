@@ -1,242 +1,359 @@
 
-# Plano: Sistema de Auditoria 100% Offline - Correção Completa
+# Plano: Criação de Critérios (Perguntas) Offline
 
-## Diagnóstico Completo
+## Resumo do Problema
 
-Após análise detalhada de todo o fluxo offline, identifiquei **7 problemas críticos** que impedem o funcionamento completo:
+O sistema atual **NÃO permite criar critérios (perguntas) quando offline**. Isso ocorre porque:
 
----
+1. **CriterionFormModal.tsx** e **ManageCriteriaModal.tsx** fazem chamadas diretas ao Supabase para criar critérios
+2. **Não existe** função no `offlineStorage.ts` para armazenar critérios criados offline
+3. **Não existe** lógica no `useOfflineSync.ts` para sincronizar critérios pendentes
+4. Os componentes **não verificam** o status offline antes de tentar criar
 
-## Problemas Identificados
+## Arquitetura da Solução
 
-### 1. ChecklistItem.tsx - Foto antes de resposta falha
-**Linha 163**: Quando o usuário anexa foto ANTES de responder a pergunta, `localAnswer` é `null`, e o código chama:
-```typescript
-onAnswerChange(item.id, currentAnswer as boolean, updatedPhotos, comment);
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  OFFLINE MODE - Criação de Critério                         │
+├─────────────────────────────────────────────────────────────┤
+│  1. Usuário clica em "Novo Critério"                        │
+│  2. Sistema detecta modo offline                            │
+│  3. Gera ID temporário: offline_[timestamp]_[random]        │
+│  4. Salva critério no IndexedDB (store: criteria)           │
+│  5. Adiciona pendingSync para sincronização futura          │
+│  6. Mostra toast confirmando salvamento local               │
+└─────────────────────────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────┐
+│  ONLINE MODE - Sincronização                                │
+├─────────────────────────────────────────────────────────────┤
+│  1. syncPendingChanges detecta pendingSync type='create'    │
+│  2. Para table='offline_criterion', insere no Supabase      │
+│  3. Recebe ID real do servidor                              │
+│  4. Atualiza environment_criteria se vinculado a local      │
+│  5. Remove do cache offline e pendingSync                   │
+└─────────────────────────────────────────────────────────────┘
 ```
-Isso força um cast de `null` para `boolean`, causando comportamento incorreto.
-
-### 2. AuditChecklist.tsx - handleAnswerChange ignora null
-**Linha 185-195**: Quando `shouldUseOfflineMode` é true, o salvamento funciona, MAS se `answer` for `null` (foto adicionada antes de responder), o item não é salvo corretamente.
-
-### 3. AuditChecklist.tsx - handleSaveDraft depende de initDB() que pode falhar silenciosamente
-**Linha 216**: O `initDB()` é chamado, mas se falhar, o código continua e tenta salvar em um DB não inicializado.
-
-### 4. AuditChecklist.tsx - handleComplete não verifica se items estão no cache
-**Linha 391-393**: O loop `for (const item of items)` usa o estado local, mas não garante que os items têm `audit_id` correto.
-
-### 5. useOfflineSync.ts - Sincronização não encontra audit offline correto
-**Linha 186-197**: A busca por `matchingOfflineAudit` usa comparação de campos que podem não ser únicos, causando sincronização incorreta.
-
-### 6. Falta de verificação de erro em addToStore
-Em vários lugares, `addToStore` é chamado sem tratamento de erro adequado, fazendo operações silenciosamente falharem.
-
-### 7. O fluxo de salvamento não persiste o audit quando criado offline
-Em `NovaAuditoria.tsx`, quando cria auditoria offline, o `createOfflineAudit` já salva no IndexedDB. Porém, as atualizações subsequentes no `AuditChecklist` podem não estar encontrando o registro correto.
-
----
-
-## Solução Técnica
-
-### Fase 1: Corrigir ChecklistItem para fotos sem resposta
-
-**Arquivo: `src/components/auditoria/ChecklistItem.tsx`**
-- Permitir adicionar foto mesmo sem resposta selecionada
-- Não forçar cast de `null` para `boolean`
-- Atualizar o callback para aceitar `answer: boolean | null`
-
-### Fase 2: Corrigir AuditChecklist para salvar corretamente
-
-**Arquivo: `src/components/auditoria/AuditChecklist.tsx`**
-- Melhorar `handleAnswerChange` para aceitar `null` e ainda salvar no cache
-- Adicionar try-catch robusto em `handleSaveDraft` com fallback
-- Garantir que `audit_id` está correto em todos os items antes de salvar
-- Verificar se o audit existe no cache antes de tentar atualizar
-- Adicionar logs detalhados para debug
-
-### Fase 3: Corrigir interface de AuditItem
-
-**Arquivo: `src/types/audit.ts`**
-- Verificar que `answer` pode ser `boolean | null`
-
-### Fase 4: Melhorar sincronização
-
-**Arquivo: `src/hooks/useOfflineSync.ts`**
-- Usar `auditId` do pending sync data em vez de buscar por campos
-- Melhorar matching de auditorias offline
-
-### Fase 5: Garantir persistência imediata
-
-**Arquivo: `src/lib/offlineStorage.ts`**
-- Adicionar função `ensureAuditInCache` que cria o registro se não existir
-- Melhorar logs de debug
-
----
 
 ## Arquivos a Modificar
 
 | Arquivo | Modificação |
 |---------|-------------|
-| `src/components/auditoria/ChecklistItem.tsx` | Aceitar foto sem resposta |
-| `src/components/auditoria/AuditChecklist.tsx` | Salvamento robusto offline |
-| `src/lib/offlineStorage.ts` | Função auxiliar para garantir cache |
-| `src/hooks/useOfflineSync.ts` | Melhorar sincronização |
-
----
+| `src/lib/offlineStorage.ts` | Adicionar funções para criar critérios offline |
+| `src/hooks/useOfflineSync.ts` | Adicionar lógica de sincronização de critérios |
+| `src/components/company-admin/environments/ManageCriteriaModal.tsx` | Suportar criação offline no NewCriterionDialog |
+| `src/components/biblioteca/CriterionFormModal.tsx` | Suportar criação offline na biblioteca de critérios |
 
 ## Detalhes Técnicos
 
-### Correção 1: ChecklistItem - Foto sem resposta
+### 1. Novas Funções em offlineStorage.ts
+
+Adicionar as seguintes funções para gerenciar critérios offline:
 
 ```typescript
-// ANTES (problemático)
-const currentAnswer = localAnswer !== undefined ? localAnswer : null;
-onAnswerChange(item.id, currentAnswer as boolean, updatedPhotos, comment);
+// Interface para critério offline
+export interface OfflineCriterion {
+  id: string;                    // offline_[timestamp]_[random]
+  company_id: string;
+  name: string;
+  description: string | null;
+  senso: string[] | null;
+  scoring_type: string;
+  origin: 'custom' | 'master';
+  status: 'active';
+  master_criterion_id?: string | null;
+  _isOffline: true;
+  _linkedEnvironmentId?: string; // Se vinculado a um local
+}
 
-// DEPOIS (correto)
-// Manter a resposta atual (pode ser null, true ou false)
-// O parent deve aceitar answer: boolean | null
-onAnswerChange(item.id, localAnswer ?? null, updatedPhotos, comment);
+// Criar critério offline
+export const createOfflineCriterion = async (
+  criterionData: Omit<OfflineCriterion, 'id' | '_isOffline'>,
+  linkedEnvironmentId?: string
+): Promise<OfflineCriterion> => {
+  const id = generateOfflineId();
+  
+  const criterion: OfflineCriterion = {
+    ...criterionData,
+    id,
+    _isOffline: true,
+    _linkedEnvironmentId: linkedEnvironmentId,
+  };
+  
+  // Salvar no cache local
+  await addToStore('criteria', criterion);
+  
+  // Adicionar pendingSync para sincronização
+  await addPendingSync('create', 'offline_criterion', {
+    criterion: criterionData,
+    linkedEnvironmentId,
+  });
+  
+  return criterion;
+};
+
+// Buscar critérios offline
+export const getOfflineCriteria = async (): Promise<OfflineCriterion[]> => {
+  const allCriteria = await getAllFromStore<any>('criteria');
+  return allCriteria.filter(c => c._isOffline === true);
+};
 ```
 
-### Correção 2: AuditChecklist - handleAnswerChange robusto
+### 2. Sincronização em useOfflineSync.ts
+
+Adicionar handler para sincronizar critérios criados offline:
 
 ```typescript
-// Aceitar answer como boolean | null para permitir fotos antes de resposta
-const handleAnswerChange = async (
-  itemId: string, 
-  answer: boolean | null,  // <-- Aceitar null
-  photoUrls?: string[], 
-  comment?: string
-) => {
-  const updatedItems = items.map(item =>
-    item.id === itemId
-      ? { 
-          ...item, 
-          answer,  // Pode ser null
-          photo_url: photoUrls && photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
-          comment: comment !== undefined ? comment : item.comment
-        }
-      : item
+// Dentro de syncPendingChanges, adicionar:
+
+// Handle offline criterion creation
+if (item.type === 'create' && item.table === 'offline_criterion') {
+  const { criterion, linkedEnvironmentId } = item.data;
+  
+  // Criar critério no servidor
+  const { data: createdCriterion, error: criterionError } = await supabase
+    .from('company_criteria')
+    .insert({
+      company_id: criterion.company_id,
+      name: criterion.name,
+      description: criterion.description,
+      senso: criterion.senso,
+      scoring_type: criterion.scoring_type,
+      origin: criterion.origin,
+      master_criterion_id: criterion.master_criterion_id,
+      status: 'active'
+    })
+    .select()
+    .single();
+
+  if (criterionError) {
+    console.error('Error creating criterion:', criterionError);
+    errorCount++;
+    continue;
+  }
+
+  // Se estava vinculado a um local, criar o link
+  if (linkedEnvironmentId) {
+    await supabase
+      .from('environment_criteria')
+      .insert({
+        environment_id: linkedEnvironmentId,
+        criterion_id: createdCriterion.id
+      });
+  }
+
+  // Remover do cache offline
+  const offlineCriteria = await getOfflineCriteria();
+  const matchingCriterion = offlineCriteria.find(
+    c => c.company_id === criterion.company_id && 
+         c.name === criterion.name
   );
-  setItems(updatedItems);
-
-  // SEMPRE salvar no cache offline, mesmo com answer null
-  if (shouldUseOfflineMode) {
-    const updatedItem = updatedItems.find(i => i.id === itemId);
-    if (updatedItem) {
-      try {
-        await initDB(); // Garantir DB inicializado
-        await addToStore('auditItems', { ...updatedItem, audit_id: auditId });
-        console.log(`[AuditChecklist] ✅ Item ${itemId} saved`, { answer, hasPhotos: !!photoUrls?.length });
-      } catch (err) {
-        console.error(`[AuditChecklist] ❌ Failed to save item ${itemId}:`, err);
-      }
-    }
+  if (matchingCriterion) {
+    await deleteFromStore('criteria', matchingCriterion.id);
   }
-};
+
+  await removePendingSync(item.id);
+  syncedCount++;
+  continue;
+}
 ```
 
-### Correção 3: handleSaveDraft com verificação robusta
+### 3. Modificar NewCriterionDialog em ManageCriteriaModal.tsx
+
+Atualizar para suportar criação offline:
 
 ```typescript
-const handleSaveDraft = async () => {
-  setIsSaving(true);
-  try {
-    // CRÍTICO: Inicializar DB primeiro e verificar sucesso
+function NewCriterionDialog({ isOpen, onClose, companyId, onCreated }: NewCriterionDialogProps) {
+  const { isOffline } = useAuth(); // Adicionar
+  // ... estados existentes ...
+
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      toast.error('Digite o nome do critério');
+      return;
+    }
+
+    setSaving(true);
     try {
-      await initDB();
-    } catch (dbError) {
-      console.error('[AuditChecklist] ❌ Failed to init DB:', dbError);
-      throw new Error('Não foi possível acessar o armazenamento offline');
-    }
-    
-    // Garantir que o audit existe no cache
-    let auditData = await getFromStore<any>('audits', auditId);
-    if (!auditData) {
-      console.log('[AuditChecklist] Creating missing audit in cache');
-      auditData = {
-        id: auditId,
-        status: 'in_progress',
-        total_questions: items.length,
-        started_at: new Date().toISOString(),
-        _isOffline: true,
-      };
-    }
-    
-    // Atualizar contagens
-    auditData.total_questions = items.length;
-    auditData.total_yes = items.filter(i => i.answer === true).length;
-    auditData.total_no = items.filter(i => i.answer === false).length;
-    auditData.updated_at = new Date().toISOString();
-    
-    await addToStore('audits', auditData);
-    
-    // Salvar todos os items
-    let savedCount = 0;
-    for (const item of items) {
-      try {
-        await addToStore('auditItems', { ...item, audit_id: auditId });
-        savedCount++;
-      } catch (itemError) {
-        console.error('[AuditChecklist] ❌ Error saving item:', item.id, itemError);
+      // MODO OFFLINE
+      if (!navigator.onLine || isOffline) {
+        const { createOfflineCriterion } = await import('@/lib/offlineStorage');
+        
+        const offlineCriterion = await createOfflineCriterion({
+          company_id: companyId,
+          name: name.trim(),
+          description: description.trim() || null,
+          senso: senso.length > 0 ? senso : null,
+          scoring_type: 'conform-non-conform',
+          origin: 'custom',
+          status: 'active',
+        });
+
+        toast.success('Critério salvo localmente!', {
+          description: 'Será sincronizado quando você voltar online.'
+        });
+        
+        onCreated({
+          id: offlineCriterion.id,
+          name: offlineCriterion.name,
+          description: offlineCriterion.description,
+          senso: offlineCriterion.senso,
+          scoring_type: offlineCriterion.scoring_type,
+        });
+        return;
       }
+
+      // MODO ONLINE - código existente
+      const { data: newCriterion, error } = await supabase
+        .from('company_criteria')
+        .insert({ /* ... */ })
+        .select()
+        .single();
+
+      // ... resto do código existente ...
+    } catch (error) {
+      // ...
+    } finally {
+      setSaving(false);
     }
-    
-    toast({
-      title: "✅ Rascunho salvo offline",
-      description: `${savedCount}/${items.length} itens salvos localmente.`
-    });
-    
-  } catch (error) {
+  };
+
+  // UI: Mostrar indicador de modo offline
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            Novo Critério
+            {isOffline && (
+              <Badge variant="outline" className="ml-2 text-amber-500">
+                Offline
+              </Badge>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+        {/* ... resto do formulário ... */}
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+### 4. Modificar CriterionFormModal.tsx
+
+Similarmente, atualizar o modal da biblioteca de critérios para suportar offline:
+
+```typescript
+const onSubmit = async (data: CriterionFormValues) => {
+  setIsSubmitting(true);
+
+  try {
+    // MODO OFFLINE
+    if (!navigator.onLine || isOffline) {
+      const { createOfflineCriterion } = await import('@/lib/offlineStorage');
+      
+      const companyId = data.companyId === "all" ? "" : (data.companyId || "");
+      
+      if (companyId) {
+        // Critério para empresa específica
+        await createOfflineCriterion({
+          company_id: companyId,
+          name: data.name,
+          description: data.description || null,
+          senso: data.senso,
+          scoring_type: data.scoreType,
+          origin: 'custom',
+          status: 'active',
+        });
+        
+        toast({
+          title: "Critério salvo localmente",
+          description: "Será sincronizado quando você voltar online."
+        });
+      } else {
+        // Critério global - NÃO PODE SER CRIADO OFFLINE
+        toast({
+          title: "Não disponível offline",
+          description: "Critérios globais só podem ser criados online.",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      onClose();
+      return;
+    }
+
+    // MODO ONLINE - código existente
     // ...
+  } finally {
+    setIsSubmitting(false);
   }
 };
 ```
 
----
+## Fluxo Completo
 
-## Fluxo Corrigido
+```text
+USUÁRIO OFFLINE
+     │
+     ▼
+┌─────────────────┐
+│ Clica "Novo     │
+│ Critério"       │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐     ┌──────────────────────────────────┐
+│ Sistema detecta │────▶│ Gera ID offline_xxx              │
+│ isOffline=true  │     │ Salva no IndexedDB (criteria)    │
+└─────────────────┘     │ Adiciona pendingSync             │
+                        │ Mostra toast de sucesso          │
+                        └──────────────────────────────────┘
+                                       │
+                                       ▼
+                        ┌──────────────────────────────────┐
+                        │ Critério aparece na lista com    │
+                        │ badge "Offline" ou "Pendente"    │
+                        └──────────────────────────────────┘
 
+VOLTA ONLINE
+     │
+     ▼
+┌─────────────────────────────────────────────────────────┐
+│ OfflineSyncProvider detecta navigator.onLine = true    │
+│ syncPendingChanges() é executado                       │
+│                                                         │
+│ Para cada pendingSync com table='offline_criterion':   │
+│   1. INSERT no company_criteria                         │
+│   2. Se linkedEnvironmentId, INSERT em environment_    │
+│      criteria                                           │
+│   3. Deleta registro offline do IndexedDB              │
+│   4. Remove pendingSync                                │
+└─────────────────────────────────────────────────────────┘
 ```
-┌─────────────────────────────────────────────────────┐
-│  1. Usuário inicia auditoria                        │
-│  2. createOfflineAudit salva audit + items no cache │
-│  3. Cada interação salva IMEDIATAMENTE no cache     │
-│     - Resposta (sim/não)                            │
-│     - Foto (Base64 no offlinePhotos)                │
-│     - Comentário                                    │
-│  4. "Salvar Rascunho" atualiza contagens            │
-│  5. "Finalizar" calcula score e marca completed     │
-│  6. Tudo persiste localmente ✓                      │
-└─────────────────────────────────────────────────────┘
-                      │
-                      ▼
-                 VOLTA ONLINE
-                      │
-                      ▼
-┌─────────────────────────────────────────────────────┐
-│  1. Sync automático detecta pending syncs           │
-│  2. Cria audit no servidor → ID real                │
-│  3. Upload fotos offline → URLs reais               │
-│  4. Cria audit_items com dados completos            │
-│  5. Marca audit como completed se necessário        │
-│  6. Remove dados offline do cache                   │
-└─────────────────────────────────────────────────────┘
-```
 
----
+## Considerações Importantes
+
+1. **Critérios Globais (master_criteria)**: Não podem ser criados offline pois requerem permissões de IFA Admin e validação do servidor
+
+2. **Vinculação a Locais**: Se o critério foi criado dentro do ManageCriteriaModal, ele já deve ser automaticamente vinculado ao local selecionado
+
+3. **Conflitos de Nome**: O sistema permitirá criar critérios com nomes duplicados offline - a validação de unicidade acontece na sincronização
+
+4. **UI Feedback**: Adicionar badge visual indicando que critérios estão pendentes de sincronização
 
 ## Checklist de Validação
 
-Após implementação, o sistema deve:
+Após implementação, verificar:
 
-- [ ] Criar nova auditoria 100% offline
-- [ ] Permitir anexar fotos ANTES de responder pergunta
-- [ ] Salvar rascunho com sucesso offline (toast confirma)
-- [ ] Manter dados entre fechamento/abertura do app offline
-- [ ] Finalizar auditoria offline com cálculo de score
-- [ ] Exibir resultado da auditoria offline
-- [ ] Sincronizar automaticamente ao voltar online
-- [ ] Enviar fotos para o servidor durante sync
-- [ ] Substituir URLs offline por URLs reais
+- [ ] Criar critério offline no ManageCriteriaModal
+- [ ] Critério aparece na lista localmente
+- [ ] Toast confirma salvamento offline
+- [ ] Voltar online e verificar sincronização
+- [ ] Critério aparece no banco de dados
+- [ ] Link environment_criteria criado corretamente
+- [ ] Criar critério offline na BibliotecaCriterios
+- [ ] Bloquear criação de critério global offline
