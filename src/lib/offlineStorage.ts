@@ -5,7 +5,7 @@ const DB_VERSION = 4; // Incremented version for offlinePhotos store
 
 interface PendingSync {
   id: string;
-  type: 'create' | 'update';
+  type: 'create' | 'update' | 'delete';
   table: string;
   data: any;
   createdAt: string;
@@ -211,7 +211,7 @@ export const clearStore = async (storeName: string): Promise<void> => {
 
 // Add pending sync operation
 export const addPendingSync = async (
-  type: 'create' | 'update',
+  type: 'create' | 'update' | 'delete',
   table: string,
   data: any
 ): Promise<string> => {
@@ -637,6 +637,50 @@ export const removeOfflineAudit = async (offlineAuditId: string): Promise<void> 
   for (const item of items) {
     await deleteFromStore('auditItems', item.id);
   }
+};
+
+// Delete an audit (works both online and offline)
+// For offline audits: just removes from cache
+// For online audits cached: removes from cache and queues for sync
+export const deleteAuditFromCache = async (
+  auditId: string, 
+  queueForSync: boolean = false
+): Promise<void> => {
+  console.log(`[offlineStorage] 🗑️ Deleting audit from cache: ${auditId}, queueForSync: ${queueForSync}`);
+  
+  // Remove audit items first
+  const items = await getCachedAuditItemsByAuditId(auditId);
+  for (const item of items) {
+    await deleteFromStore('auditItems', item.id);
+  }
+  
+  // Remove audit
+  await deleteFromStore('audits', auditId);
+  
+  // If it's a real (non-offline) audit and we need to queue for sync when back online
+  if (queueForSync && !isOfflineId(auditId)) {
+    await addPendingSync('delete', 'audit', { auditId });
+    console.log(`[offlineStorage] ✅ Audit deletion queued for sync: ${auditId}`);
+  }
+  
+  // If it's an offline audit, also remove any pending create sync for it
+  if (isOfflineId(auditId)) {
+    const pendingItems = await getPendingSync();
+    for (const pending of pendingItems) {
+      if (pending.type === 'create' && pending.table === 'offline_audit') {
+        // Check if this pending sync is for the same audit
+        const pendingAudit = pending.data?.audit;
+        if (pendingAudit) {
+          // Match by location_id and auditor_id since offline audits don't have stable IDs
+          // We need to remove the pending sync if the user is deleting the offline audit
+          await removePendingSync(pending.id);
+          console.log(`[offlineStorage] ✅ Removed pending sync for offline audit: ${pending.id}`);
+        }
+      }
+    }
+  }
+  
+  console.log(`[offlineStorage] ✅ Audit deleted from cache: ${auditId}`);
 };
 
 // Map offline audit ID to real ID (after sync)

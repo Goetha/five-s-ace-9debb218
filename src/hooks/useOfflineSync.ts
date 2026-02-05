@@ -391,6 +391,45 @@ export function useOfflineSync() {
             continue;
           }
 
+          // Handle audit deletion sync
+          if (item.type === 'delete' && item.table === 'audit') {
+            const { auditId } = item.data;
+            console.log('[useOfflineSync] 🗑️ Syncing audit deletion:', auditId);
+            
+            // Delete audit items first
+            const { error: itemsError } = await supabase
+              .from('audit_items')
+              .delete()
+              .eq('audit_id', auditId);
+            
+            if (itemsError) {
+              console.error('[useOfflineSync] Error deleting audit items:', itemsError);
+              // Continue anyway - audit might not have items
+            }
+            
+            // Delete the audit
+            const { error: auditError } = await supabase
+              .from('audits')
+              .delete()
+              .eq('id', auditId);
+            
+            if (auditError) {
+              console.error('[useOfflineSync] Error deleting audit:', auditError);
+              // If audit doesn't exist, that's ok - remove from pending
+              if (auditError.code === 'PGRST116' || auditError.message?.includes('not found')) {
+                await removePendingSync(item.id);
+                continue;
+              }
+              errorCount++;
+              continue;
+            }
+            
+            console.log('[useOfflineSync] ✅ Audit deletion synced:', auditId);
+            await removePendingSync(item.id);
+            syncedCount++;
+            continue;
+          }
+
           // Handle regular creates
           if (item.type === 'create') {
             if (item.table === 'audits') {
