@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { deleteAuditFromCache, isOfflineId } from "@/lib/offlineStorage";
+import { useToast } from "@/hooks/use-toast";
 
 export interface InProgressAudit {
   id: string;
@@ -47,6 +49,7 @@ interface InProgressAuditsListProps {
 
 export function InProgressAuditsList({ audits, isLoading, onAuditDeleted }: InProgressAuditsListProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [deleteAuditId, setDeleteAuditId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -59,21 +62,55 @@ export function InProgressAuditsList({ audits, isLoading, onAuditDeleted }: InPr
     
     setIsDeleting(true);
     try {
-      // Delete audit items first (cascade)
-      await supabase
-        .from('audit_items')
-        .delete()
-        .eq('audit_id', deleteAuditId);
+      const isOffline = isOfflineId(deleteAuditId);
+      const isOnline = navigator.onLine;
       
-      // Then delete the audit
-      await supabase
-        .from('audits')
-        .delete()
-        .eq('id', deleteAuditId);
+      if (isOffline || !isOnline) {
+        // Offline mode or offline audit: delete from cache
+        // If it's a real audit being deleted while offline, queue for sync
+        await deleteAuditFromCache(deleteAuditId, !isOffline && !isOnline);
+        
+        toast({
+          title: isOffline ? "Auditoria excluída" : "Auditoria removida localmente",
+          description: isOffline 
+            ? "A auditoria offline foi excluída." 
+            : "A exclusão será sincronizada quando você voltar online.",
+        });
+      } else {
+        // Online mode with online audit: delete from Supabase
+        // Delete audit items first (cascade)
+        const { error: itemsError } = await supabase
+          .from('audit_items')
+          .delete()
+          .eq('audit_id', deleteAuditId);
+        
+        if (itemsError) throw itemsError;
+        
+        // Then delete the audit
+        const { error: auditError } = await supabase
+          .from('audits')
+          .delete()
+          .eq('id', deleteAuditId);
+        
+        if (auditError) throw auditError;
+        
+        // Also remove from cache to keep in sync
+        await deleteAuditFromCache(deleteAuditId, false);
+        
+        toast({
+          title: "Auditoria excluída",
+          description: "A auditoria foi excluída com sucesso.",
+        });
+      }
       
       onAuditDeleted();
     } catch (error) {
       console.error('Error deleting audit:', error);
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir a auditoria. Tente novamente.",
+        variant: "destructive",
+      });
     } finally {
       setIsDeleting(false);
       setDeleteAuditId(null);

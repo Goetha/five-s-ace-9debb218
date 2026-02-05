@@ -17,6 +17,10 @@ import {
   setLastSyncTime,
   getLastSyncTime,
   initDB,
+  getCachedAudits,
+  deleteFromStore,
+  getCachedAuditItemsByAuditId,
+  isOfflineId,
 } from '@/lib/offlineStorage';
 import { toast } from 'sonner';
 
@@ -205,11 +209,12 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
           details: `${criteriaCount} critérios`
         });
 
-        // Step 4: Cache audits
+        // Step 4: Cache audits and clean orphaned audits
         setCacheProgress({ step: 'Sincronizando auditorias...', current: ++currentStep, total: totalSteps });
         
         let auditCount = 0;
         let auditItemCount = 0;
+        const serverAuditIds = new Set<string>();
         
         for (let i = 0; i < companyIds.length; i += criteriaBatchSize) {
           const batch = companyIds.slice(i, i + criteriaBatchSize);
@@ -221,6 +226,9 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
           if (audits && audits.length > 0) {
             await cacheAudits(audits);
             auditCount += audits.length;
+            
+            // Track server audit IDs
+            audits.forEach(a => serverAuditIds.add(a.id));
             
             // Cache audit_items
             const auditIds = audits.map(a => a.id);
@@ -247,6 +255,40 @@ function OfflineSyncProviderInner({ children, authContext }: OfflineSyncProvider
             details: `${auditCount} auditorias`
           });
         }
+        
+        // Clean orphaned audits from cache that no longer exist on server
+        // (excluding offline audits which haven't been synced yet)
+        try {
+          const cachedAudits = await getCachedAudits();
+          let orphanedCount = 0;
+          
+          for (const cachedAudit of cachedAudits) {
+            // Skip offline audits (they haven't been synced yet)
+            if (isOfflineId(cachedAudit.id)) continue;
+            
+            // If this audit exists in cache but not on server, remove it
+            if (!serverAuditIds.has(cachedAudit.id)) {
+              console.log(`[OfflineSyncProvider] 🧹 Removing orphaned audit from cache: ${cachedAudit.id}`);
+              
+              // Remove audit items first
+              const items = await getCachedAuditItemsByAuditId(cachedAudit.id);
+              for (const item of items) {
+                await deleteFromStore('auditItems', item.id);
+              }
+              
+              // Remove audit
+              await deleteFromStore('audits', cachedAudit.id);
+              orphanedCount++;
+            }
+          }
+          
+          if (orphanedCount > 0) {
+            console.log(`[OfflineSyncProvider] ✅ Cleaned ${orphanedCount} orphaned audits from cache`);
+          }
+        } catch (cleanupError) {
+          console.error('[OfflineSyncProvider] Error cleaning orphaned audits:', cleanupError);
+        }
+        
         console.log('✅ Cached audits and audit_items');
         
         setCacheProgress({ 
