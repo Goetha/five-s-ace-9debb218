@@ -98,9 +98,25 @@ const selectedCompanyId = form.watch("companyId");
     }
   }, [open, mode]);
 
+  const loadCompaniesFromCache = async () => {
+    try {
+      const { getAllFromStore, initDB } = await import('@/lib/offlineStorage');
+      await initDB();
+      const cachedCompanies = await getAllFromStore<Company>('companies');
+      setCompanies(cachedCompanies.filter(c => c.name));
+    } catch (cacheError) {
+      console.error("Error loading companies from cache:", cacheError);
+    }
+  };
+
   const loadCompanies = async () => {
     setLoadingCompanies(true);
     try {
+      if (!navigator.onLine) {
+        await loadCompaniesFromCache();
+        return;
+      }
+
       const { data, error } = await supabase
         .from("companies")
         .select("id, name")
@@ -111,6 +127,7 @@ const selectedCompanyId = form.watch("companyId");
       setCompanies(data || []);
     } catch (error) {
       console.error("Error loading companies:", error);
+      await loadCompaniesFromCache();
     } finally {
       setLoadingCompanies(false);
     }
