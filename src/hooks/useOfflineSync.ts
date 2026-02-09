@@ -391,6 +391,102 @@ export function useOfflineSync() {
             continue;
           }
 
+          // Handle offline company creation
+          if (item.type === 'create' && item.table === 'offline_company') {
+            const { company, newAuditors, selectedExistingAuditorIds, offlineId } = item.data;
+            
+            const { data: createdCompany, error: companyError } = await supabase
+              .from('companies')
+              .insert({
+                name: company.name,
+                phone: company.phone,
+                email: company.email,
+                status: 'active',
+              })
+              .select()
+              .single();
+
+            if (companyError) {
+              console.error('[useOfflineSync] Error creating company:', companyError);
+              errorCount++;
+              continue;
+            }
+
+            const companyId = createdCompany.id;
+            console.log('[useOfflineSync] ✅ Company synced:', companyId, company.name);
+
+            try {
+              const { generateTemporaryPassword } = await import('@/lib/passwordGenerator');
+              const adminPassword = generateTemporaryPassword();
+
+              const { error: adminError } = await supabase.functions.invoke('create-company-user', {
+                body: {
+                  email: company.email,
+                  name: `Admin - ${company.name}`,
+                  password: adminPassword,
+                  role: 'company_admin',
+                  companyId,
+                },
+              });
+
+              if (!adminError) {
+                await supabase.functions.invoke('send-company-email', {
+                  body: {
+                    adminEmail: company.email,
+                    adminName: `Admin - ${company.name}`,
+                    temporaryPassword: adminPassword,
+                    companyName: company.name,
+                    timestamp: new Date().toISOString(),
+                    auditor: false,
+                  },
+                });
+              }
+
+              for (const auditor of (newAuditors || [])) {
+                const auditorPassword = generateTemporaryPassword();
+                const { error: auditorError } = await supabase.functions.invoke('create-company-user', {
+                  body: {
+                    email: auditor.email,
+                    name: auditor.name,
+                    password: auditorPassword,
+                    role: 'auditor',
+                    companyId,
+                  },
+                });
+
+                if (!auditorError) {
+                  await supabase.functions.invoke('send-company-email', {
+                    body: {
+                      adminEmail: auditor.email,
+                      adminName: auditor.name,
+                      temporaryPassword: auditorPassword,
+                      companyName: company.name,
+                      timestamp: new Date().toISOString(),
+                      auditor: true,
+                    },
+                  });
+                }
+              }
+
+              for (const auditorId of (selectedExistingAuditorIds || [])) {
+                await supabase.functions.invoke('update-auditor-companies', {
+                  body: { auditor_id: auditorId, company_ids: [companyId] },
+                });
+              }
+            } catch (e) {
+              console.warn('[useOfflineSync] ⚠️ Error in company user setup:', e);
+            }
+
+            if (offlineId) {
+              const { deleteOfflineCompany } = await import('@/lib/offlineStorage');
+              await deleteOfflineCompany(offlineId);
+            }
+
+            await removePendingSync(item.id);
+            syncedCount++;
+            continue;
+          }
+
           // Handle audit deletion sync
           if (item.type === 'delete' && item.table === 'audit') {
             const { auditId } = item.data;
