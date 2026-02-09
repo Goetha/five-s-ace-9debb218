@@ -861,3 +861,62 @@ export const deleteOfflineCriterion = async (id: string): Promise<void> => {
   await deleteFromStore('criteria', id);
   console.log('[offlineStorage] ✅ Offline criterion deleted:', id);
 };
+
+// ============================================
+// OFFLINE COMPANY MANAGEMENT
+// ============================================
+
+export interface OfflineCompany {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  status: 'active';
+  created_at: string;
+  _isOffline: true;
+  _newAuditors: Array<{ name: string; email: string }>;
+  _selectedExistingAuditorIds: string[];
+}
+
+export const createOfflineCompany = async (
+  companyData: { name: string; phone: string; email: string },
+  newAuditors: Array<{ name: string; email: string }>,
+  selectedExistingAuditorIds: string[]
+): Promise<OfflineCompany> => {
+  await initDB();
+
+  const id = generateOfflineId();
+  const company: OfflineCompany = {
+    id,
+    ...companyData,
+    status: 'active',
+    created_at: new Date().toISOString(),
+    _isOffline: true,
+    _newAuditors: newAuditors,
+    _selectedExistingAuditorIds: selectedExistingAuditorIds,
+  };
+
+  await addToStore('companies', company);
+  console.log('[offlineStorage] ✅ Offline company saved:', company.id, company.name);
+
+  await addPendingSync('create', 'offline_company', {
+    company: companyData,
+    newAuditors,
+    selectedExistingAuditorIds,
+    offlineId: id,
+  });
+
+  return company;
+};
+
+export const getOfflineCompanies = async (): Promise<OfflineCompany[]> => {
+  await initDB();
+  const allCompanies = await getAllFromStore<any>('companies');
+  return allCompanies.filter(c => c._isOffline === true);
+};
+
+export const deleteOfflineCompany = async (id: string): Promise<void> => {
+  await initDB();
+  await deleteFromStore('companies', id);
+  console.log('[offlineStorage] ✅ Offline company deleted:', id);
+};

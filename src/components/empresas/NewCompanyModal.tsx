@@ -81,16 +81,32 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
   const loadExistingAuditors = async () => {
     setLoadingAuditors(true);
     try {
+      if (!navigator.onLine) {
+        // OFFLINE: Load from IndexedDB cache
+        const { getCachedAuditors, initDB } = await import('@/lib/offlineStorage');
+        await initDB();
+        const cached = await getCachedAuditors();
+        setExistingAuditors(cached || []);
+        return;
+      }
       const { data, error } = await supabase.functions.invoke('list-all-auditors');
       if (error) throw error;
       setExistingAuditors(data.auditors || []);
     } catch (error) {
       console.error('Error loading auditors:', error);
-      toast({
-        title: "Erro ao carregar avaliadores",
-        description: "Não foi possível carregar a lista de avaliadores existentes.",
-        variant: "destructive",
-      });
+      // Fallback to cache on error
+      try {
+        const { getCachedAuditors, initDB } = await import('@/lib/offlineStorage');
+        await initDB();
+        const cached = await getCachedAuditors();
+        setExistingAuditors(cached || []);
+      } catch {
+        toast({
+          title: "Erro ao carregar avaliadores",
+          description: "Não foi possível carregar a lista de avaliadores existentes.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoadingAuditors(false);
     }
@@ -144,6 +160,35 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
     setIsSubmitting(true);
     
     try {
+      // OFFLINE: Save locally
+      if (!navigator.onLine) {
+        const { createOfflineCompany } = await import('@/lib/offlineStorage');
+        const offlineCompany = await createOfflineCompany(
+          { name: data.name, phone: data.phone, email: data.email },
+          auditors.map(a => ({ name: a.name, email: a.email })),
+          selectedExistingAuditorIds
+        );
+
+        toast({
+          title: "📱 Empresa salva localmente",
+          description: `${data.name} será sincronizada quando voltar online.`,
+        });
+
+        reset();
+        setAuditors([]);
+        setSelectedExistingAuditorIds([]);
+        setShowAuditorForm(false);
+        onOpenChange(false);
+        
+        // Trigger onSave callback to update parent list — we pass the offline ID via a special path
+        try {
+          await onSave(data);
+        } catch {
+          // onSave may fail offline (backend insert), that's expected
+        }
+        return;
+      }
+
       // ✅ Validation: Prevent using IFA Admin email for company
       console.log('🔍 Verificando se o email pertence a um IFA Admin...');
       const { data: ifaAdmins } = await supabase
@@ -206,7 +251,7 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
           temporaryPassword: adminPassword,
           companyName: data.name,
           timestamp: new Date().toISOString(),
-          auditor: false, // Admin principal da empresa
+          auditor: false,
         },
       });
 
@@ -230,7 +275,7 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
               email: auditor.email,
               name: auditor.name,
               password: temporaryPassword,
-              role: 'auditor', // garantir que terá papel de avaliador
+              role: 'auditor',
               companyId: companyId,
             },
           });
@@ -263,7 +308,7 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
               temporaryPassword: evaluator.password,
               companyName: data.name,
               timestamp: new Date().toISOString(),
-              auditor: true, // Avaliador (company_admin adicional)
+              auditor: true,
             },
           });
 
@@ -275,12 +320,11 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
         }
       }
       
-      // Link existing selected auditors to the company (preserving their current links)
+      // Link existing selected auditors to the company
       if (selectedExistingAuditorIds.length > 0) {
         console.log('🔗 Vinculando avaliadores existentes à empresa:', selectedExistingAuditorIds);
         
         for (const auditorId of selectedExistingAuditorIds) {
-          // 1) Ensure the user has 'auditor' role; if not, add it (caller is IFA admin)
           const { data: roleCheck, error: roleCheckError } = await supabase
             .from('user_roles')
             .select('role')
@@ -303,7 +347,6 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
             console.log('✅ Role auditor atribuído ao usuário', auditorId);
           }
 
-          // 2) Merge company links and update via function
           const auditor = existingAuditors.find(a => a.id === auditorId);
           const currentCompanies = (auditor?.linked_companies ?? []).map(c => c.id).filter(Boolean);
           const company_ids = Array.from(new Set([...currentCompanies, companyId])).filter(Boolean) as string[];
@@ -339,11 +382,13 @@ export function NewCompanyModal({ open, onOpenChange, onSave }: NewCompanyModalP
       
     } catch (error) {
       console.error('Erro ao criar empresa:', error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao criar a empresa. Tente novamente.",
-        variant: "destructive",
-      });
+      if (navigator.onLine) {
+        toast({
+          title: "Erro",
+          description: "Ocorreu um erro ao criar a empresa. Tente novamente.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }

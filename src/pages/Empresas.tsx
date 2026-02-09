@@ -68,6 +68,35 @@ export default function Empresas() {
   const loadCompaniesFromBackend = async () => {
     setIsLoadingCompanies(true);
     try {
+      if (!navigator.onLine) {
+        // OFFLINE: Load from IndexedDB cache
+        const { getAllFromStore, initDB, getOfflineCompanies } = await import('@/lib/offlineStorage');
+        await initDB();
+        const cachedCompanies = await getAllFromStore<any>('companies');
+        const mapped: Company[] = cachedCompanies.filter((c: any) => c.name).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          cnpj: c.cnpj || '-',
+          logo: null,
+          admin: c.admin || { name: '-', email: c.email || '-' },
+          total_users: c.total_users || 1,
+          created_at: c.created_at,
+          last_activity: c.last_activity || null,
+          status: c.status || 'active',
+          address: c.address || '-',
+          city: c.city,
+          state: c.state,
+          phone: c.phone || '-',
+          email: c.email,
+          assigned_auditor: c.assigned_auditor || null,
+          fiveSData: c.fiveSData,
+          _isOffline: c._isOffline,
+        }));
+        setCompanies(mapped);
+        setIsLoadingCompanies(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('companies')
         .select('*')
@@ -75,20 +104,15 @@ export default function Empresas() {
 
       if (error) {
         console.error('Error loading companies from backend:', error);
-        // Fallback to localStorage
         const saved = localStorage.getItem('companies');
         setCompanies(saved ? JSON.parse(saved) : mockCompanies);
       } else {
         console.log('✅ Empresas carregadas do backend:', data);
         
-        // For each company, fetch the actual company admin user, assigned auditor, and 5S data
         const backendCompanies: Company[] = await Promise.all(
           data.map(async (c: any) => {
-            // Fetch company admin for this company
             const adminData = await fetchCompanyAdmin(c.id);
-            // Fetch assigned auditor for this company
             const auditorData = await fetchAssignedAuditor(c.id);
-            // Fetch 5S data for this company
             const fiveSData = await fetchCompany5SData(c.id);
             
             return {
@@ -105,19 +129,65 @@ export default function Empresas() {
               city: c.city,
               state: c.state,
               phone: c.phone || '-',
-              email: c.email, // Contact email of the company
+              email: c.email,
               assigned_auditor: auditorData,
               fiveSData: fiveSData,
             };
           })
         );
-        
-        setCompanies(backendCompanies);
+
+        // Also include offline companies not yet synced
+        try {
+          const { getOfflineCompanies, initDB } = await import('@/lib/offlineStorage');
+          await initDB();
+          const offlineCompanies = await getOfflineCompanies();
+          const offlineMapped: Company[] = offlineCompanies
+            .filter(oc => !backendCompanies.some(bc => bc.id === oc.id))
+            .map(oc => ({
+              id: oc.id,
+              name: oc.name,
+              cnpj: '-',
+              logo: null,
+              admin: { name: '-', email: oc.email },
+              total_users: 1,
+              created_at: oc.created_at,
+              last_activity: null,
+              status: 'active' as const,
+              address: '-',
+              phone: oc.phone,
+              email: oc.email,
+            }));
+          setCompanies([...offlineMapped, ...backendCompanies]);
+        } catch {
+          setCompanies(backendCompanies);
+        }
       }
     } catch (error) {
       console.error('Error in loadCompaniesFromBackend:', error);
-      const saved = localStorage.getItem('companies');
-      setCompanies(saved ? JSON.parse(saved) : mockCompanies);
+      // Fallback to cache
+      try {
+        const { getAllFromStore, initDB } = await import('@/lib/offlineStorage');
+        await initDB();
+        const cachedCompanies = await getAllFromStore<any>('companies');
+        const mapped: Company[] = cachedCompanies.filter((c: any) => c.name).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          cnpj: c.cnpj || '-',
+          logo: null,
+          admin: c.admin || { name: '-', email: c.email || '-' },
+          total_users: 1,
+          created_at: c.created_at || new Date().toISOString(),
+          last_activity: null,
+          status: c.status || 'active',
+          address: c.address || '-',
+          phone: c.phone || '-',
+          email: c.email,
+        }));
+        setCompanies(mapped);
+      } catch {
+        const saved = localStorage.getItem('companies');
+        setCompanies(saved ? JSON.parse(saved) : mockCompanies);
+      }
     } finally {
       setIsLoadingCompanies(false);
     }
