@@ -63,11 +63,67 @@ const BibliotecaCriterios = () => {
     loadCriteria();
   }, [filterCompanyId]);
 
+  const loadCriteriaFromCache = async () => {
+    try {
+      const { getAllFromStore, initDB, getOfflineCriteria } = await import('@/lib/offlineStorage');
+      await initDB();
+
+      const cachedMaster = await getAllFromStore<any>('master_criteria');
+      const cachedCompany = await getAllFromStore<any>('criteria');
+      const offlinePending = await getOfflineCriteria();
+
+      const masterCriteria: Criteria[] = cachedMaster.map((c: any): Criteria => ({
+        id: c.id, name: c.name,
+        senso: normalizeSenso(c.senso) as SensoType[],
+        scoreType: c.scoring_type || 'conform-non-conform',
+        tags: c.tags || [],
+        status: toUiStatus(c.status),
+        companiesUsing: 0, modelsUsing: 0, isGlobal: true,
+      }));
+
+      const companyCriteria: Criteria[] = cachedCompany
+        .filter((c: any) => !c._isOffline)
+        .map((c: any): Criteria => ({
+          id: c.id, name: c.name,
+          senso: normalizeSenso(c.senso) as SensoType[],
+          scoreType: c.scoring_type || 'conform-non-conform',
+          tags: c.tags || [],
+          status: toUiStatus(c.status || 'active'),
+          companiesUsing: 0, modelsUsing: 0, isGlobal: false,
+        }));
+
+      const pendingCriteria: Criteria[] = offlinePending.map((c: any): Criteria => ({
+        id: c.id, name: c.name,
+        senso: normalizeSenso(c.senso) as SensoType[],
+        scoreType: c.scoring_type || 'conform-non-conform',
+        tags: c.tags || [],
+        status: 'Ativo',
+        companiesUsing: 0, modelsUsing: 0, isGlobal: false,
+      }));
+
+      if (filterCompanyId) {
+        const filtered = [...companyCriteria, ...pendingCriteria].filter(
+          (c: any) => cachedCompany.find((cc: any) => cc.id === c.id)?.company_id === filterCompanyId ||
+            offlinePending.find((op: any) => op.id === c.id)?.company_id === filterCompanyId
+        );
+        setCriteria(filtered);
+      } else {
+        setCriteria([...masterCriteria, ...companyCriteria, ...pendingCriteria]);
+      }
+    } catch (cacheError) {
+      console.error("Error loading criteria from cache:", cacheError);
+    }
+  };
+
   const loadCriteria = async () => {
     setIsLoading(true);
     try {
+      if (!navigator.onLine) {
+        await loadCriteriaFromCache();
+        return;
+      }
+
       if (filterCompanyId) {
-        // If filtering by company, get criteria from that company only
         const { data, error } = await supabase
           .from("company_criteria")
           .select("*")
@@ -78,70 +134,51 @@ const BibliotecaCriterios = () => {
         if (error) throw error;
 
         const normalizedCriteria: Criteria[] = (data || []).map((c: any): Criteria => ({
-          id: c.id,
-          name: c.name,
+          id: c.id, name: c.name,
           senso: normalizeSenso(c.senso) as SensoType[],
-          scoreType: c.scoring_type,
-          tags: c.tags || [],
+          scoreType: c.scoring_type, tags: c.tags || [],
           status: toUiStatus(c.status),
-          companiesUsing: 0,
-          modelsUsing: 0,
-          isGlobal: false,
+          companiesUsing: 0, modelsUsing: 0, isGlobal: false,
         }));
 
         setCriteria(normalizedCriteria);
       } else {
-        // No filter - Load both master_criteria (global) and company_criteria
         const [masterResult, companyResult] = await Promise.all([
-          supabase
-            .from("master_criteria")
-            .select("*")
-            .eq("status", "active")
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("company_criteria")
-            .select("*")
-            .eq("status", "active")
-            .order("created_at", { ascending: false })
+          supabase.from("master_criteria").select("*").eq("status", "active").order("created_at", { ascending: false }),
+          supabase.from("company_criteria").select("*").eq("status", "active").order("created_at", { ascending: false })
         ]);
 
         if (masterResult.error) throw masterResult.error;
         if (companyResult.error) throw companyResult.error;
 
         const masterCriteria: Criteria[] = (masterResult.data || []).map((c: any): Criteria => ({
-          id: c.id,
-          name: c.name,
+          id: c.id, name: c.name,
           senso: normalizeSenso(c.senso) as SensoType[],
-          scoreType: c.scoring_type,
-          tags: c.tags || [],
+          scoreType: c.scoring_type, tags: c.tags || [],
           status: toUiStatus(c.status),
-          companiesUsing: 0,
-          modelsUsing: 0,
-          isGlobal: true,
+          companiesUsing: 0, modelsUsing: 0, isGlobal: true,
         }));
 
         const companyCriteria: Criteria[] = (companyResult.data || []).map((c: any): Criteria => ({
-          id: c.id,
-          name: c.name,
+          id: c.id, name: c.name,
           senso: normalizeSenso(c.senso) as SensoType[],
-          scoreType: c.scoring_type,
-          tags: c.tags || [],
+          scoreType: c.scoring_type, tags: c.tags || [],
           status: toUiStatus(c.status),
-          companiesUsing: 0,
-          modelsUsing: 0,
-          isGlobal: false,
+          companiesUsing: 0, modelsUsing: 0, isGlobal: false,
         }));
 
-        // Combine: global first, then company-specific
         setCriteria([...masterCriteria, ...companyCriteria]);
       }
     } catch (error) {
       console.error("Error loading criteria:", error);
-      toast({
-        title: "Erro ao carregar critérios",
-        description: "Não foi possível carregar os critérios do banco de dados.",
-        variant: "destructive",
-      });
+      await loadCriteriaFromCache();
+      if (criteria.length === 0) {
+        toast({
+          title: "Erro ao carregar critérios",
+          description: "Não foi possível carregar os critérios do banco de dados.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
