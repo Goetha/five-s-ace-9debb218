@@ -290,6 +290,7 @@ const BibliotecaCriterios = () => {
 
           setSelectedIds([]);
           setCurrentPage(1);
+          await loadCriteria();
           return;
         }
         

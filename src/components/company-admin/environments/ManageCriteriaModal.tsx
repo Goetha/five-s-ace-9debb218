@@ -71,7 +71,91 @@ export function ManageCriteriaModal({
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Buscar critérios da empresa E critérios globais (master_criteria)
+      // OFFLINE FALLBACK
+      if (!navigator.onLine) {
+        try {
+          const { getAllFromStore, initDB, getOfflineCriteria } = await import('@/lib/offlineStorage');
+          await initDB();
+          
+          const cachedMaster = await getAllFromStore<any>('master_criteria');
+          const cachedCompany = await getAllFromStore<any>('criteria');
+          
+          // Filtrar critérios da empresa que NÃO são cópias de master
+          const companyCriteriaToShow = cachedCompany
+            .filter((c: any) => c.company_id === companyId && !c.master_criterion_id)
+            .map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              description: c.description,
+              senso: c.senso,
+              scoring_type: c.scoring_type,
+              isGlobal: false,
+            }));
+          
+          // Mapa de master_criterion_id -> company_criteria
+          const masterToCompanyMap = new Map<string, { id: string; name: string; description: string | null; senso: string[] | null }>();
+          cachedCompany
+            .filter((c: any) => c.company_id === companyId && c.master_criterion_id)
+            .forEach((c: any) => {
+              masterToCompanyMap.set(c.master_criterion_id, {
+                id: c.id, name: c.name, description: c.description, senso: c.senso,
+              });
+            });
+
+          const masterCriteria = cachedMaster.map((c: any) => {
+            const companyCopy = masterToCompanyMap.get(c.id);
+            return {
+              id: c.id,
+              name: companyCopy?.name || c.name,
+              description: companyCopy?.description || c.description,
+              senso: companyCopy?.senso || c.senso,
+              scoring_type: c.scoring_type,
+              isGlobal: true,
+              companyCriterionId: companyCopy?.id,
+            };
+          });
+
+          // Incluir critérios offline pendentes
+          const offlinePending = await getOfflineCriteria();
+          const pendingForCompany = offlinePending
+            .filter((c: any) => c.company_id === companyId)
+            .map((c: any) => ({
+              id: c.id, name: c.name, description: c.description,
+              senso: c.senso, scoring_type: c.scoring_type,
+              isGlobal: false,
+            }));
+
+          const allCriteriaData = [...masterCriteria, ...companyCriteriaToShow, ...pendingForCompany];
+          
+          // Carregar environment_criteria do cache
+          const cachedEnvCriteria = await getAllFromStore<any>('environmentCriteria');
+          const linkedIds = new Set(
+            cachedEnvCriteria
+              .filter((ec: any) => ec.environment_id === localId)
+              .map((ec: any) => ec.criterion_id)
+          );
+          
+          const finalLinkedIds = new Set<string>();
+          linkedIds.forEach(id => {
+            const cc = cachedCompany.find((c: any) => c.id === id);
+            if (cc?.master_criterion_id) {
+              finalLinkedIds.add(cc.master_criterion_id);
+            } else {
+              finalLinkedIds.add(id);
+            }
+          });
+          
+          setAllCriteria(allCriteriaData);
+          setLinkedCriteriaIds(finalLinkedIds);
+          return;
+        } catch (cacheError) {
+          console.error('Error loading criteria from cache:', cacheError);
+          toast.error('Erro ao carregar critérios offline');
+          return;
+        }
+      }
+
+      // ONLINE: Buscar critérios da empresa E critérios globais (master_criteria)
       const [companyResult, masterResult, linkedResult] = await Promise.all([
         supabase
           .from('company_criteria')
@@ -110,10 +194,9 @@ export function ManageCriteriaModal({
         }
       });
 
-      // Filtrar critérios da empresa que NÃO são cópias de master (origin != 'master')
-      // ou são cópias mas queremos mostrar apenas o original
+      // Filtrar critérios da empresa que NÃO são cópias de master
       const companyCriteriaToShow = companyCriteriaData
-        .filter(c => !c.master_criterion_id) // Não mostrar cópias de master
+        .filter(c => !c.master_criterion_id)
         .map(c => ({
           id: c.id,
           name: c.name,
@@ -128,7 +211,6 @@ export function ManageCriteriaModal({
         const companyCopy = masterToCompanyMap.get(c.id);
         return {
           id: c.id,
-          // Se existe cópia personalizada, usar nome/descrição da cópia
           name: companyCopy?.name || c.name,
           description: companyCopy?.description || c.description,
           senso: companyCopy?.senso || c.senso,
@@ -145,13 +227,10 @@ export function ManageCriteriaModal({
       const finalLinkedIds = new Set<string>();
       
       linkedIds.forEach(companyId => {
-        // Verificar se esse company_criteria é uma cópia de master
         const companyCriterion = companyCriteriaData.find(c => c.id === companyId);
         if (companyCriterion?.master_criterion_id) {
-          // É uma cópia de master, marcar o ID do master como selecionado
           finalLinkedIds.add(companyCriterion.master_criterion_id);
         } else {
-          // É um critério da empresa, manter o ID original
           finalLinkedIds.add(companyId);
         }
       });
@@ -160,6 +239,28 @@ export function ManageCriteriaModal({
       setLinkedCriteriaIds(finalLinkedIds);
     } catch (error) {
       console.error('Error fetching criteria:', error);
+      // Fallback para cache em caso de erro de rede
+      try {
+        const { getAllFromStore, initDB } = await import('@/lib/offlineStorage');
+        await initDB();
+        const cachedMaster = await getAllFromStore<any>('master_criteria');
+        const cachedCompany = await getAllFromStore<any>('criteria');
+        
+        const masterCriteria = cachedMaster.map((c: any) => ({
+          id: c.id, name: c.name, description: c.description,
+          senso: c.senso, scoring_type: c.scoring_type, isGlobal: true,
+        }));
+        const companyCriteria = cachedCompany
+          .filter((c: any) => c.company_id === companyId && !c.master_criterion_id)
+          .map((c: any) => ({
+            id: c.id, name: c.name, description: c.description,
+            senso: c.senso, scoring_type: c.scoring_type, isGlobal: false,
+          }));
+        
+        setAllCriteria([...masterCriteria, ...companyCriteria]);
+      } catch (cacheError) {
+        console.error('Error loading from cache:', cacheError);
+      }
       toast.error('Erro ao carregar critérios');
     } finally {
       setLoading(false);
