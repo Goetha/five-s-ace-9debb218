@@ -302,6 +302,67 @@ export function ManageCriteriaModal({
   const handleSave = async () => {
     setSaving(true);
     try {
+      // OFFLINE MODE: Save links locally
+      if (!navigator.onLine) {
+        try {
+          const { getAllFromStore, initDB, addToStore, addPendingSync } = await import('@/lib/offlineStorage');
+          await initDB();
+
+          // Get current linked criteria from cache
+          const cachedEnvCriteria = await getAllFromStore<any>('environmentCriteria');
+          const currentLinkedForLocal = cachedEnvCriteria.filter(
+            (ec: any) => ec.environment_id === localId
+          );
+          const currentIds = new Set(currentLinkedForLocal.map((l: any) => l.criterion_id));
+
+          // Build final selected IDs (for offline, use IDs as-is since we can't create company copies)
+          const finalSelectedIds = new Set<string>(linkedCriteriaIds);
+
+          const toAdd = [...finalSelectedIds].filter(id => !currentIds.has(id));
+          const toRemove = [...currentIds].filter(id => !finalSelectedIds.has(id));
+
+          // Save new links to cache
+          for (const criterionId of toAdd) {
+            const envCriterion = {
+              id: `offline_ec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              environment_id: localId,
+              criterion_id: criterionId,
+              created_at: new Date().toISOString(),
+              _isOffline: true,
+            };
+            await addToStore('environmentCriteria', envCriterion);
+          }
+
+          // Remove unlinked from cache
+          for (const criterionId of toRemove) {
+            const toDelete = currentLinkedForLocal.find((ec: any) => ec.criterion_id === criterionId);
+            if (toDelete) {
+              const { deleteFromStore } = await import('@/lib/offlineStorage');
+              await deleteFromStore('environmentCriteria', toDelete.id);
+            }
+          }
+
+          // Queue for sync
+          await addPendingSync('update', 'environment_criteria', {
+            environment_id: localId,
+            company_id: companyId,
+            selectedCriteriaIds: [...finalSelectedIds],
+          });
+
+          toast.success('Critérios salvos localmente!', {
+            description: 'Serão sincronizados quando voltar online.',
+          });
+          onUpdate();
+          onClose();
+          return;
+        } catch (offlineError) {
+          console.error('Error saving criteria offline:', offlineError);
+          toast.error('Erro ao salvar critérios offline');
+          return;
+        }
+      }
+
+      // ONLINE MODE: Original logic
       // Buscar critérios vinculados atualmente
       const { data: currentLinked, error: fetchError } = await supabase
         .from('environment_criteria')
