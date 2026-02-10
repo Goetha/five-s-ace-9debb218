@@ -1,138 +1,109 @@
 
 
-# Plano: Criacao de Empresa Offline
+# Plano: Corrigir Criacao de Criterios Offline
 
-## Problema
+## Problemas Identificados
 
-O modal `NewCompanyModal.tsx` depende 100% do servidor para:
-1. Validar email contra IFA Admin (`user_roles` query)
-2. Inserir empresa no banco (`companies` table)
-3. Criar usuario admin via Edge Function (`create-company-user`)
-4. Enviar email com credenciais (`send-company-email`)
-5. Criar avaliadores via Edge Function
-6. Vincular avaliadores existentes
+### Problema 1: Lista nao atualiza apos criar criterio offline (BibliotecaCriterios)
+No arquivo `BibliotecaCriterios.tsx`, linha 293, apos salvar o criterio offline, o codigo faz `return` sem chamar `loadCriteria()`. A lista nunca e recarregada com o novo criterio.
 
-Quando offline, nenhuma dessas operacoes funciona e a criacao falha silenciosamente.
+### Problema 2: ManageCriteriaModal.fetchData nao tem fallback offline
+O `fetchData()` (linhas 71-167) faz 3 queries ao Supabase sem nenhum fallback. Quando offline, todas falham e a lista de criterios fica vazia - impossibilitando ver ou criar criterios.
 
 ## Solucao
 
-Salvar os dados da empresa localmente no IndexedDB com ID temporario e enfileirar toda a operacao para sincronizacao automatica quando voltar online.
+### Arquivo 1: `src/pages/BibliotecaCriterios.tsx`
 
-### O que funciona offline
-- Preencher formulario (nome, telefone, email)
-- Adicionar novos avaliadores a lista
-- Salvar empresa localmente
-- Empresa aparece na lista com badge "Pendente"
+**Problema**: `handleSaveCriterion` faz `return` na linha 293 sem recarregar a lista.
 
-### O que so funciona na sincronizacao (online)
-- Criacao de usuarios (admin e avaliadores) via Edge Functions
-- Envio de emails com credenciais
-- Vinculacao de avaliadores existentes
-- Validacao de email contra IFA Admin
+**Correcao**: Adicionar `await loadCriteria()` antes do `return` para que o criterio recem-criado apareca na lista.
 
-### Selecao de avaliadores existentes offline
-A lista de avaliadores existentes ja e cacheada no IndexedDB (store `auditors`). Quando offline, o modal carrega essa lista do cache em vez de chamar a Edge Function.
+```typescript
+// Dentro do bloco offline (linha ~291)
+setSelectedIds([]);
+setCurrentPage(1);
+await loadCriteria(); // <-- ADICIONAR ESTA LINHA
+return;
+```
+
+### Arquivo 2: `src/components/company-admin/environments/ManageCriteriaModal.tsx`
+
+**Problema**: `fetchData()` nao tem fallback offline. A lista fica vazia.
+
+**Correcao**: Adicionar fallback que carrega criterios do cache IndexedDB quando offline.
+
+```typescript
+const fetchData = async () => {
+  setLoading(true);
+  try {
+    // OFFLINE FALLBACK
+    if (!navigator.onLine) {
+      const { getAllFromStore, initDB, getOfflineCriteria } = 
+        await import('@/lib/offlineStorage');
+      await initDB();
+      
+      // Carregar criterios do cache
+      const cachedMaster = await getAllFromStore<any>('master_criteria');
+      const cachedCompany = await getAllFromStore<any>('criteria');
+      
+      // Filtrar criterios da empresa
+      const companyCriteria = cachedCompany
+        .filter((c: any) => c.company_id === companyId && !c.master_criterion_id)
+        .map((c: any) => ({
+          id: c.id, name: c.name, description: c.description,
+          senso: c.senso, scoring_type: c.scoring_type,
+          isGlobal: false,
+        }));
+      
+      const masterCriteria = cachedMaster.map((c: any) => ({
+        id: c.id, name: c.name, description: c.description,
+        senso: c.senso, scoring_type: c.scoring_type,
+        isGlobal: true,
+      }));
+      
+      // Carregar environment_criteria do cache
+      const cachedEnvCriteria = await getAllFromStore<any>('environmentCriteria');
+      const linkedIds = new Set(
+        cachedEnvCriteria
+          .filter((ec: any) => ec.environment_id === localId)
+          .map((ec: any) => ec.criterion_id)
+      );
+      
+      // Mapear linked IDs (master vs company)
+      const finalLinkedIds = new Set<string>();
+      linkedIds.forEach(id => {
+        const cc = cachedCompany.find((c: any) => c.id === id);
+        if (cc?.master_criterion_id) {
+          finalLinkedIds.add(cc.master_criterion_id);
+        } else {
+          finalLinkedIds.add(id);
+        }
+      });
+      
+      setAllCriteria([...masterCriteria, ...companyCriteria]);
+      setLinkedCriteriaIds(finalLinkedIds);
+      return;
+    }
+
+    // ONLINE: codigo existente...
+  } catch (error) {
+    // Fallback para cache em caso de erro de rede
+  } finally {
+    setLoading(false);
+  }
+};
+```
 
 ## Arquivos a Modificar
 
 | Arquivo | Modificacao |
 |---------|-------------|
-| `src/lib/offlineStorage.ts` | Adicionar `createOfflineCompany`, `getOfflineCompanies`, `deleteOfflineCompany` |
-| `src/hooks/useOfflineSync.ts` | Adicionar handler para `offline_company` no `syncPendingChanges` |
-| `src/components/empresas/NewCompanyModal.tsx` | Detectar offline, salvar localmente, carregar avaliadores do cache |
-| `src/pages/Empresas.tsx` | Carregar empresas do cache quando offline, incluir empresas offline pendentes |
+| `src/pages/BibliotecaCriterios.tsx` | Adicionar `await loadCriteria()` apos salvar criterio offline |
+| `src/components/company-admin/environments/ManageCriteriaModal.tsx` | Adicionar fallback offline no `fetchData()` |
 
-## Detalhes Tecnicos
+## Resultado Esperado
 
-### 1. offlineStorage.ts - Nova interface e funcoes
-
-```typescript
-export interface OfflineCompany {
-  id: string;              // offline_xxx
-  name: string;
-  phone: string;
-  email: string;
-  status: 'active';
-  created_at: string;
-  _isOffline: true;
-  _newAuditors: Array<{ name: string; email: string }>;
-  _selectedExistingAuditorIds: string[];
-}
-
-export const createOfflineCompany = async (
-  companyData: { name: string; phone: string; email: string },
-  newAuditors: Array<{ name: string; email: string }>,
-  selectedExistingAuditorIds: string[]
-): Promise<OfflineCompany> => {
-  const id = generateOfflineId();
-  const company: OfflineCompany = {
-    id, ...companyData,
-    status: 'active',
-    created_at: new Date().toISOString(),
-    _isOffline: true,
-    _newAuditors: newAuditors,
-    _selectedExistingAuditorIds: selectedExistingAuditorIds,
-  };
-  await addToStore('companies', company);
-  await addPendingSync('create', 'offline_company', {
-    company: companyData,
-    newAuditors,
-    selectedExistingAuditorIds,
-    offlineId: id,
-  });
-  return company;
-};
-```
-
-### 2. useOfflineSync.ts - Handler de sincronizacao
-
-Adicionar bloco para `item.table === 'offline_company'`:
-
-1. Inserir empresa no `companies` table
-2. Gerar senha e criar admin via `create-company-user`
-3. Enviar email do admin via `send-company-email`
-4. Para cada novo avaliador: criar via `create-company-user` + enviar email
-5. Para cada avaliador existente: vincular via `update-auditor-companies`
-6. Remover empresa offline do cache
-7. Remover pendingSync
-
-### 3. NewCompanyModal.tsx - Modo offline
-
-- `loadExistingAuditors`: fallback para `getCachedAuditors()` quando offline
-- `onSubmit`: se offline, chamar `createOfflineCompany()` em vez de fazer chamadas ao servidor
-- Pular validacao de email IFA Admin (sera feita na sincronizacao)
-- Mostrar badge "Offline" no header do modal
-- Toast informando que empresa foi salva localmente
-
-### 4. Empresas.tsx - Exibicao offline
-
-- `loadCompaniesFromBackend`: fallback para `getAllFromStore('companies')` quando offline
-- Incluir empresas com `_isOffline: true` na lista
-- Empresas offline aparecem com indicador visual (badge "Pendente")
-
-## Fluxo
-
-```text
-OFFLINE: Usuario preenche formulario
-  -> Salva no IndexedDB (companies store)
-  -> Adiciona pendingSync (offline_company)
-  -> Empresa aparece na lista local
-  -> Toast: "Empresa salva localmente"
-
-ONLINE: syncPendingChanges detecta offline_company
-  -> INSERT companies
-  -> create-company-user (admin)
-  -> send-company-email (admin)
-  -> create-company-user (avaliadores)
-  -> send-company-email (avaliadores)
-  -> update-auditor-companies (existentes)
-  -> Remove offline company do cache
-  -> Toast: "Empresa sincronizada"
-```
-
-## Consideracoes
-
-1. **Validacao de email IFA Admin**: Sera feita durante a sincronizacao. Se o email for invalido, a sincronizacao falha e o usuario e notificado
-2. **Duplicatas**: Se o usuario criar a mesma empresa online e offline, havera duplicatas. Isso e aceitavel pois a sincronizacao e manual
-3. **Avaliadores existentes offline**: A lista vem do cache `auditors` que e populado pelo `OfflineSyncProvider`
+- Criterios criados offline aparecem imediatamente na lista da Biblioteca
+- No ManageCriteriaModal, criterios do cache sao exibidos quando offline
+- Criterios offline podem ser criados e vinculados a locais offline
 
