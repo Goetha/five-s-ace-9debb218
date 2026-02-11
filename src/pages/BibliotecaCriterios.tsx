@@ -329,8 +329,8 @@ const BibliotecaCriterios = () => {
         // Create global criterion in master_criteria (all companies)
         if (isOfflineMode) {
           toast({
-            title: "Não disponível offline",
-            description: "Critérios globais só podem ser criados online.",
+            title: "Selecione uma empresa",
+            description: "No modo offline, selecione uma empresa específica para criar o critério.",
             variant: "destructive",
           });
           return;

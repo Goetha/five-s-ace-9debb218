@@ -177,6 +177,17 @@ const selectedCompanyId = form.watch("companyId");
     }
   };
   const onSubmit = async (data: CriterionFormValues) => {
+    // Validação offline: empresa obrigatória
+    if (!navigator.onLine && (!data.companyId || data.companyId === "all")) {
+      const { toast } = await import("@/hooks/use-toast");
+      toast({
+        title: "Selecione uma empresa",
+        description: "No modo offline, você precisa selecionar uma empresa específica.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -240,8 +251,10 @@ const selectedCompanyId = form.watch("companyId");
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="all">
-                                  <span className="font-medium">Todas as empresas</span>
+                              <SelectItem value="all" disabled={!navigator.onLine}>
+                                  <span className={!navigator.onLine ? "text-muted-foreground" : "font-medium"}>
+                                    Todas as empresas {!navigator.onLine && "(indisponível offline)"}
+                                  </span>
                                 </SelectItem>
                                 {companies.map((company) => (
                                   <SelectItem key={company.id} value={company.id}>
@@ -251,7 +264,9 @@ const selectedCompanyId = form.watch("companyId");
                               </SelectContent>
                             </Select>
                             <FormDescription>
-                              Deixe em branco para disponibilizar para todas as empresas
+                              {!navigator.onLine 
+                                ? <span className="text-amber-500">⚠ Selecione uma empresa. Critérios globais só podem ser criados online.</span>
+                                : "Deixe em branco para disponibilizar para todas as empresas"}
                             </FormDescription>
                             <FormMessage />
                           </FormItem>} />
