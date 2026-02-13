@@ -33,6 +33,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ManageCriteriaModal } from "./ManageCriteriaModal";
+import { getCachedEnvironmentCriteria, deleteFromStore, addPendingSync } from "@/lib/offlineStorage";
 
 interface EnvironmentCardProps {
   environment: Environment;
@@ -75,6 +76,19 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
     try {
       const allEnvIds = locations.map(loc => loc.id);
       if (allEnvIds.length === 0) return;
+
+      // OFFLINE FALLBACK
+      if (!navigator.onLine) {
+        const cachedEC = await getCachedEnvironmentCriteria();
+        const counts: Record<string, number> = {};
+        cachedEC.forEach((item: any) => {
+          if (allEnvIds.includes(item.environment_id)) {
+            counts[item.environment_id] = (counts[item.environment_id] || 0) + 1;
+          }
+        });
+        setCriteriaCounts(counts);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('environment_criteria')
@@ -128,6 +142,16 @@ export function EnvironmentCard({ environment, locations, onEdit, onAddLocation,
 
   const handleDelete = async (id: string, level: number) => {
     try {
+      // OFFLINE FALLBACK
+      if (!navigator.onLine) {
+        await deleteFromStore('environments', id);
+        await addPendingSync('delete', 'offline_environment', { id });
+        const levelName = level === 1 ? 'Setor' : 'Local';
+        toast({ title: `${levelName} removido localmente!`, description: "Será sincronizado quando voltar online." });
+        onRefresh();
+        return;
+      }
+
       const { error } = await supabase
         .from('environments')
         .delete()

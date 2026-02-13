@@ -487,12 +487,46 @@ export function useOfflineSync() {
             continue;
           }
 
+          // Handle offline environment creation
+          if (item.type === 'create' && item.table === 'offline_environment') {
+            const { _isOffline, id: tempId, ...envData } = item.data;
+            const { error } = await supabase.from('environments').insert(envData);
+            if (!error) {
+              console.log('[useOfflineSync] ✅ Environment synced:', envData.name);
+              await removePendingSync(item.id);
+              syncedCount++;
+            } else {
+              console.error('[useOfflineSync] Error creating environment:', error);
+              errorCount++;
+            }
+            continue;
+          }
+
+          // Handle offline environment deletion
+          if (item.type === 'delete' && item.table === 'offline_environment') {
+            const { id: envId } = item.data;
+            // Skip if it's an offline temp ID (never synced)
+            if (envId.startsWith('offline_env_')) {
+              await removePendingSync(item.id);
+              continue;
+            }
+            const { error } = await supabase.from('environments').delete().eq('id', envId);
+            if (!error) {
+              console.log('[useOfflineSync] ✅ Environment deletion synced:', envId);
+              await removePendingSync(item.id);
+              syncedCount++;
+            } else {
+              console.error('[useOfflineSync] Error deleting environment:', error);
+              errorCount++;
+            }
+            continue;
+          }
+
           // Handle audit deletion sync
           if (item.type === 'delete' && item.table === 'audit') {
             const { auditId } = item.data;
             console.log('[useOfflineSync] 🗑️ Syncing audit deletion:', auditId);
             
-            // Delete audit items first
             const { error: itemsError } = await supabase
               .from('audit_items')
               .delete()
@@ -500,10 +534,8 @@ export function useOfflineSync() {
             
             if (itemsError) {
               console.error('[useOfflineSync] Error deleting audit items:', itemsError);
-              // Continue anyway - audit might not have items
             }
             
-            // Delete the audit
             const { error: auditError } = await supabase
               .from('audits')
               .delete()
@@ -511,7 +543,6 @@ export function useOfflineSync() {
             
             if (auditError) {
               console.error('[useOfflineSync] Error deleting audit:', auditError);
-              // If audit doesn't exist, that's ok - remove from pending
               if (auditError.code === 'PGRST116' || auditError.message?.includes('not found')) {
                 await removePendingSync(item.id);
                 continue;
