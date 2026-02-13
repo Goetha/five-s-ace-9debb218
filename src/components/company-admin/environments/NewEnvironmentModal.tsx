@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Environment } from "@/types/environment";
+import { getCachedEnvironmentsByCompanyId, addToStore, addPendingSync } from "@/lib/offlineStorage";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -144,13 +145,24 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
       // Use propsCompanyId if provided, otherwise get from RPC
       let fetchedCompanyId = propsCompanyId;
       
-      if (!fetchedCompanyId) {
+      if (!fetchedCompanyId && navigator.onLine) {
         const { data: companyIdData } = await supabase.rpc('get_user_company_id', { _user_id: user.id });
         if (!companyIdData) return;
         fetchedCompanyId = companyIdData as string;
       }
 
+      if (!fetchedCompanyId) return;
       setCompanyId(fetchedCompanyId);
+
+      // OFFLINE FALLBACK
+      if (!navigator.onLine) {
+        const cachedEnvs = await getCachedEnvironmentsByCompanyId(fetchedCompanyId);
+        setAllEnvironments(cachedEnvs);
+        setAvailableEnvironments(cachedEnvs);
+        setAvailableModels([]);
+        setSelectedModelIds([]);
+        return;
+      }
 
       // Fetch all environments for this company
       const { data: allEnvs } = await supabase
@@ -279,16 +291,50 @@ export function NewEnvironmentModal({ open, onOpenChange, onSuccess, editingEnvi
     try {
       setLoading(true);
 
-      let companyIdData = propsCompanyId;
+      let companyIdData = propsCompanyId || companyId;
+
+      // OFFLINE: save locally and queue for sync
+      if (!navigator.onLine) {
+        if (!companyIdData) {
+          toast({ title: "Erro", description: "Empresa não encontrada offline.", variant: "destructive" });
+          return;
+        }
+
+        // Determine parent_id
+        let finalParentId: string | null = selectedParentId || null;
+        if (environmentType === "sector") {
+          const rootEnv = allEnvironments.find((e: any) => !e.parent_id);
+          finalParentId = rootEnv?.id || null;
+        }
+
+        const tempId = `offline_env_${Date.now()}`;
+        const offlineEnv = {
+          id: tempId,
+          company_id: companyIdData,
+          name: name.trim(),
+          description: description.trim() || null,
+          parent_id: finalParentId,
+          status,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          _isOffline: true,
+        };
+
+        await addToStore('environments', offlineEnv);
+        await addPendingSync('create', 'offline_environment', offlineEnv);
+
+        // Reset & close
+        setName(""); setIcon("Factory"); setDescription(""); setSelectedParentId(""); setStatus("active"); setEnvironmentType("sector"); setSelectedModelIds([]);
+        onOpenChange(false);
+        onSuccess?.();
+        toast({ title: "Salvo localmente!", description: "Será sincronizado quando voltar online." });
+        return;
+      }
       
       if (!companyIdData) {
         const { data: rpcData } = await supabase.rpc('get_user_company_id', { _user_id: user.id });
         if (!rpcData) {
-          toast({
-            title: "Erro",
-            description: "Empresa não encontrada.",
-            variant: "destructive",
-          });
+          toast({ title: "Erro", description: "Empresa não encontrada.", variant: "destructive" });
           return;
         }
         companyIdData = rpcData as string;
