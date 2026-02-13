@@ -271,7 +271,7 @@ const BibliotecaCriterios = () => {
           // OFFLINE MODE: Save locally
           const { createOfflineCriterion } = await import('@/lib/offlineStorage');
           
-          await createOfflineCriterion({
+          const offlineCriterion = await createOfflineCriterion({
             company_id: companyId,
             name: newCriterion.name,
             description: null,
@@ -282,6 +282,23 @@ const BibliotecaCriterios = () => {
             tags: newCriterion.tags || null,
           });
 
+          console.log('[BibliotecaCriterios] ✅ Offline criterion created:', offlineCriterion.id, offlineCriterion.name);
+
+          // Directly inject into state to avoid IndexedDB read timing issues
+          const newCriteriaItem: Criteria = {
+            id: offlineCriterion.id,
+            name: offlineCriterion.name,
+            senso: (offlineCriterion.senso || []) as SensoType[],
+            scoreType: (offlineCriterion.scoring_type || 'conform-non-conform') as any,
+            tags: (offlineCriterion.tags || []) as any,
+            status: 'Ativo',
+            companiesUsing: 0,
+            modelsUsing: 0,
+            isGlobal: false,
+          };
+
+          setCriteria(prev => [newCriteriaItem, ...prev]);
+
           toast({
             title: "✓ Critério salvo localmente!",
             description: `${newCriterion.name} será sincronizado quando você voltar online.`,
@@ -290,7 +307,6 @@ const BibliotecaCriterios = () => {
 
           setSelectedIds([]);
           setCurrentPage(1);
-          await loadCriteria();
           return;
         }
         

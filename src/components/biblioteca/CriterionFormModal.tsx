@@ -39,7 +39,7 @@ type CriterionFormValues = z.infer<typeof criterionSchema>;
 interface CriterionFormModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (criterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">, companyId: string) => void;
+  onSave: (criterion: Omit<Criteria, "id" | "companiesUsing" | "modelsUsing">, companyId: string) => void | Promise<void>;
   criterion?: Criteria | null;
   mode?: "create" | "edit";
   preSelectedCompanyId?: string | null;
@@ -190,17 +190,20 @@ const selectedCompanyId = form.watch("companyId");
 
     setIsSubmitting(true);
 
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const companyId = data.companyId === "all" ? "" : (data.companyId || "");
-    onSave({
-      name: data.name,
-      senso: data.senso,
-      scoreType: data.scoreType,
-      tags: data.tags as CriteriaTag[],
-      status: data.status
-    }, companyId);
-    setIsSubmitting(false);
-    onClose();
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const companyId = data.companyId === "all" ? "" : (data.companyId || "");
+      await onSave({
+        name: data.name,
+        senso: data.senso,
+        scoreType: data.scoreType,
+        tags: data.tags as CriteriaTag[],
+        status: data.status
+      }, companyId);
+    } finally {
+      setIsSubmitting(false);
+      onClose();
+    }
   };
   const handleCancel = () => {
     const hasChanges = form.formState.isDirty;
