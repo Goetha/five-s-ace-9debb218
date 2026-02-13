@@ -1,73 +1,154 @@
 
 
-# Plano: Corrigir Criacao de Criterios Offline na Biblioteca
+# Plano: Suporte Offline para Ambientes e Locais
 
-## Problema Identificado
+## Problemas Identificados
 
-Quando o usuario cria um criterio offline no modal, se ele selecionar "Todas as empresas" (ou deixar em branco), o `companyId` fica vazio. No codigo de `handleSaveCriterion`, isso faz o fluxo cair no bloco de "criterio global" (linha 328), que exibe o toast **"Nao disponivel offline"** e descarta o criterio silenciosamente.
+A pagina de Setores e Locais (`/company-admin/ambientes`) consegue **ler** dados do cache quando offline, mas **criar, editar e excluir** ambientes falha completamente porque:
 
-O criterio so e salvo offline se o usuario selecionar uma empresa especifica -- mas isso nao esta claro na interface.
+1. **Modal de criacao/edicao** (`NewEnvironmentModal`): `fetchData()` e `handleSubmit()` dependem 100% do Supabase -- sem fallback offline
+2. **Card de ambiente** (`EnvironmentCard`): `fetchCriteriaCounts()` e `handleDelete()` tambem dependem do Supabase
+3. **Sincronizacao** (`useOfflineSync`): nao existe handler para sincronizar ambientes criados offline
 
 ## Solucao
 
-### Arquivo 1: `src/components/biblioteca/CriterionFormModal.tsx`
+### Arquivo 1: `src/components/company-admin/environments/NewEnvironmentModal.tsx`
 
-Quando offline, tornar a selecao de empresa **obrigatoria** e desabilitar a opcao "Todas as empresas":
+**Problema A - `fetchData()`**: Quando offline, o modal abre vazio (sem lista de setores para selecionar como pai).
 
-- Adicionar validacao condicional: se `!navigator.onLine`, o campo `companyId` deve ser diferente de vazio e diferente de `"all"`
-- Mostrar mensagem de aviso no campo empresa quando offline: "Selecione uma empresa. Criterios globais so podem ser criados online."
-- Desabilitar o item "Todas as empresas" no Select quando offline
-
-### Arquivo 2: `src/pages/BibliotecaCriterios.tsx`
-
-Adicionar uma protecao extra no `handleSaveCriterion`: quando offline e `companyId` estiver vazio, mostrar toast orientando o usuario a selecionar uma empresa em vez da mensagem generica "Nao disponivel offline".
-
-## Detalhes Tecnicos
-
-### CriterionFormModal.tsx
+**Correcao**: Adicionar fallback offline que carrega ambientes do cache IndexedDB:
 
 ```typescript
-// No onSubmit, validar antes de enviar:
-if (!navigator.onLine && (!data.companyId || data.companyId === "all")) {
-  toast({ title: "Selecione uma empresa",
-    description: "No modo offline, voce precisa selecionar uma empresa especifica.",
-    variant: "destructive" });
-  return;
-}
-
-// No Select de empresa, desabilitar "Todas as empresas" quando offline:
-<SelectItem value="all" disabled={!navigator.onLine}>
-  <span className={!navigator.onLine ? "text-muted-foreground" : "font-medium"}>
-    Todas as empresas {!navigator.onLine && "(indisponivel offline)"}
-  </span>
-</SelectItem>
+const fetchData = async () => {
+  if (!user) return;
+  try {
+    const resolvedCompanyId = propsCompanyId || ...;
+    
+    // OFFLINE FALLBACK
+    if (!navigator.onLine) {
+      const cachedEnvs = await getCachedEnvironmentsByCompanyId(resolvedCompanyId);
+      setCompanyId(resolvedCompanyId);
+      setAllEnvironments(cachedEnvs);
+      setAvailableEnvironments(cachedEnvs);
+      setAvailableModels([]); // Modelos nao disponiveis offline
+      return;
+    }
+    // ... codigo online existente
+  }
+};
 ```
 
-### BibliotecaCriterios.tsx
+**Problema B - `handleSubmit()`**: Criar/editar ambientes falha offline.
+
+**Correcao**: Adicionar bloco offline que salva no IndexedDB e enfileira para sincronizacao:
 
 ```typescript
-// No bloco else (linha 328), melhorar a mensagem quando offline:
-if (isOfflineMode) {
-  toast({
-    title: "Selecione uma empresa",
-    description: "No modo offline, selecione uma empresa especifica para criar o criterio.",
-    variant: "destructive",
-  });
+// No inicio do handleSubmit, apos validacoes:
+if (!navigator.onLine) {
+  const tempId = `offline_env_${Date.now()}`;
+  const offlineEnv = {
+    id: tempId,
+    company_id: companyId,
+    name: name.trim(),
+    description: description.trim() || null,
+    parent_id: finalParentId,
+    status,
+    created_at: new Date().toISOString(),
+    _isOffline: true,
+  };
+  
+  await addToStore('environments', offlineEnv);
+  await addPendingSync('create', 'environments', offlineEnv);
+  
+  // Fechar modal e atualizar lista
+  onOpenChange(false);
+  onSuccess?.();
+  toast({ title: "Salvo localmente!", description: "Sera sincronizado quando voltar online." });
   return;
 }
 ```
+
+### Arquivo 2: `src/components/company-admin/environments/EnvironmentCard.tsx`
+
+**Problema A - `fetchCriteriaCounts()`**: Falha silenciosamente offline, mostrando "0 criterios" para todos os locais.
+
+**Correcao**: Adicionar fallback que le do cache `environmentCriteria`:
+
+```typescript
+const fetchCriteriaCounts = async () => {
+  try {
+    if (!navigator.onLine) {
+      const cached = await getCachedEnvironmentCriteriaByEnvId_batch(allEnvIds);
+      // contar por environment_id
+      setCriteriaCounts(counts);
+      return;
+    }
+    // ... codigo online existente
+  }
+};
+```
+
+**Problema B - `handleDelete()`**: Excluir ambientes falha offline.
+
+**Correcao**: Adicionar fallback que remove do cache e enfileira delete para sync:
+
+```typescript
+if (!navigator.onLine) {
+  await deleteFromStore('environments', id);
+  await addPendingSync('delete', 'environments', { id });
+  toast({ title: "Removido localmente!" });
+  onRefresh();
+  return;
+}
+```
+
+### Arquivo 3: `src/hooks/useOfflineSync.ts`
+
+**Problema**: Nao existe handler para sincronizar ambientes criados/editados/excluidos offline.
+
+**Correcao**: Adicionar cases no `syncPendingChanges()`:
+
+```typescript
+// CREATE environment
+if (item.type === 'create' && item.table === 'environments') {
+  const { _isOffline, ...envData } = item.data;
+  delete envData.id; // remover ID temporario
+  const { error } = await supabase.from('environments').insert(envData);
+  if (!error) {
+    await removePendingSync(item.id);
+    syncedCount++;
+  }
+  continue;
+}
+
+// DELETE environment
+if (item.type === 'delete' && item.table === 'environments') {
+  const { error } = await supabase.from('environments').delete().eq('id', item.data.id);
+  if (!error) {
+    await removePendingSync(item.id);
+    syncedCount++;
+  }
+  continue;
+}
+```
+
+### Arquivo 4: `src/pages/company-admin/Ambientes.tsx`
+
+**Correcao menor**: Apos criar/editar offline, o `fetchEnvironments()` (chamado via `onSuccess`) ja tem fallback de cache, entao os novos ambientes aparecerao na lista se recarregarmos do IndexedDB.
 
 ## Arquivos a Modificar
 
 | Arquivo | Modificacao |
 |---------|-------------|
-| `src/components/biblioteca/CriterionFormModal.tsx` | Desabilitar "Todas as empresas" offline + validacao no submit |
-| `src/pages/BibliotecaCriterios.tsx` | Melhorar mensagem de erro quando companyId vazio offline |
+| `NewEnvironmentModal.tsx` | Fallback offline em `fetchData()` + `handleSubmit()` |
+| `EnvironmentCard.tsx` | Fallback offline em `fetchCriteriaCounts()` + `handleDelete()` |
+| `useOfflineSync.ts` | Handlers de sync para create/delete de environments |
+| `Ambientes.tsx` | Garantir que `fetchEnvironments` releia cache apos mudancas offline |
 
 ## Resultado Esperado
 
-- Offline: usuario ve que precisa selecionar empresa especifica
-- Offline: opcao "Todas as empresas" fica desabilitada com indicacao visual
-- Offline: criterio e salvo localmente e aparece na lista imediatamente
-- Online: comportamento inalterado
+- Offline: usuario pode criar setores e locais, que aparecem na lista imediatamente
+- Offline: usuario pode excluir setores e locais
+- Offline: contagem de criterios carrega do cache
+- Online: ambientes criados offline sao sincronizados automaticamente com o banco
 
