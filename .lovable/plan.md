@@ -1,154 +1,96 @@
 
+# Plano: Suporte Offline para /ambientes (IFA Admin)
 
-# Plano: Suporte Offline para Ambientes e Locais
+## Problema
 
-## Problemas Identificados
-
-A pagina de Setores e Locais (`/company-admin/ambientes`) consegue **ler** dados do cache quando offline, mas **criar, editar e excluir** ambientes falha completamente porque:
-
-1. **Modal de criacao/edicao** (`NewEnvironmentModal`): `fetchData()` e `handleSubmit()` dependem 100% do Supabase -- sem fallback offline
-2. **Card de ambiente** (`EnvironmentCard`): `fetchCriteriaCounts()` e `handleDelete()` tambem dependem do Supabase
-3. **Sincronizacao** (`useOfflineSync`): nao existe handler para sincronizar ambientes criados offline
+A pagina `/ambientes` (IFA Admin) nao tem nenhum fallback offline. Quando o usuario abre a pagina sem internet:
+- `fetchCompanies()` falha silenciosamente, o select de empresas fica vazio
+- `fetchEnvironments()` nunca e chamado (sem empresa selecionada)
+- Resultado: pagina vazia com "Selecione uma empresa" sem opcoes
 
 ## Solucao
 
-### Arquivo 1: `src/components/company-admin/environments/NewEnvironmentModal.tsx`
+Adicionar fallback de cache IndexedDB nas duas funcoes de fetch, seguindo o mesmo padrao ja usado em `/company-admin/ambientes`.
 
-**Problema A - `fetchData()`**: Quando offline, o modal abre vazio (sem lista de setores para selecionar como pai).
+## Arquivo: `src/pages/Ambientes.tsx`
 
-**Correcao**: Adicionar fallback offline que carrega ambientes do cache IndexedDB:
+### Mudanca 1: `fetchCompanies()` - fallback offline
+
+Quando `!navigator.onLine`, carregar empresas do cache via `getCachedCompanies()`:
 
 ```typescript
-const fetchData = async () => {
-  if (!user) return;
+const fetchCompanies = async () => {
   try {
-    const resolvedCompanyId = propsCompanyId || ...;
-    
-    // OFFLINE FALLBACK
     if (!navigator.onLine) {
-      const cachedEnvs = await getCachedEnvironmentsByCompanyId(resolvedCompanyId);
-      setCompanyId(resolvedCompanyId);
-      setAllEnvironments(cachedEnvs);
-      setAvailableEnvironments(cachedEnvs);
-      setAvailableModels([]); // Modelos nao disponiveis offline
+      const cached = await getCachedCompanies();
+      const activeCompanies = cached.filter(c => c.status === 'active');
+      setCompanies(activeCompanies);
+      if (activeCompanies.length > 0 && !selectedCompanyId) {
+        setSelectedCompanyId(activeCompanies[0].id);
+      }
       return;
     }
-    // ... codigo online existente
+    // ... codigo online existente (inalterado)
+  } catch (error) {
+    // Fallback: tentar cache em caso de erro
+    const cached = await getCachedCompanies();
+    setCompanies(cached.filter(c => c.status === 'active'));
   }
 };
 ```
 
-**Problema B - `handleSubmit()`**: Criar/editar ambientes falha offline.
+### Mudanca 2: `fetchEnvironments()` - fallback offline
 
-**Correcao**: Adicionar bloco offline que salva no IndexedDB e enfileira para sincronizacao:
-
-```typescript
-// No inicio do handleSubmit, apos validacoes:
-if (!navigator.onLine) {
-  const tempId = `offline_env_${Date.now()}`;
-  const offlineEnv = {
-    id: tempId,
-    company_id: companyId,
-    name: name.trim(),
-    description: description.trim() || null,
-    parent_id: finalParentId,
-    status,
-    created_at: new Date().toISOString(),
-    _isOffline: true,
-  };
-  
-  await addToStore('environments', offlineEnv);
-  await addPendingSync('create', 'environments', offlineEnv);
-  
-  // Fechar modal e atualizar lista
-  onOpenChange(false);
-  onSuccess?.();
-  toast({ title: "Salvo localmente!", description: "Sera sincronizado quando voltar online." });
-  return;
-}
-```
-
-### Arquivo 2: `src/components/company-admin/environments/EnvironmentCard.tsx`
-
-**Problema A - `fetchCriteriaCounts()`**: Falha silenciosamente offline, mostrando "0 criterios" para todos os locais.
-
-**Correcao**: Adicionar fallback que le do cache `environmentCriteria`:
+Quando `!navigator.onLine`, carregar ambientes do cache via `getCachedEnvironmentsByCompanyId()`:
 
 ```typescript
-const fetchCriteriaCounts = async () => {
+const fetchEnvironments = async () => {
+  if (!selectedCompanyId) return;
   try {
+    setLoading(true);
+
     if (!navigator.onLine) {
-      const cached = await getCachedEnvironmentCriteriaByEnvId_batch(allEnvIds);
-      // contar por environment_id
-      setCriteriaCounts(counts);
+      const cached = await getCachedEnvironmentsByCompanyId(selectedCompanyId);
+      const mapped = cached.map(env => ({
+        ...env,
+        status: env.status as 'active' | 'inactive',
+        icon: 'Factory',
+        audits_count: 0,
+      }));
+      setEnvironments(mapped);
       return;
     }
-    // ... codigo online existente
+    // ... codigo online existente (inalterado)
+  } catch (error) {
+    // Fallback: tentar cache em caso de erro
+    const cached = await getCachedEnvironmentsByCompanyId(selectedCompanyId);
+    setEnvironments(cached.map(env => ({
+      ...env, status: env.status as 'active' | 'inactive',
+      icon: 'Factory', audits_count: 0,
+    })));
+  } finally {
+    setLoading(false);
   }
 };
 ```
 
-**Problema B - `handleDelete()`**: Excluir ambientes falha offline.
+### Mudanca 3: Imports
 
-**Correcao**: Adicionar fallback que remove do cache e enfileira delete para sync:
-
-```typescript
-if (!navigator.onLine) {
-  await deleteFromStore('environments', id);
-  await addPendingSync('delete', 'environments', { id });
-  toast({ title: "Removido localmente!" });
-  onRefresh();
-  return;
-}
-```
-
-### Arquivo 3: `src/hooks/useOfflineSync.ts`
-
-**Problema**: Nao existe handler para sincronizar ambientes criados/editados/excluidos offline.
-
-**Correcao**: Adicionar cases no `syncPendingChanges()`:
+Adicionar imports necessarios:
 
 ```typescript
-// CREATE environment
-if (item.type === 'create' && item.table === 'environments') {
-  const { _isOffline, ...envData } = item.data;
-  delete envData.id; // remover ID temporario
-  const { error } = await supabase.from('environments').insert(envData);
-  if (!error) {
-    await removePendingSync(item.id);
-    syncedCount++;
-  }
-  continue;
-}
-
-// DELETE environment
-if (item.type === 'delete' && item.table === 'environments') {
-  const { error } = await supabase.from('environments').delete().eq('id', item.data.id);
-  if (!error) {
-    await removePendingSync(item.id);
-    syncedCount++;
-  }
-  continue;
-}
+import { getCachedCompanies, getCachedEnvironmentsByCompanyId } from "@/lib/offlineStorage";
 ```
-
-### Arquivo 4: `src/pages/company-admin/Ambientes.tsx`
-
-**Correcao menor**: Apos criar/editar offline, o `fetchEnvironments()` (chamado via `onSuccess`) ja tem fallback de cache, entao os novos ambientes aparecerao na lista se recarregarmos do IndexedDB.
 
 ## Arquivos a Modificar
 
 | Arquivo | Modificacao |
 |---------|-------------|
-| `NewEnvironmentModal.tsx` | Fallback offline em `fetchData()` + `handleSubmit()` |
-| `EnvironmentCard.tsx` | Fallback offline em `fetchCriteriaCounts()` + `handleDelete()` |
-| `useOfflineSync.ts` | Handlers de sync para create/delete de environments |
-| `Ambientes.tsx` | Garantir que `fetchEnvironments` releia cache apos mudancas offline |
+| `src/pages/Ambientes.tsx` | Adicionar fallback offline em `fetchCompanies()` e `fetchEnvironments()` + imports |
 
 ## Resultado Esperado
 
-- Offline: usuario pode criar setores e locais, que aparecem na lista imediatamente
-- Offline: usuario pode excluir setores e locais
-- Offline: contagem de criterios carrega do cache
-- Online: ambientes criados offline sao sincronizados automaticamente com o banco
-
+- Offline: empresas aparecem no select (carregadas do cache)
+- Offline: ao selecionar empresa, ambientes e locais aparecem normalmente
+- Online: comportamento inalterado
+- Requisito: o usuario precisa ter acessado a pagina pelo menos uma vez online para popular o cache
