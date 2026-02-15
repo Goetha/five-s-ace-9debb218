@@ -577,6 +577,26 @@ export function useOfflineSync() {
             continue;
           }
 
+          // Handle company_criteria deletion sync
+          if (item.type === 'delete' && item.table === 'company_criteria') {
+            const { id: criterionId } = item.data;
+            console.log('[useOfflineSync] 🗑️ Syncing criterion deletion:', criterionId);
+            const { error } = await supabase.from('company_criteria').delete().eq('id', criterionId);
+            if (error) {
+              console.error('[useOfflineSync] Error deleting criterion:', error);
+              if (error.code === 'PGRST116' || error.message?.includes('not found')) {
+                await removePendingSync(item.id);
+                continue;
+              }
+              errorCount++;
+              continue;
+            }
+            console.log('[useOfflineSync] ✅ Criterion deletion synced:', criterionId);
+            await removePendingSync(item.id);
+            syncedCount++;
+            continue;
+          }
+
           // Handle regular creates
           if (item.type === 'create') {
             if (item.table === 'audits') {
