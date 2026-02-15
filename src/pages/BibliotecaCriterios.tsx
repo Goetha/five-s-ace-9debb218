@@ -602,6 +602,27 @@ const BibliotecaCriterios = () => {
           }}
           onDelete={async () => {
             try {
+              if (!navigator.onLine) {
+                const { deleteFromStore, addPendingSync, initDB, deleteOfflineCriterion } = await import('@/lib/offlineStorage');
+                await initDB();
+                for (const id of selectedIds) {
+                  if (id.startsWith('offline_')) {
+                    await deleteOfflineCriterion(id);
+                  } else {
+                    await deleteFromStore('criteria', id);
+                    await addPendingSync('delete', 'company_criteria', { id });
+                  }
+                }
+                setCriteria(prev => prev.filter(c => !selectedIds.includes(c.id)));
+                setSelectedIds([]);
+                toast({
+                  title: "Removidos localmente",
+                  description: `${selectedIds.length} ${selectedIds.length === 1 ? "item" : "itens"} serão excluídos ao reconectar.`,
+                  duration: 3000,
+                });
+                return;
+              }
+
               const { error } = await supabase
                 .from("company_criteria")
                 .delete()
