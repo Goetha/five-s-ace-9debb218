@@ -778,7 +778,25 @@ export default function Empresas() {
   const handleConfirmDelete = async () => {
     if (!deleteCompany) return;
     try {
-      // Delete from backend first
+      if (!navigator.onLine) {
+        // OFFLINE: Remove from IndexedDB and queue sync
+        const { deleteFromStore, addPendingSync, initDB } = await import('@/lib/offlineStorage');
+        await initDB();
+        await deleteFromStore('companies', deleteCompany.id);
+        // Only queue delete for non-offline-created companies
+        if (!deleteCompany.id.startsWith('offline_')) {
+          await addPendingSync('delete', 'companies', { id: deleteCompany.id });
+        }
+        setCompanies(companies.filter(c => c.id !== deleteCompany.id));
+        setDeleteCompany(null);
+        toast({
+          title: 'Empresa removida localmente',
+          description: `${deleteCompany.name} será excluída do servidor ao reconectar.`,
+        });
+        return;
+      }
+
+      // ONLINE: Delete from backend
       const { error } = await supabase
         .from('companies')
         .delete()
@@ -794,15 +812,12 @@ export default function Empresas() {
         return;
       }
 
-      // Update local state and notify
       setCompanies(companies.filter(c => c.id !== deleteCompany.id));
       toast({
         title: 'Empresa excluída permanentemente',
         description: `${deleteCompany.name} foi removida do sistema`,
         variant: 'destructive',
       });
-
-      // Clear modal
       setDeleteCompany(null);
     } catch (err) {
       console.error('Error in handleConfirmDelete:', err);
