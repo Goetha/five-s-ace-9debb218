@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { getCachedCompanies, getCachedEnvironmentsByCompanyId } from "@/lib/offlineStorage";
 import Header from "@/components/layout/Header";
 import type { Environment } from "@/types/environment";
 
@@ -47,6 +48,16 @@ export default function Ambientes() {
 
   const fetchCompanies = async () => {
     try {
+      if (!navigator.onLine) {
+        const cached = await getCachedCompanies();
+        const activeCompanies = cached.filter((c: any) => c.status === 'active');
+        setCompanies(activeCompanies);
+        if (activeCompanies.length > 0 && !selectedCompanyId) {
+          setSelectedCompanyId(activeCompanies[0].id);
+        }
+        return;
+      }
+
       const { data, error } = await supabase
         .from('companies')
         .select('id, name, status')
@@ -64,12 +75,19 @@ export default function Ambientes() {
       }
 
       setCompanies(data || []);
-      // Auto-select first company if available
       if (data && data.length > 0 && !selectedCompanyId) {
         setSelectedCompanyId(data[0].id);
       }
     } catch (error) {
       console.error("Error:", error);
+      try {
+        const cached = await getCachedCompanies();
+        const activeCompanies = cached.filter((c: any) => c.status === 'active');
+        setCompanies(activeCompanies);
+        if (activeCompanies.length > 0 && !selectedCompanyId) {
+          setSelectedCompanyId(activeCompanies[0].id);
+        }
+      } catch (_) {}
     }
   };
 
@@ -78,6 +96,18 @@ export default function Ambientes() {
     
     try {
       setLoading(true);
+
+      if (!navigator.onLine) {
+        const cached = await getCachedEnvironmentsByCompanyId(selectedCompanyId);
+        const mapped: Environment[] = cached.map((env: any) => ({
+          ...env,
+          status: env.status as 'active' | 'inactive',
+          icon: 'Factory',
+          audits_count: 0,
+        }));
+        setEnvironments(mapped);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('environments')
@@ -105,6 +135,15 @@ export default function Ambientes() {
       setEnvironments(mappedEnvironments);
     } catch (error) {
       console.error("Error:", error);
+      try {
+        const cached = await getCachedEnvironmentsByCompanyId(selectedCompanyId);
+        setEnvironments(cached.map((env: any) => ({
+          ...env,
+          status: env.status as 'active' | 'inactive',
+          icon: 'Factory',
+          audits_count: 0,
+        })));
+      } catch (_) {}
     } finally {
       setLoading(false);
     }
