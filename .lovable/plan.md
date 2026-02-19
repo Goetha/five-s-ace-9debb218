@@ -1,96 +1,67 @@
 
-# Plano: Suporte Offline para /ambientes (IFA Admin)
+# Plano: Corrigir exclusao em massa de empresas no modo offline
 
 ## Problema
 
-A pagina `/ambientes` (IFA Admin) nao tem nenhum fallback offline. Quando o usuario abre a pagina sem internet:
-- `fetchCompanies()` falha silenciosamente, o select de empresas fica vazio
-- `fetchEnvironments()` nunca e chamado (sem empresa selecionada)
-- Resultado: pagina vazia com "Selecione uma empresa" sem opcoes
+O botao de lixeira na barra de acoes em massa (`CompanyBulkActions`) chama diretamente o Supabase sem fallback offline (linhas 941-980 de `Empresas.tsx`). Quando offline, a chamada `supabase.from('companies').delete().in('id', selectedCompanies)` falha silenciosamente e nada acontece.
+
+Nota: a exclusao individual (via `DeleteCompanyDialog` + `handleConfirmDelete`) ja tem suporte offline, mas o fluxo em massa nao usa essa funcao.
 
 ## Solucao
 
-Adicionar fallback de cache IndexedDB nas duas funcoes de fetch, seguindo o mesmo padrao ja usado em `/company-admin/ambientes`.
+Adicionar fallback offline no handler `onDelete` do `CompanyBulkActions` (linhas 941-980), seguindo o mesmo padrao do `handleConfirmDelete`.
 
-## Arquivo: `src/pages/Ambientes.tsx`
+## Arquivo: `src/pages/Empresas.tsx`
 
-### Mudanca 1: `fetchCompanies()` - fallback offline
+### Mudanca: handler `onDelete` do `CompanyBulkActions` (linhas 941-980)
 
-Quando `!navigator.onLine`, carregar empresas do cache via `getCachedCompanies()`:
+Adicionar verificacao `!navigator.onLine` antes da chamada ao Supabase:
 
 ```typescript
-const fetchCompanies = async () => {
-  try {
-    if (!navigator.onLine) {
-      const cached = await getCachedCompanies();
-      const activeCompanies = cached.filter(c => c.status === 'active');
-      setCompanies(activeCompanies);
-      if (activeCompanies.length > 0 && !selectedCompanyId) {
-        setSelectedCompanyId(activeCompanies[0].id);
+onDelete={() => {
+  (async () => {
+    try {
+      if (selectedCompanies.length === 0) return;
+
+      // OFFLINE FALLBACK
+      if (!navigator.onLine) {
+        const { deleteFromStore, addPendingSync, initDB } = await import('@/lib/offlineStorage');
+        await initDB();
+        for (const id of selectedCompanies) {
+          await deleteFromStore('companies', id);
+          if (!id.startsWith('offline_')) {
+            await addPendingSync('delete', 'companies', { id });
+          }
+        }
+        const remaining = companies.filter(c => !selectedCompanies.includes(c.id));
+        setCompanies(remaining);
+        toast({
+          title: 'Empresas removidas localmente',
+          description: `${selectedCompanies.length} empresa(s) serao excluidas ao reconectar.`,
+        });
+        setSelectedCompanies([]);
+        return;
       }
-      return;
-    }
-    // ... codigo online existente (inalterado)
-  } catch (error) {
-    // Fallback: tentar cache em caso de erro
-    const cached = await getCachedCompanies();
-    setCompanies(cached.filter(c => c.status === 'active'));
-  }
-};
-```
 
-### Mudanca 2: `fetchEnvironments()` - fallback offline
-
-Quando `!navigator.onLine`, carregar ambientes do cache via `getCachedEnvironmentsByCompanyId()`:
-
-```typescript
-const fetchEnvironments = async () => {
-  if (!selectedCompanyId) return;
-  try {
-    setLoading(true);
-
-    if (!navigator.onLine) {
-      const cached = await getCachedEnvironmentsByCompanyId(selectedCompanyId);
-      const mapped = cached.map(env => ({
-        ...env,
-        status: env.status as 'active' | 'inactive',
-        icon: 'Factory',
-        audits_count: 0,
-      }));
-      setEnvironments(mapped);
-      return;
-    }
-    // ... codigo online existente (inalterado)
-  } catch (error) {
-    // Fallback: tentar cache em caso de erro
-    const cached = await getCachedEnvironmentsByCompanyId(selectedCompanyId);
-    setEnvironments(cached.map(env => ({
-      ...env, status: env.status as 'active' | 'inactive',
-      icon: 'Factory', audits_count: 0,
-    })));
-  } finally {
-    setLoading(false);
-  }
-};
-```
-
-### Mudanca 3: Imports
-
-Adicionar imports necessarios:
-
-```typescript
-import { getCachedCompanies, getCachedEnvironmentsByCompanyId } from "@/lib/offlineStorage";
+      // ONLINE: codigo existente (inalterado)
+      const { error } = await supabase
+        .from('companies')
+        .delete()
+        .in('id', selectedCompanies);
+      // ... resto do codigo online
+    } catch (err) { ... }
+  })();
+}}
 ```
 
 ## Arquivos a Modificar
 
 | Arquivo | Modificacao |
 |---------|-------------|
-| `src/pages/Ambientes.tsx` | Adicionar fallback offline em `fetchCompanies()` e `fetchEnvironments()` + imports |
+| `src/pages/Empresas.tsx` | Adicionar fallback offline no `onDelete` do `CompanyBulkActions` (linhas 941-980) |
 
 ## Resultado Esperado
 
-- Offline: empresas aparecem no select (carregadas do cache)
-- Offline: ao selecionar empresa, ambientes e locais aparecem normalmente
-- Online: comportamento inalterado
-- Requisito: o usuario precisa ter acessado a pagina pelo menos uma vez online para popular o cache
+- Offline: selecionar empresas e clicar na lixeira remove da lista imediatamente
+- As exclusoes ficam na fila de sincronizacao pendente
+- Online: ao reconectar, as exclusoes sao enviadas ao servidor automaticamente
