@@ -555,7 +555,7 @@ export default function Empresas() {
       };
 
       // Add to local state (will be persisted in backend already)
-      setCompanies([newCompany, ...companies]);
+      setCompanies(prev => [newCompany, ...prev]);
       
       toast({
         title: "✓ Empresa cadastrada com sucesso!",
