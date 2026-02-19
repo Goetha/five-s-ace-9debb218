@@ -943,7 +943,27 @@ export default function Empresas() {
                     try {
                       if (selectedCompanies.length === 0) return;
 
-                      // Delete in backend
+                      // OFFLINE FALLBACK
+                      if (!navigator.onLine) {
+                        const { deleteFromStore, addPendingSync, initDB } = await import('@/lib/offlineStorage');
+                        await initDB();
+                        for (const id of selectedCompanies) {
+                          await deleteFromStore('companies', id);
+                          if (!id.startsWith('offline_')) {
+                            await addPendingSync('delete', 'companies', { id });
+                          }
+                        }
+                        const remaining = companies.filter(c => !selectedCompanies.includes(c.id));
+                        setCompanies(remaining);
+                        toast({
+                          title: 'Empresas removidas localmente',
+                          description: `${selectedCompanies.length} empresa(s) serão excluídas ao reconectar.`,
+                        });
+                        setSelectedCompanies([]);
+                        return;
+                      }
+
+                      // ONLINE: Delete in backend
                       const { error } = await supabase
                         .from('companies')
                         .delete()
